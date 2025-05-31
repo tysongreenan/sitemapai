@@ -101,8 +101,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateProject = async (id: string, data: Partial<Omit<Project, 'id' | 'created_at'>>) => {
+    // Clear any existing validation toasts
+    AppErrorHandler.clearToasts();
+
     const validation = validateProject(data);
-    
     if (!validation.isValid) {
       AppErrorHandler.handle({
         type: 'validation',
@@ -156,6 +158,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const saveProjectChanges = async (changes: Partial<Omit<Project, 'id' | 'created_at'>>) => {
     if (!currentProject) return;
     
+    // Clear any existing validation toasts
+    AppErrorHandler.clearToasts();
+
     if (changes.sitemap_data) {
       const validation = validateSitemapData(changes.sitemap_data);
       if (!validation.isValid) {

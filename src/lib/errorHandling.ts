@@ -1,5 +1,5 @@
 // src/lib/errorHandling.ts
-import { toast } from 'react-toastify';
+import { toast, ToastOptions, Id } from 'react-toastify';
 
 export enum ErrorType {
   NETWORK = 'NETWORK',
@@ -15,6 +15,9 @@ export interface AppError {
   originalError?: any;
   context?: Record<string, any>;
 }
+
+// Keep track of active toasts to prevent duplicates
+const activeToasts = new Set<string>();
 
 export class AppErrorHandler {
   static handle(error: any, context?: Record<string, any>): AppError {
@@ -104,31 +107,48 @@ export class AppErrorHandler {
   }
 
   private static showUserError(appError: AppError): void {
-    const toastOptions = {
-      position: 'bottom-right' as const,
+    const toastKey = `${appError.type}-${appError.message}`;
+    
+    // Don't show duplicate toasts
+    if (activeToasts.has(toastKey)) {
+      return;
+    }
+
+    const toastOptions: ToastOptions = {
+      position: 'bottom-right',
       autoClose: 5000,
       hideProgressBar: false,
       closeOnClick: true,
       pauseOnHover: true,
       draggable: true,
+      onClose: () => activeToasts.delete(toastKey),
     };
+
+    let toastId: Id;
 
     switch (appError.type) {
       case ErrorType.AUTH:
-        toast.error(appError.message, toastOptions);
+        toastId = toast.error(appError.message, toastOptions);
         break;
       case ErrorType.VALIDATION:
-        toast.warn(appError.message, toastOptions);
+        toastId = toast.warn(appError.message, { ...toastOptions, autoClose: 3000 });
         break;
       case ErrorType.NETWORK:
-        toast.error(appError.message, { ...toastOptions, autoClose: 8000 });
+        toastId = toast.error(appError.message, { ...toastOptions, autoClose: 8000 });
         break;
       case ErrorType.DATABASE:
-        toast.error(appError.message, toastOptions);
+        toastId = toast.error(appError.message, toastOptions);
         break;
       default:
-        toast.error(appError.message, toastOptions);
+        toastId = toast.error(appError.message, toastOptions);
     }
+
+    activeToasts.add(toastKey);
+  }
+
+  static clearToasts(): void {
+    toast.dismiss();
+    activeToasts.clear();
   }
 }
 

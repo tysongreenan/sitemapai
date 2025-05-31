@@ -1,31 +1,32 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Save, Share, Download, ChevronLeft, Edit } from 'lucide-react';
+import { Save, Share, Download, ChevronLeft, Edit, Check, AlertCircle } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { useProject } from '../../context/ProjectContext';
-import { toast } from 'react-toastify';
 
 interface EditorToolbarProps {
   projectTitle: string;
   isSaving: boolean;
   onSave: () => void;
+  saveStatus: 'idle' | 'saving' | 'saved' | 'error';
 }
 
 export default function EditorToolbar({ 
   projectTitle, 
   isSaving, 
-  onSave 
+  onSave,
+  saveStatus 
 }: EditorToolbarProps) {
   const navigate = useNavigate();
   const { updateProject, currentProject } = useProject();
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [title, setTitle] = useState(projectTitle);
 
-  const handleTitleUpdate = async () => {
+  const handleTitleUpdate = () => {
     if (!currentProject) return;
     
-    await updateProject(currentProject.id, { title });
+    updateProject(currentProject.id, { title });
     setIsEditingTitle(false);
   };
 
@@ -43,17 +44,33 @@ export default function EditorToolbar({
     linkElement.click();
   };
 
-  const handleManualSave = () => {
-    onSave();
-    toast.success('Changes saved successfully', {
-      position: "bottom-right",
-      autoClose: 2000,
-      hideProgressBar: true,
-      closeOnClick: true,
-      pauseOnHover: false,
-      draggable: false,
-      progress: undefined,
-    });
+  // Save status indicator
+  const SaveStatusIndicator = () => {
+    switch (saveStatus) {
+      case 'saving':
+        return (
+          <div className="flex items-center text-yellow-600 text-sm">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-600 mr-2"></div>
+            Saving...
+          </div>
+        );
+      case 'saved':
+        return (
+          <div className="flex items-center text-green-600 text-sm">
+            <Check size={16} className="mr-1" />
+            Saved
+          </div>
+        );
+      case 'error':
+        return (
+          <div className="flex items-center text-red-600 text-sm">
+            <AlertCircle size={16} className="mr-1" />
+            Error saving
+          </div>
+        );
+      default:
+        return null;
+    }
   };
 
   return (
@@ -102,6 +119,11 @@ export default function EditorToolbar({
             </Button>
           </div>
         )}
+        
+        {/* Save status indicator */}
+        <div className="ml-4">
+          <SaveStatusIndicator />
+        </div>
       </div>
       
       <div className="flex items-center space-x-2">
@@ -126,7 +148,7 @@ export default function EditorToolbar({
           size="sm"
           leftIcon={<Save size={16} />}
           isLoading={isSaving}
-          onClick={handleManualSave}
+          onClick={onSave}
         >
           Save
         </Button>

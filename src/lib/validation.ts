@@ -1,4 +1,3 @@
-// src/lib/validation.ts
 export interface ValidationResult {
   isValid: boolean;
   error?: string;
@@ -95,23 +94,24 @@ export const validateSitemapData = (data: any): ValidationResult => {
   return { isValid: true };
 };
 
-// Utility function to validate multiple fields at once
 export const validateProject = (project: {
   title?: string;
   description?: string;
   sitemap_data?: any;
 }): ValidationResult => {
-  // Only validate title if it's included in the update
+  // Only validate title if it's provided
   if (project.title !== undefined) {
     const titleValidation = validateProjectTitle(project.title);
     if (!titleValidation.isValid) return titleValidation;
   }
   
+  // Only validate description if it's provided
   if (project.description !== undefined) {
     const descValidation = validateDescription(project.description);
     if (!descValidation.isValid) return descValidation;
   }
   
+  // Only validate sitemap data if it's provided
   if (project.sitemap_data !== undefined) {
     const sitemapValidation = validateSitemapData(project.sitemap_data);
     if (!sitemapValidation.isValid) return sitemapValidation;
@@ -120,7 +120,6 @@ export const validateProject = (project: {
   return { isValid: true };
 };
 
-// Helper function for form validation
 export const getValidationErrors = (fields: Record<string, any>, validators: Record<string, (value: any) => ValidationResult>): Record<string, string> => {
   const errors: Record<string, string> = {};
   

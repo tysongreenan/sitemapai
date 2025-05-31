@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { debounce } from '../lib/utils';
-import { Edge, Node } from 'react-flow-renderer';
+import { Edge, Node } from 'react-flow';
 
 export type Project = {
   id: string;

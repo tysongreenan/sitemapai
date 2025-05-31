@@ -15,7 +15,7 @@ import NotFoundPage from './pages/NotFoundPage';
 
 // Layout components
 import ProtectedRoute from './components/layout/ProtectedRoute';
-import { ErrorBoundary } from './lib/errorHandling';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 function App() {
   return (

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './database.types';
+import { AppErrorHandler } from './errorHandling';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -21,7 +22,10 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     headers: {
       'X-Client-Info': 'supabase-js-web'
     }
-  }
+  },
+  // Add retry configuration
+  retryAttempts: 3,
+  retryInterval: 1000
 });
 
 // Add a health check function to verify connection
@@ -38,7 +42,15 @@ export const checkSupabaseConnection = async () => {
     
     return true;
   } catch (error) {
-    console.error('Supabase connection error:', error);
+    AppErrorHandler.handle(error, { context: 'checkSupabaseConnection' });
     return false;
   }
 };
+
+// Add connection status listener
+supabase.auth.onAuthStateChange((event, session) => {
+  if (event === 'SIGNED_OUT') {
+    // Clear any cached data
+    localStorage.removeItem('supabase.auth.token');
+  }
+});

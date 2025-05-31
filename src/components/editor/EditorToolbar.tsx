@@ -1,20 +1,18 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Save, Share, Download, ChevronLeft, Edit, Check, AlertCircle } from 'lucide-react';
+import { Save, Share, Download, ChevronLeft, Edit, Check, AlertCircle, Clock } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
-import { useProject } from '../../context/ProjectContext';
+import { useProject, SaveStatus } from '../../context/ProjectContext';
 
 interface EditorToolbarProps {
   projectTitle: string;
-  isSaving: boolean;
   onSave: () => void;
-  saveStatus: 'idle' | 'saving' | 'saved' | 'error';
+  saveStatus: SaveStatus;
 }
 
 export default function EditorToolbar({ 
   projectTitle, 
-  isSaving, 
   onSave,
   saveStatus 
 }: EditorToolbarProps) {
@@ -23,11 +21,13 @@ export default function EditorToolbar({
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [title, setTitle] = useState(projectTitle);
 
-  const handleTitleUpdate = () => {
+  const handleTitleUpdate = async () => {
     if (!currentProject) return;
     
-    updateProject(currentProject.id, { title });
-    setIsEditingTitle(false);
+    const success = await updateProject(currentProject.id, { title });
+    if (success) {
+      setIsEditingTitle(false);
+    }
   };
 
   const handleExport = () => {
@@ -44,28 +44,35 @@ export default function EditorToolbar({
     linkElement.click();
   };
 
-  // Save status indicator
+  // Save status indicator component
   const SaveStatusIndicator = () => {
     switch (saveStatus) {
+      case 'pending':
+        return (
+          <div className="flex items-center text-blue-600 text-sm">
+            <Clock size={14} className="mr-1" />
+            <span>Changes pending...</span>
+          </div>
+        );
       case 'saving':
         return (
-          <div className="flex items-center text-yellow-600 text-sm">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-600 mr-2"></div>
-            Saving...
+          <div className="flex items-center text-blue-600 text-sm">
+            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-2"></div>
+            <span>Saving...</span>
           </div>
         );
       case 'saved':
         return (
           <div className="flex items-center text-green-600 text-sm">
-            <Check size={16} className="mr-1" />
-            Saved
+            <Check size={14} className="mr-1" />
+            <span>All changes saved</span>
           </div>
         );
       case 'error':
         return (
           <div className="flex items-center text-red-600 text-sm">
-            <AlertCircle size={16} className="mr-1" />
-            Error saving
+            <AlertCircle size={14} className="mr-1" />
+            <span>Save failed</span>
           </div>
         );
       default:
@@ -75,13 +82,12 @@ export default function EditorToolbar({
 
   return (
     <div className="h-16 bg-white border-b border-gray-200 px-4 flex items-center justify-between">
-      <div className="flex items-center">
+      <div className="flex items-center space-x-4">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => navigate('/dashboard')}
           leftIcon={<ChevronLeft size={18} />}
-          className="mr-4"
         >
           Back
         </Button>
@@ -95,6 +101,9 @@ export default function EditorToolbar({
               onKeyPress={(e) => {
                 if (e.key === 'Enter') {
                   handleTitleUpdate();
+                } else if (e.key === 'Escape') {
+                  setTitle(projectTitle);
+                  setIsEditingTitle(false);
                 }
               }}
               autoFocus
@@ -102,7 +111,14 @@ export default function EditorToolbar({
             <Button size="sm" variant="primary" onClick={handleTitleUpdate}>
               Save
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setIsEditingTitle(false)}>
+            <Button 
+              size="sm" 
+              variant="ghost" 
+              onClick={() => {
+                setTitle(projectTitle);
+                setIsEditingTitle(false);
+              }}
+            >
               Cancel
             </Button>
           </div>
@@ -121,9 +137,7 @@ export default function EditorToolbar({
         )}
         
         {/* Save status indicator */}
-        <div className="ml-4">
-          <SaveStatusIndicator />
-        </div>
+        <SaveStatusIndicator />
       </div>
       
       <div className="flex items-center space-x-2">
@@ -147,10 +161,10 @@ export default function EditorToolbar({
           variant="primary"
           size="sm"
           leftIcon={<Save size={16} />}
-          isLoading={isSaving}
           onClick={onSave}
+          disabled={saveStatus === 'saving'}
         >
-          Save
+          {saveStatus === 'saving' ? 'Saving...' : 'Save'}
         </Button>
       </div>
     </div>

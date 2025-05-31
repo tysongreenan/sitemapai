@@ -1,11 +1,9 @@
-// src/context/ProjectContext.tsx - Fix the auto-save logic
-
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+// src/context/ProjectContext.tsx - Clean version
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
-import { debounce } from '../lib/utils';
 import { Edge, Node } from 'reactflow';
-import { validateProject, validateSitemapData } from '../lib/validation';
+import { validateProjectTitle, validateDescription, validateSitemapData } from '../lib/validation';
 import { AppErrorHandler, handleAsyncError } from '../lib/errorHandling';
 import { toast } from 'react-toastify';
 
@@ -23,19 +21,22 @@ export type Project = {
   updated_at: string;
 };
 
+export type SaveStatus = 'idle' | 'pending' | 'saving' | 'saved' | 'error';
+
 type ProjectContextType = {
   projects: Project[];
   currentProject: Project | null;
   loading: boolean;
   error: string | null;
+  saveStatus: SaveStatus;
   loadProjects: () => Promise<void>;
   createProject: (title: string, description?: string) => Promise<Project | null>;
-  updateProject: (id: string, data: Partial<Omit<Project, 'id' | 'created_at'>>) => Promise<void>;
+  updateProject: (id: string, data: Partial<Omit<Project, 'id' | 'created_at'>>) => Promise<boolean>;
   deleteProject: (id: string) => Promise<void>;
   setCurrentProject: (project: Project | null) => void;
-  saveProjectChanges: (changes: Partial<Omit<Project, 'id' | 'created_at'>>) => Promise<void>;
+  updateCurrentProjectLocally: (changes: Partial<Omit<Project, 'id' | 'created_at'>>) => void;
+  setSaveStatus: (status: SaveStatus) => void;
   clearError: () => void;
-  saveStatus: 'idle' | 'saving' | 'saved' | 'error';
 };
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
@@ -46,11 +47,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  
-  // Track if we've shown a save notification recently
-  const lastSaveToastRef = useRef<number>(0);
-  const TOAST_COOLDOWN = 5000; // 5 seconds between toast notifications
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
 
   const clearError = () => setError(null);
 
@@ -82,11 +79,18 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Validate input
-    const validation = validateProject({ title, description });
-    if (!validation.isValid) {
-      AppErrorHandler.handle({ type: 'validation', message: validation.error }, 
-        { operation: 'createProject' });
+    const titleValidation = validateProjectTitle(title);
+    if (!titleValidation.isValid) {
+      AppErrorHandler.handle({ type: 'validation', message: titleValidation.error });
       return null;
+    }
+
+    if (description) {
+      const descValidation = validateDescription(description);
+      if (!descValidation.isValid) {
+        AppErrorHandler.handle({ type: 'validation', message: descValidation.error });
+        return null;
+      }
     }
 
     const result = await handleAsyncError(async () => {
@@ -113,14 +117,14 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     return result;
   };
 
-  const updateProject = async (id: string, data: Partial<Omit<Project, 'id' | 'created_at'>>, showToast = true) => {
-    // Only validate specific fields that are being updated
+  const updateProject = async (id: string, data: Partial<Omit<Project, 'id' | 'created_at'>>): Promise<boolean> => {
+    // Validate fields being updated
     if (data.title !== undefined) {
       const titleValidation = validateProjectTitle(data.title);
       if (!titleValidation.isValid) {
         AppErrorHandler.handle({ type: 'validation', message: titleValidation.error });
         setSaveStatus('error');
-        return;
+        return false;
       }
     }
 
@@ -129,7 +133,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       if (!descValidation.isValid) {
         AppErrorHandler.handle({ type: 'validation', message: descValidation.error });
         setSaveStatus('error');
-        return;
+        return false;
       }
     }
 
@@ -138,7 +142,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       if (!sitemapValidation.isValid) {
         AppErrorHandler.handle({ type: 'validation', message: sitemapValidation.error });
         setSaveStatus('error');
-        return;
+        return false;
       }
     }
 
@@ -152,6 +156,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
       if (error) throw error;
 
+      // Update local state
       setProjects((prev) =>
         prev.map((project) =>
           project.id === id
@@ -167,20 +172,21 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       }
 
       setSaveStatus('saved');
+      
+      // Auto-clear saved status after 2 seconds
+      setTimeout(() => {
+        setSaveStatus('idle');
+      }, 2000);
 
-      // Only show toast if requested and enough time has passed
-      if (showToast) {
-        const now = Date.now();
-        if (now - lastSaveToastRef.current > TOAST_COOLDOWN) {
-          toast.success('Project updated successfully');
-          lastSaveToastRef.current = now;
-        }
-      }
-    }, { operation: 'updateProject', projectId: id, updates: data });
+      return true;
+    }, { operation: 'updateProject', projectId: id });
 
     if (!success) {
       setSaveStatus('error');
+      return false;
     }
+
+    return true;
   };
 
   const deleteProject = async (id: string) => {
@@ -199,36 +205,11 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }, { operation: 'deleteProject', projectId: id });
   };
 
-  // Create a debounced save function that doesn't show toast notifications
-  const debouncedSave = useCallback(
-    debounce(async (id: string, changes: Partial<Omit<Project, 'id' | 'created_at'>>) => {
-      await updateProject(id, changes, false); // false = don't show toast for auto-save
-    }, 2000), // Increased debounce time to 2 seconds
-    []
-  );
-
-  const saveProjectChanges = async (changes: Partial<Omit<Project, 'id' | 'created_at'>>) => {
-    if (!currentProject) return;
-    
-    // Validate sitemap data if it's being updated
-    if (changes.sitemap_data) {
-      const validation = validateSitemapData(changes.sitemap_data);
-      if (!validation.isValid) {
-        AppErrorHandler.handle({ type: 'validation', message: validation.error });
-        return;
-      }
-    }
-    
-    // Update the local state immediately for responsive UI
+  // Update current project locally without saving
+  const updateCurrentProjectLocally = (changes: Partial<Omit<Project, 'id' | 'created_at'>>) => {
     setCurrentProject((prev) => 
       prev ? { ...prev, ...changes } : null
     );
-
-    // Set status to indicate changes are pending
-    setSaveStatus('saving');
-
-    // Debounce the actual save to Supabase (without toast)
-    debouncedSave(currentProject.id, changes);
   };
 
   // Load projects when user changes
@@ -246,14 +227,15 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     currentProject,
     loading,
     error,
+    saveStatus,
     loadProjects,
     createProject,
     updateProject,
     deleteProject,
     setCurrentProject,
-    saveProjectChanges,
+    updateCurrentProjectLocally,
+    setSaveStatus,
     clearError,
-    saveStatus,
   };
 
   return <ProjectContext.Provider value={value}>{children}</ProjectContext.Provider>;

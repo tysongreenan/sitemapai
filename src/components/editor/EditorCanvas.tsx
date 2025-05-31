@@ -22,6 +22,7 @@ import ReactFlow, {
   ConnectionLineType,
   getRectOfNodes,
   getTransformForBounds,
+  useReactFlow,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { toast } from 'react-toastify';
@@ -504,9 +505,9 @@ const EnhancedToolbar = ({
 };
 
 // -----------------------------------------------------------------------------
-// 6) ProfessionalEditorCanvas (MAIN COMPONENT) with Snap-to-Grid, Multi-Select, & Layers
+// 6) EditorCanvas (MAIN COMPONENT) with Snap-to-Grid, Multi-Select, & Layers
 // -----------------------------------------------------------------------------
-export default function ProfessionalEditorCanvas({ projectId }: { projectId: string }) {
+export default function EditorCanvas({ projectId }: { projectId: string }) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedElements, setSelectedElements] = useState<any[]>([]);

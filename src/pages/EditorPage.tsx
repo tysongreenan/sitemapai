@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { EditorCanvas } from '../components/editor/EditorCanvas';
+import EditorCanvas from '../components/editor/EditorCanvas';
 import { useProject } from '../context/ProjectContext';
 import { supabase } from '../lib/supabase';
 

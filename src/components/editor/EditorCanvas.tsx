@@ -67,7 +67,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
-import { EnhancedToolbar } from './EditorToolbar'; // Added import for EnhancedToolbar
+import EnhancedToolbar from './EditorToolbar'; // Fixed import statement
 
 // Import your new wireframe node
 import WireframePageNode from './nodes/WireframePageNode';

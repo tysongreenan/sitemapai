@@ -4,6 +4,7 @@ import { Save, Share, Download, ChevronLeft, Edit } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { useProject } from '../../context/ProjectContext';
+import { toast } from 'react-toastify';
 
 interface EditorToolbarProps {
   projectTitle: string;
@@ -21,10 +22,10 @@ export default function EditorToolbar({
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [title, setTitle] = useState(projectTitle);
 
-  const handleTitleUpdate = () => {
+  const handleTitleUpdate = async () => {
     if (!currentProject) return;
     
-    updateProject(currentProject.id, { title });
+    await updateProject(currentProject.id, { title });
     setIsEditingTitle(false);
   };
 
@@ -40,6 +41,19 @@ export default function EditorToolbar({
     linkElement.setAttribute('href', dataUri);
     linkElement.setAttribute('download', exportFileDefaultName);
     linkElement.click();
+  };
+
+  const handleManualSave = () => {
+    onSave();
+    toast.success('Changes saved successfully', {
+      position: "bottom-right",
+      autoClose: 2000,
+      hideProgressBar: true,
+      closeOnClick: true,
+      pauseOnHover: false,
+      draggable: false,
+      progress: undefined,
+    });
   };
 
   return (
@@ -112,7 +126,7 @@ export default function EditorToolbar({
           size="sm"
           leftIcon={<Save size={16} />}
           isLoading={isSaving}
-          onClick={onSave}
+          onClick={handleManualSave}
         >
           Save
         </Button>

@@ -39,6 +39,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastSaveTime, setLastSaveTime] = useState<number>(Date.now());
 
   const loadProjects = async () => {
     if (!user) return;
@@ -150,27 +151,28 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }, { context: 'ProjectContext.deleteProject', projectId: id });
   };
 
-  // Enhanced debounced save function with error handling and logging
+  // Enhanced debounced save function with silent auto-save
   const debouncedSave = debounce(
     async (id: string, changes: Partial<Omit<Project, 'id' | 'created_at'>>) => {
-      SaveLogger.logSave(`ProjectContext.saveProjectChanges - ${id}`);
-      await updateProject(id, changes);
+      const now = Date.now();
+      const timeSinceLastSave = now - lastSaveTime;
+      
+      // Only save if enough time has passed (2 minutes)
+      if (timeSinceLastSave >= 120000) {
+        SaveLogger.logSave(`ProjectContext.autoSave - ${id}`);
+        await updateProject(id, changes);
+        setLastSaveTime(now);
+      }
     },
-    1000, // 1 second delay
+    2000, // 2 second delay for debouncing
     {
-      maxWait: 5000, // Force save after 5 seconds
-      leading: false, // Don't execute on the leading edge
+      maxWait: 120000, // Force save after 2 minutes
+      leading: false,
       onError: (error) => {
-        SaveLogger.logError(error, `ProjectContext.saveProjectChanges`);
-        AppErrorHandler.handle(error, { 
-          context: 'ProjectContext.saveProjectChanges',
-          projectId: currentProject?.id
-        });
-      },
-      onDebounce: () => {
-        console.debug('Save operation debounced');
-      },
-      context: 'ProjectContext.saveProjectChanges'
+        SaveLogger.logError(error, `ProjectContext.autoSave`);
+        // Silent error handling for auto-save
+        console.error('Auto-save failed:', error);
+      }
     }
   );
 
@@ -196,7 +198,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       prev ? { ...prev, ...changes } : null
     );
 
-    // Debounce the actual save to Supabase
+    // Trigger the debounced auto-save
     debouncedSave(currentProject.id, changes);
   };
 

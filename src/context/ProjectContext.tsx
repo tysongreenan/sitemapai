@@ -101,11 +101,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateProject = async (id: string, data: Partial<Omit<Project, 'id' | 'created_at'>>) => {
-    const validation = validateProject({ 
-      title: data.title || '', 
-      description: data.description,
-      sitemap_data: data.sitemap_data 
-    });
+    const validation = validateProject(data);
     
     if (!validation.isValid) {
       AppErrorHandler.handle({

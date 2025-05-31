@@ -97,19 +97,22 @@ export const validateSitemapData = (data: any): ValidationResult => {
 
 // Utility function to validate multiple fields at once
 export const validateProject = (project: {
-  title: string;
+  title?: string;
   description?: string;
   sitemap_data?: any;
 }): ValidationResult => {
-  const titleValidation = validateProjectTitle(project.title);
-  if (!titleValidation.isValid) return titleValidation;
+  // Only validate title if it's included in the update
+  if (project.title !== undefined) {
+    const titleValidation = validateProjectTitle(project.title);
+    if (!titleValidation.isValid) return titleValidation;
+  }
   
-  if (project.description) {
+  if (project.description !== undefined) {
     const descValidation = validateDescription(project.description);
     if (!descValidation.isValid) return descValidation;
   }
   
-  if (project.sitemap_data) {
+  if (project.sitemap_data !== undefined) {
     const sitemapValidation = validateSitemapData(project.sitemap_data);
     if (!sitemapValidation.isValid) return sitemapValidation;
   }

@@ -29,7 +29,7 @@ import 'reactflow/dist/style.css';
 import { toast } from 'react-toastify';
 import { nanoid } from 'nanoid';
 import {
-  Plus, // Make sure Plus is imported from lucide-react
+  Plus,
   PanelRight,
   Search,
   Layout,
@@ -71,9 +71,7 @@ import { Input } from '../ui/Input';
 
 import WireframePageNode from './nodes/WireframePageNode';
 import EnhancedPageNode from './nodes/PageNode';
-import ContextMenu from './ContextMenu'; // Import the new ContextMenu component
-
-// ... (componentCategories, ComponentPreview, EnhancedPageNode, ComponentLibrary, EnhancedToolbar remain the same) ...
+import ContextMenu from './ContextMenu';
 
 export default function EditorCanvas({ projectId }: { projectId: string }) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -83,14 +81,24 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
   const [isLibraryOpen, setIsLibraryOpen] = useState(true);
   const [viewMode, setViewMode] = useState<'sitemap' | 'wireframe'>('sitemap');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: { label: string; action: () => void; icon?: React.ReactNode }[] } | null>(null); // State for context menu
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: { label: string; action: () => void; icon?: React.ReactNode }[] } | null>(null);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const { fitView, getNodes, screenToFlowPosition } = useReactFlow(); // Add screenToFlowPosition
+  const { fitView, getNodes, screenToFlowPosition } = useReactFlow();
 
-  // Custom node types based on viewMode
   const nodeTypes = React.useMemo(() => ({
     page: viewMode === 'sitemap' ? EnhancedPageNode : WireframePageNode,
   }), [viewMode]);
+
+  // ───────────────────────────────────────────────────────────────
+  // Fit view handler: Centers and zooms out to show all nodes
+  // ───────────────────────────────────────────────────────────────
+  const handleFitView = useCallback(() => {
+    const allNodes = getNodes();
+    if (allNodes.length === 0) return;
+    const bounds = getRectOfNodes(allNodes);
+    getTransformForBounds(bounds, reactFlowWrapper.current!.offsetWidth, reactFlowWrapper.current!.offsetHeight, 0.5, 2);
+    fitView({ duration: 800 });
+  }, [fitView, getNodes]);
 
   // ───────────────────────────────────────────────────────────────
   // onDrop / onDragOver: Add a new page-node by dragging a component
@@ -182,7 +190,7 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
   // handleAddPageNode: Adds a new default page node to the canvas
   // ───────────────────────────────────────────────────────────────
   const addPageNode = useCallback((position?: { x: number; y: number }) => {
-    const defaultPosition = position || { x: 50, y: 50 }; // Default if no position is provided
+    const defaultPosition = position || { x: 50, y: 50 };
     const newNode = {
       id: nanoid(),
       type: 'page',
@@ -203,16 +211,14 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
   // ───────────────────────────────────────────────────────────────
   const onPaneContextMenu = useCallback(
     (event: React.MouseEvent) => {
-      event.preventDefault(); // Prevent default browser context menu
+      event.preventDefault();
 
-      // Calculate position relative to the React Flow instance
       const pane = reactFlowWrapper.current?.getBoundingClientRect();
       if (!pane) return;
 
       const x = event.clientX - pane.left;
       const y = event.clientY - pane.top;
 
-      // Convert screen coordinates to flow coordinates
       const flowPosition = screenToFlowPosition({ x, y });
 
       setContextMenu({
@@ -222,14 +228,13 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
           {
             label: 'Add New Page',
             action: () => addPageNode(flowPosition),
-            icon: <Plus size={16} />, //
+            icon: <Plus size={16} />,
           },
           {
             label: 'Fit View',
             action: handleFitView,
-            icon: <Maximize2 size={16} />, //
+            icon: <Maximize2 size={16} />,
           },
-          // Add more context menu items here
         ],
       });
     },
@@ -239,18 +244,6 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
   const onContextMenuClose = useCallback(() => {
     setContextMenu(null);
   }, []);
-
-
-  // ───────────────────────────────────────────────────────────────
-  // Fit view handler: Centers and zooms out to show all nodes
-  // ───────────────────────────────────────────────────────────────
-  const handleFitView = useCallback(() => {
-    const allNodes = getNodes();
-    if (allNodes.length === 0) return;
-    const bounds = getRectOfNodes(allNodes);
-    getTransformForBounds(bounds, reactFlowWrapper.current!.offsetWidth, reactFlowWrapper.current!.offsetHeight, 0.5, 2);
-    fitView({ duration: 800 });
-  }, [fitView, getNodes]);
 
   // ───────────────────────────────────────────────────────────────
   // Export: Download nodes & edges as JSON
@@ -321,11 +314,12 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
 
   const onNodeClick = useCallback((_: any, node: any) => {
     setSelectedNode(node);
-    onContextMenuClose(); // Close context menu if a node is clicked
+    onContextMenuClose();
   }, [onContextMenuClose]);
+
   const onPaneClick = useCallback(() => {
     setSelectedNode(null);
-    onContextMenuClose(); // Close context menu if pane is clicked
+    onContextMenuClose();
   }, [onContextMenuClose]);
 
   // Keyboard shortcuts: Delete selected nodes/edges
@@ -349,7 +343,6 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
             const newId = nanoid();
             const cloned = { ...item, id: newId, position: { x: item.position.x + 20, y: item.position.y + 20 } };
             if (cloned.source) {
-              // It's an edge
               const newSource = pasted.find((n: any) => n.id === cloned.source);
               const newTarget = pasted.find((n: any) => n.id === cloned.target);
               if (newSource && newTarget) cloned.source = newSource.id;
@@ -383,7 +376,6 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
   return (
     <ReactFlowProvider>
       <div className="h-screen flex flex-col bg-gray-100">
-        {/* Toolbar */}
         <EnhancedToolbar
           projectTitle="Professional Sitemap Editor"
           onSave={() => {
@@ -402,14 +394,12 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
         />
 
         <div className="flex flex-1">
-          {/* Component Library Sidebar */}
           <ComponentLibrary
             onAddComponent={handleAddComponent}
             isOpen={isLibraryOpen}
             onClose={() => setIsLibraryOpen(false)}
           />
 
-          {/* Canvas Area */}
           <div
             className="relative flex-1"
             ref={reactFlowWrapper}
@@ -434,17 +424,14 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
               panOnScroll
               defaultViewport={{ x: 0, y: 0, zoom: 1 }}
               attributionPosition="bottom-left"
-              onPaneContextMenu={onPaneContextMenu} // Add this handler to the ReactFlow component
+              onPaneContextMenu={onPaneContextMenu}
             >
-              {/* Background grid for alignment */}
               <Background
                 gap={20}
                 size={1}
                 color="#d1d5db"
               />
-              {/* Zoom + Pan Controls */}
               <Controls showInteractive={false} />
-              {/* MiniMap for navigation */}
               <MiniMap
                 nodeStrokeColor={(n) => {
                   if (n.type === 'page') return '#4f46e5';

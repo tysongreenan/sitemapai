@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
-import { debounce } from '../lib/utils';
+import { debounce, SaveLogger } from '../lib/utils';
 import { Edge, Node } from 'reactflow';
 import { validateProject, validateSitemapData } from '../lib/validation';
 import { AppErrorHandler, handleAsyncError } from '../lib/errorHandling';
@@ -150,10 +150,29 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }, { context: 'ProjectContext.deleteProject', projectId: id });
   };
 
-  // Debounced save function to prevent too many requests
-  const debouncedSave = debounce(async (id: string, changes: Partial<Omit<Project, 'id' | 'created_at'>>) => {
-    await updateProject(id, changes);
-  }, 3000);
+  // Enhanced debounced save function with error handling and logging
+  const debouncedSave = debounce(
+    async (id: string, changes: Partial<Omit<Project, 'id' | 'created_at'>>) => {
+      SaveLogger.logSave(`ProjectContext.saveProjectChanges - ${id}`);
+      await updateProject(id, changes);
+    },
+    1000, // 1 second delay
+    {
+      maxWait: 5000, // Force save after 5 seconds
+      leading: false, // Don't execute on the leading edge
+      onError: (error) => {
+        SaveLogger.logError(error, `ProjectContext.saveProjectChanges`);
+        AppErrorHandler.handle(error, { 
+          context: 'ProjectContext.saveProjectChanges',
+          projectId: currentProject?.id
+        });
+      },
+      onDebounce: () => {
+        console.debug('Save operation debounced');
+      },
+      context: 'ProjectContext.saveProjectChanges'
+    }
+  );
 
   const saveProjectChanges = async (changes: Partial<Omit<Project, 'id' | 'created_at'>>) => {
     if (!currentProject) return;

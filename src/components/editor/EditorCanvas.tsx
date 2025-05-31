@@ -67,7 +67,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
-import { EditorToolbar } from './EditorToolbar';
+import EditorToolbar from './EditorToolbar';
 
 import WireframePageNode from './nodes/WireframePageNode';
 import EnhancedPageNode from './nodes/PageNode';

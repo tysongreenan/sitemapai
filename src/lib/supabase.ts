@@ -1,8 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './database.types';
 
-// These values should be fetched from environment variables in a production setup
-const supabaseUrl = 'https://example.supabase.co';
-const supabaseAnonKey = 'your-anon-key';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase environment variables. Please connect to Supabase using the "Connect to Supabase" button.');
+}
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);

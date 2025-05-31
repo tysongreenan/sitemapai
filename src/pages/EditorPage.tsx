@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { ReactFlowProvider } from 'reactflow';
 import EditorCanvas from '../components/editor/EditorCanvas';
 import { useProject } from '../context/ProjectContext';
 import { supabase } from '../lib/supabase';
@@ -52,7 +53,9 @@ export default function EditorPage() {
 
   return (
     <div className="h-screen flex flex-col">
-      {projectId && <EditorCanvas projectId={projectId} />}
+      <ReactFlowProvider>
+        {projectId && <EditorCanvas projectId={projectId} />}
+      </ReactFlowProvider>
     </div>
   );
 }

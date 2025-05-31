@@ -114,16 +114,29 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateProject = async (id: string, data: Partial<Omit<Project, 'id' | 'created_at'>>, showToast = true) => {
-    // Validate the update data
-    if (data.title || data.description || data.sitemap_data) {
-      const validation = validateProject({
-        title: data.title || '',
-        description: data.description,
-        sitemap_data: data.sitemap_data
-      });
-      
-      if (!validation.isValid) {
-        AppErrorHandler.handle({ type: 'validation', message: validation.error });
+    // Only validate specific fields that are being updated
+    if (data.title !== undefined) {
+      const titleValidation = validateProjectTitle(data.title);
+      if (!titleValidation.isValid) {
+        AppErrorHandler.handle({ type: 'validation', message: titleValidation.error });
+        setSaveStatus('error');
+        return;
+      }
+    }
+
+    if (data.description !== undefined) {
+      const descValidation = validateDescription(data.description);
+      if (!descValidation.isValid) {
+        AppErrorHandler.handle({ type: 'validation', message: descValidation.error });
+        setSaveStatus('error');
+        return;
+      }
+    }
+
+    if (data.sitemap_data !== undefined) {
+      const sitemapValidation = validateSitemapData(data.sitemap_data);
+      if (!sitemapValidation.isValid) {
+        AppErrorHandler.handle({ type: 'validation', message: sitemapValidation.error });
         setSaveStatus('error');
         return;
       }

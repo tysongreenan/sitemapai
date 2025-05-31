@@ -36,13 +36,16 @@ interface EditorCanvasProps {
 }
 
 export function EditorCanvas({ projectId }: EditorCanvasProps) {
-  const { currentProject, saveProjectChanges, loading } = useProject();
+  const { currentProject, saveProjectChanges, saveStatus } = useProject();
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [isPanelOpen, setIsPanelOpen] = useState(true);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
+  
+  // Track if this is the initial load to prevent auto-save on load
+  const isInitialLoad = useRef(true);
 
   // Load sitemap data when currentProject changes
   useEffect(() => {
@@ -68,28 +71,42 @@ export function EditorCanvas({ projectId }: EditorCanvasProps) {
       }
       
       setEdges(projectEdges);
+      
+      // Mark initial load as complete after a short delay
+      setTimeout(() => {
+        isInitialLoad.current = false;
+      }, 1000);
     }
   }, [currentProject, setNodes, setEdges]);
 
-  // Save changes to the project with debounce
-  const saveChanges = useCallback(
-    debounce(() => {
-      if (currentProject) {
+  // Create a debounced save function
+  const debouncedSave = useCallback(
+    debounce((nodesToSave: Node[], edgesToSave: Edge[]) => {
+      if (currentProject && !isInitialLoad.current) {
         saveProjectChanges({
-          sitemap_data: { nodes, edges },
+          sitemap_data: { nodes: nodesToSave, edges: edgesToSave },
         });
-        toast.success('Sitemap saved');
       }
-    }, 2000),
-    [currentProject, nodes, edges, saveProjectChanges]
+    }, 1500), // 1.5 second debounce
+    [currentProject, saveProjectChanges]
   );
 
-  // Auto-save when nodes or edges change
+  // Auto-save when nodes or edges change (but not on initial load)
   useEffect(() => {
-    if (nodes.length > 0 || edges.length > 0) {
-      saveChanges();
+    if (!isInitialLoad.current && (nodes.length > 0 || edges.length > 0)) {
+      debouncedSave(nodes, edges);
     }
-  }, [nodes, edges, saveChanges]);
+  }, [nodes, edges, debouncedSave]);
+
+  // Manual save function for the save button
+  const handleManualSave = () => {
+    if (currentProject) {
+      saveProjectChanges({
+        sitemap_data: { nodes, edges },
+      });
+      toast.success('Sitemap saved manually');
+    }
+  };
 
   // Handle connecting nodes
   const onConnect = useCallback(
@@ -177,8 +194,9 @@ export function EditorCanvas({ projectId }: EditorCanvasProps) {
     <div className="h-full flex flex-col">
       <EditorToolbar 
         projectTitle={currentProject?.title || 'Untitled Sitemap'} 
-        isSaving={loading}
-        onSave={() => saveChanges()}
+        isSaving={saveStatus === 'saving'}
+        onSave={handleManualSave}
+        saveStatus={saveStatus}
       />
       
       <div className="flex-grow flex" style={{ height: 'calc(100vh - 64px)' }}>

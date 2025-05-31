@@ -2,7 +2,9 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { debounce } from '../lib/utils';
-import { Edge, Node } from 'react-flow';
+import { Edge, Node } from 'reactflow';
+import { validateProject, validateSitemapData } from '../lib/validation';
+import { AppErrorHandler, handleAsyncError } from '../lib/errorHandling';
 
 export type Project = {
   id: string;
@@ -44,7 +46,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     setError(null);
 
-    try {
+    const result = await handleAsyncError(async () => {
       const { data, error } = await supabase
         .from('projects')
         .select('*')
@@ -52,17 +54,26 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
-      setProjects(data as Project[]);
-    } catch (error) {
-      console.error('Error loading projects:', error);
-      setError('Failed to load projects');
-    } finally {
-      setLoading(false);
+      return data as Project[];
+    }, { context: 'ProjectContext.loadProjects', userId: user.id });
+
+    if (result) {
+      setProjects(result);
     }
+    setLoading(false);
   };
 
   const createProject = async (title: string, description?: string): Promise<Project | null> => {
     if (!user) return null;
+
+    const validation = validateProject({ title, description });
+    if (!validation.isValid) {
+      AppErrorHandler.handle({
+        type: 'validation',
+        message: validation.error
+      });
+      return null;
+    }
 
     const newProject = {
       user_id: user.id,
@@ -71,7 +82,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       sitemap_data: { nodes: [], edges: [] },
     };
 
-    try {
+    const result = await handleAsyncError(async () => {
       const { data, error } = await supabase
         .from('projects')
         .insert(newProject)
@@ -79,19 +90,32 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         .single();
 
       if (error) throw error;
-      
-      const createdProject = data as Project;
-      setProjects((prev) => [createdProject, ...prev]);
-      return createdProject;
-    } catch (error) {
-      console.error('Error creating project:', error);
-      setError('Failed to create project');
-      return null;
+      return data as Project;
+    }, { context: 'ProjectContext.createProject', project: newProject });
+
+    if (result) {
+      setProjects((prev) => [result, ...prev]);
+      return result;
     }
+    return null;
   };
 
   const updateProject = async (id: string, data: Partial<Omit<Project, 'id' | 'created_at'>>) => {
-    try {
+    const validation = validateProject({ 
+      title: data.title || '', 
+      description: data.description,
+      sitemap_data: data.sitemap_data 
+    });
+    
+    if (!validation.isValid) {
+      AppErrorHandler.handle({
+        type: 'validation',
+        message: validation.error
+      });
+      return;
+    }
+
+    await handleAsyncError(async () => {
       const { error } = await supabase
         .from('projects')
         .update({ ...data, updated_at: new Date().toISOString() })
@@ -112,16 +136,12 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
           prev ? { ...prev, ...data, updated_at: new Date().toISOString() } : null
         );
       }
-    } catch (error) {
-      console.error('Error updating project:', error);
-      setError('Failed to update project');
-    }
+    }, { context: 'ProjectContext.updateProject', projectId: id, updateData: data });
   };
 
   const deleteProject = async (id: string) => {
-    try {
+    await handleAsyncError(async () => {
       const { error } = await supabase.from('projects').delete().eq('id', id);
-
       if (error) throw error;
 
       setProjects((prev) => prev.filter((project) => project.id !== id));
@@ -129,10 +149,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       if (currentProject?.id === id) {
         setCurrentProject(null);
       }
-    } catch (error) {
-      console.error('Error deleting project:', error);
-      setError('Failed to delete project');
-    }
+    }, { context: 'ProjectContext.deleteProject', projectId: id });
   };
 
   // Debounced save function to prevent too many requests
@@ -142,6 +159,17 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
   const saveProjectChanges = async (changes: Partial<Omit<Project, 'id' | 'created_at'>>) => {
     if (!currentProject) return;
+    
+    if (changes.sitemap_data) {
+      const validation = validateSitemapData(changes.sitemap_data);
+      if (!validation.isValid) {
+        AppErrorHandler.handle({
+          type: 'validation',
+          message: validation.error
+        });
+        return;
+      }
+    }
     
     // Update the local state immediately
     setCurrentProject((prev) => 

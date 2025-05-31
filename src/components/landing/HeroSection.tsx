@@ -8,6 +8,8 @@ import { useForm } from 'react-hook-form';
 import { useAuth } from '../../context/AuthContext';
 import { useProject } from '../../context/ProjectContext';
 import { AuthModal } from '../auth/AuthModal';
+import { validateUrl, validateDescription } from '../../lib/validation';
+import { AppErrorHandler } from '../../lib/errorHandling';
 
 type FormValues = {
   description: string;
@@ -21,7 +23,7 @@ export function HeroSection() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
-  const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
+  const { register, handleSubmit, formState: { errors }, setError } = useForm<FormValues>({
     defaultValues: {
       description: '',
       url: '',
@@ -31,6 +33,19 @@ export function HeroSection() {
   const onSubmit = async (data: FormValues) => {
     if (!user) {
       setIsAuthModalOpen(true);
+      return;
+    }
+
+    // Validate inputs
+    const urlValidation = validateUrl(data.url || '');
+    if (!urlValidation.isValid) {
+      setError('url', { message: urlValidation.error });
+      return;
+    }
+
+    const descValidation = validateDescription(data.description);
+    if (!descValidation.isValid) {
+      setError('description', { message: descValidation.error });
       return;
     }
 
@@ -46,7 +61,10 @@ export function HeroSection() {
         navigate(`/editor/${project.id}`);
       }
     } catch (error) {
-      console.error('Error creating project:', error);
+      AppErrorHandler.handle(error, { 
+        context: 'HeroSection.onSubmit',
+        formData: data 
+      });
     } finally {
       setIsLoading(false);
     }
@@ -107,12 +125,7 @@ export function HeroSection() {
                   placeholder="https://example.com"
                   leftIcon={<Globe size={18} />}
                   error={errors.url?.message}
-                  {...register('url', { 
-                    pattern: { 
-                      value: /^(https?:\/\/)?(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)$/,
-                      message: 'Please enter a valid URL'
-                    } 
-                  })}
+                  {...register('url')}
                 />
                 
                 <div className="mt-4 pt-2">

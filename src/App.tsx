@@ -15,46 +15,49 @@ import NotFoundPage from './pages/NotFoundPage';
 
 // Layout components
 import ProtectedRoute from './components/layout/ProtectedRoute';
+import { ErrorBoundary } from './lib/errorHandling';
 
 function App() {
   return (
-    <AuthProvider>
-      <ProjectProvider>
-        <Router>
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route 
-              path="/dashboard" 
-              element={
-                <ProtectedRoute>
-                  <DashboardPage />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/editor/:projectId" 
-              element={
-                <ProtectedRoute>
-                  <EditorPage />
-                </ProtectedRoute>
-              } 
-            />
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-        </Router>
-        <ToastContainer
-          position="bottom-right"
-          autoClose={5000}
-          hideProgressBar={false}
-          newestOnTop
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-        />
-      </ProjectProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <ProjectProvider>
+          <Router>
+            <Routes>
+              <Route path="/" element={<LandingPage />} />
+              <Route 
+                path="/dashboard" 
+                element={
+                  <ProtectedRoute>
+                    <DashboardPage />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/editor/:projectId" 
+                element={
+                  <ProtectedRoute>
+                    <EditorPage />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+          </Router>
+          <ToastContainer
+            position="bottom-right"
+            autoClose={5000}
+            hideProgressBar={false}
+            newestOnTop
+            closeOnClick
+            rtl={false}
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+          />
+        </ProjectProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

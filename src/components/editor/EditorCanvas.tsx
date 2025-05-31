@@ -1,4 +1,3 @@
-// src/components/editor/EditorCanvas.tsx (modified sections)
 import React, {
   useState,
   useEffect,
@@ -68,10 +67,11 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import { EnhancedToolbar } from './EditorToolbar'; // Added import for EnhancedToolbar
 
 // Import your new wireframe node
-import WireframePageNode from './nodes/WireframePageNode'; //
-import EnhancedPageNode from './nodes/PageNode'; // Ensure EnhancedPageNode is imported if it's in a separate file. Original was PageNode
+import WireframePageNode from './nodes/WireframePageNode';
+import EnhancedPageNode from './nodes/PageNode';
 
 // ... (componentCategories, ComponentPreview remain the same) ...
 
@@ -100,15 +100,15 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
   const [selectedElements, setSelectedElements] = useState<any[]>([]);
   const [selectedNode, setSelectedNode] = useState<any | null>(null);
   const [isLibraryOpen, setIsLibraryOpen] = useState(true);
-  const [viewMode, setViewMode] = useState<'sitemap' | 'wireframe'>('sitemap'); //
+  const [viewMode, setViewMode] = useState<'sitemap' | 'wireframe'>('sitemap');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { fitView, getNodes } = useReactFlow();
 
   // Custom node types based on viewMode
-  const nodeTypes = React.useMemo(() => ({ //
-    page: viewMode === 'sitemap' ? EnhancedPageNode : WireframePageNode, //
-  }), [viewMode]); //
+  const nodeTypes = React.useMemo(() => ({
+    page: viewMode === 'sitemap' ? EnhancedPageNode : WireframePageNode,
+  }), [viewMode]);
 
   // ───────────────────────────────────────────────────────────────
   // onDrop / onDragOver: Add a new page-node by dragging a component
@@ -132,7 +132,7 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
 
       const newNode = {
         id: nanoid(),
-        type: 'page', // Keep type as 'page' because nodeTypes map 'page' to either EnhancedPageNode or WireframePageNode
+        type: 'page',
         position,
         data: {
           label: component.name,
@@ -194,8 +194,8 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
             }, 1000);
           }}
           saveStatus={saveStatus}
-          viewMode={viewMode} //
-          onViewModeChange={setViewMode} //
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
           onFitView={handleFitView}
           onExport={handleExport}
           onDuplicate={handleDuplicate}
@@ -225,7 +225,7 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
               onNodeClick={onNodeClick}
               onPaneClick={onPaneClick}
               onSelectionChange={onSelectionChange}
-              nodeTypes={nodeTypes} //
+              nodeTypes={nodeTypes}
               connectionLineType={ConnectionLineType.SmoothStep}
               fitView
               snapToGrid

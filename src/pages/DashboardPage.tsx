@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Clock, Search, Filter, Trash2, ExternalLink, FileEdit } from 'lucide-react';
 import { Navbar } from '../components/layout/Navbar';
@@ -11,21 +11,21 @@ import { AuthModal } from '../components/auth/AuthModal';
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { projects, loading, loadProjects, createProject, deleteProject } = useProject();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [isCreatingProject, setIsCreatingProject] = useState(false);
-  const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = React.useState('');
+  const [isAuthModalOpen, setIsAuthModalOpen] = React.useState(false);
+  const [isCreatingProject, setIsCreatingProject] = React.useState(false);
+  const [projectToDelete, setProjectToDelete] = React.useState<string | null>(null);
 
-  useEffect(() => {
-    loadProjects();
-  }, [loadProjects]);
-
-  const filteredProjects = projects.filter(project => 
-    project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (project.description && project.description.toLowerCase().includes(searchTerm.toLowerCase()))
+  // Memoize the filtered projects to prevent unnecessary recalculations
+  const filteredProjects = React.useMemo(() => 
+    projects.filter(project => 
+      project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (project.description && project.description.toLowerCase().includes(searchTerm.toLowerCase()))
+    ),
+    [projects, searchTerm]
   );
 
-  const handleCreateProject = async () => {
+  const handleCreateProject = useCallback(async () => {
     setIsCreatingProject(true);
     try {
       const newProject = await createProject(
@@ -41,18 +41,23 @@ export default function DashboardPage() {
     } finally {
       setIsCreatingProject(false);
     }
-  };
+  }, [createProject, navigate]);
 
-  const confirmDelete = (projectId: string) => {
+  const confirmDelete = useCallback((projectId: string) => {
     setProjectToDelete(projectId);
-  };
+  }, []);
 
-  const handleDeleteProject = async () => {
+  const handleDeleteProject = useCallback(async () => {
     if (projectToDelete) {
       await deleteProject(projectToDelete);
       setProjectToDelete(null);
     }
-  };
+  }, [projectToDelete, deleteProject]);
+
+  // Load projects only once when the component mounts
+  useEffect(() => {
+    loadProjects();
+  }, [loadProjects]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">

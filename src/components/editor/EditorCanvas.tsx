@@ -68,7 +68,7 @@ import {
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import EditorToolbar from './EditorToolbar';
-
+import ComponentLibrary from './ComponentLibrary';
 import WireframePageNode from './nodes/WireframePageNode';
 import EnhancedPageNode from './nodes/PageNode';
 import ContextMenu from './ContextMenu';

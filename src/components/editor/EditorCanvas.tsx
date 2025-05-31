@@ -67,33 +67,11 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
-import EnhancedToolbar from './EditorToolbar'; // Fixed import statement
+import EnhancedToolbar from './EditorToolbar';
 
-// Import your new wireframe node
 import WireframePageNode from './nodes/WireframePageNode';
 import EnhancedPageNode from './nodes/PageNode';
 
-// ... (componentCategories, ComponentPreview remain the same) ...
-
-// -----------------------------------------------------------------------------
-// 3) EnhancedPageNode (Professional Styling)
-// -----------------------------------------------------------------------------
-// This section should remain as is in your existing file.
-// We are now importing it and will use it conditionally.
-
-// -----------------------------------------------------------------------------
-// 4) ComponentLibrary (Enhanced Sidebar with Categories & Snapping Info)
-// -----------------------------------------------------------------------------
-// This section remains unchanged.
-
-// -----------------------------------------------------------------------------
-// 5) EnhancedToolbar (Professional Actions & Keyboard Shortcuts)
-// ----------------------------------------------------------------------------
-// This section remains unchanged.
-
-// -----------------------------------------------------------------------------
-// 6) EditorCanvas (MAIN COMPONENT) with Snap-to-Grid, Multi-Select, & Layers
-// -----------------------------------------------------------------------------
 export default function EditorCanvas({ projectId }: { projectId: string }) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -105,14 +83,10 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { fitView, getNodes } = useReactFlow();
 
-  // Custom node types based on viewMode
   const nodeTypes = React.useMemo(() => ({
     page: viewMode === 'sitemap' ? EnhancedPageNode : WireframePageNode,
   }), [viewMode]);
 
-  // ───────────────────────────────────────────────────────────────
-  // onDrop / onDragOver: Add a new page-node by dragging a component
-  // ───────────────────────────────────────────────────────────────
   const onDrop = useCallback(
     (event: React.DragEvent) => {
       event.preventDefault();
@@ -147,15 +121,31 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
     [setNodes]
   );
 
-  // ... (onDragOver, onConnect, handleAddComponent, handleFitView, handleExport, handleDuplicate remain the same) ...
+  const onDragOver = useCallback((event: React.DragEvent) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  }, []);
 
-  // ───────────────────────────────────────────────────────────────
-  // Selection handlers: track multi-select & node selection
-  // ───────────────────────────────────────────────────────────────
+  const onConnect = useCallback(
+    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
+    [setEdges]
+  );
+
+  // Add the missing handleFitView function
+  const handleFitView = useCallback(() => {
+    fitView({ padding: 0.2, includeHiddenNodes: false });
+  }, [fitView]);
+
+  const handleExport = useCallback(() => {
+    // Export functionality implementation
+  }, []);
+
+  const handleDuplicate = useCallback(() => {
+    // Duplicate functionality implementation
+  }, []);
+
   const onSelectionChange = useCallback(({ nodes, edges }: any) => {
     setSelectedElements([...nodes, ...edges]);
-    // Only select a node if it's a 'page' type, to ensure PropertiesPanel works as expected
-    // This assumes that only 'page' nodes will have properties editable via the panel
     if (nodes.length === 1 && !edges.length && nodes[0].type === 'page') {
       setSelectedNode(nodes[0]);
     } else {
@@ -164,26 +154,20 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
   }, []);
 
   const onNodeClick = useCallback((_: any, node: any) => {
-    // Similar check for node type before setting selectedNode
     if (node.type === 'page') {
       setSelectedNode(node);
     } else {
       setSelectedNode(null);
     }
   }, []);
+
   const onPaneClick = useCallback(() => {
     setSelectedNode(null);
   }, []);
 
-  // ... (onKeyDown, useEffect for localStorage remain the same) ...
-
-  // ───────────────────────────────────────────────────────────────
-  // RENDER
-  // ───────────────────────────────────────────────────────────────
   return (
     <ReactFlowProvider>
       <div className="h-screen flex flex-col bg-gray-100">
-        {/* Toolbar */}
         <EnhancedToolbar
           projectTitle="Professional Sitemap Editor"
           onSave={() => {
@@ -202,14 +186,12 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
         />
 
         <div className="flex flex-1">
-          {/* Component Library Sidebar */}
           <ComponentLibrary
             onAddComponent={handleAddComponent}
             isOpen={isLibraryOpen}
             onClose={() => setIsLibraryOpen(false)}
           />
 
-          {/* Canvas Area */}
           <div
             className="relative flex-1"
             ref={reactFlowWrapper}
@@ -235,15 +217,12 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
               defaultViewport={{ x: 0, y: 0, zoom: 1 }}
               attributionPosition="bottom-left"
             >
-              {/* Background grid for alignment */}
               <Background
                 gap={20}
                 size={1}
                 color="#d1d5db"
               />
-              {/* Zoom + Pan Controls */}
               <Controls showInteractive={false} />
-              {/* MiniMap for navigation */}
               <MiniMap
                 nodeStrokeColor={(n) => {
                   if (n.type === 'page') return '#4f46e5';

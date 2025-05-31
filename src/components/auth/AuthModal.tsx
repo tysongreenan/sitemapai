@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
-import { supabase } from '../../lib/supabase';
 import { X } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 import { Button } from '../ui/Button';
+import { AppErrorHandler } from '../../lib/errorHandling';
+import { validateEmail, validatePassword } from '../../lib/validation';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -11,8 +13,16 @@ interface AuthModalProps {
   redirectTo?: string;
 }
 
+type AuthView = 'sign_in' | 'sign_up' | 'forgotten_password' | 'update_password' | 'verify_email';
+
 export function AuthModal({ isOpen, onClose, redirectTo }: AuthModalProps) {
   const [mounted, setMounted] = useState(false);
+  const [view, setView] = useState<AuthView>('sign_in');
+  const [email, setEmail] = useState('');
+  const [status, setStatus] = useState<{
+    type: 'success' | 'error' | 'info' | null;
+    message: string | null;
+  }>({ type: null, message: null });
 
   // Handle animation by mounting the component before showing it
   useEffect(() => {
@@ -21,10 +31,74 @@ export function AuthModal({ isOpen, onClose, redirectTo }: AuthModalProps) {
     } else if (!isOpen && mounted) {
       const timer = setTimeout(() => {
         setMounted(false);
-      }, 300); // Match this with the CSS transition duration
+        // Reset state when modal closes
+        setView('sign_in');
+        setEmail('');
+        setStatus({ type: null, message: null });
+      }, 300);
       return () => clearTimeout(timer);
     }
   }, [isOpen, mounted]);
+
+  // Listen for auth state changes
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setView('update_password');
+      } else if (event === 'USER_UPDATED' || event === 'SIGNED_IN') {
+        onClose();
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [onClose]);
+
+  const handleEmailSubmit = async (email: string, view: AuthView) => {
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.isValid) {
+      setStatus({ type: 'error', message: emailValidation.error || 'Invalid email' });
+      return;
+    }
+
+    try {
+      let response;
+      if (view === 'forgotten_password') {
+        response = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/reset-password`
+        });
+      } else if (view === 'verify_email') {
+        response = await supabase.auth.signInWithOtp({
+          email,
+          options: {
+            emailRedirectTo: redirectTo || window.location.origin
+          }
+        });
+      }
+
+      if (response?.error) throw response.error;
+
+      setEmail(email);
+      setStatus({
+        type: 'success',
+        message: view === 'forgotten_password'
+          ? 'Check your email for password reset instructions'
+          : 'Check your email for the magic link'
+      });
+    } catch (error) {
+      AppErrorHandler.handle(error, { context: 'AuthModal.handleEmailSubmit', view });
+    }
+  };
+
+  const getStatusColor = (type: 'success' | 'error' | 'info' | null) => {
+    switch (type) {
+      case 'success': return 'bg-green-50 text-green-800 border-green-200';
+      case 'error': return 'bg-red-50 text-red-800 border-red-200';
+      case 'info': return 'bg-blue-50 text-blue-800 border-blue-200';
+      default: return '';
+    }
+  };
 
   if (!mounted) return null;
 
@@ -43,7 +117,13 @@ export function AuthModal({ isOpen, onClose, redirectTo }: AuthModalProps) {
         }`}
       >
         <div className="flex justify-between items-center p-4 border-b">
-          <h2 className="text-xl font-semibold text-gray-800">Sign in or sign up</h2>
+          <h2 className="text-xl font-semibold text-gray-800">
+            {view === 'sign_in' ? 'Sign in to your account' :
+             view === 'sign_up' ? 'Create an account' :
+             view === 'forgotten_password' ? 'Reset your password' :
+             view === 'update_password' ? 'Update password' :
+             'Sign in with magic link'}
+          </h2>
           <Button
             variant="ghost"
             size="sm"
@@ -54,9 +134,17 @@ export function AuthModal({ isOpen, onClose, redirectTo }: AuthModalProps) {
             <X size={20} />
           </Button>
         </div>
+
+        {status.type && (
+          <div className={`m-4 p-3 rounded-md border ${getStatusColor(status.type)}`}>
+            {status.message}
+          </div>
+        )}
+
         <div className="p-4">
           <Auth
             supabaseClient={supabase}
+            view={view}
             appearance={{
               theme: ThemeSupa,
               variables: {
@@ -67,11 +155,44 @@ export function AuthModal({ isOpen, onClose, redirectTo }: AuthModalProps) {
                   },
                 },
               },
+              className: {
+                container: 'w-full',
+                button: 'w-full px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 rounded-md',
+                input: 'block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm',
+                label: 'block text-sm font-medium text-gray-700 mb-1',
+                message: 'text-sm text-red-600 mt-1',
+              },
             }}
             providers={['google', 'github']}
             redirectTo={redirectTo || window.location.origin}
             onlyThirdPartyProviders={false}
             magicLink={true}
+            localization={{
+              variables: {
+                sign_in: {
+                  email_label: 'Email address',
+                  password_label: 'Password',
+                  button_label: 'Sign in',
+                  loading_button_label: 'Signing in...',
+                  social_provider_text: 'Sign in with {{provider}}',
+                  link_text: "Don't have an account? Sign up",
+                },
+                sign_up: {
+                  email_label: 'Email address',
+                  password_label: 'Create a password',
+                  button_label: 'Sign up',
+                  loading_button_label: 'Creating account...',
+                  social_provider_text: 'Sign up with {{provider}}',
+                  link_text: 'Already have an account? Sign in',
+                },
+                forgotten_password: {
+                  email_label: 'Email address',
+                  button_label: 'Send reset instructions',
+                  loading_button_label: 'Sending reset instructions...',
+                  link_text: 'Remember your password? Sign in',
+                },
+              },
+            }}
           />
         </div>
       </div>

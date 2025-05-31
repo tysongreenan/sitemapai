@@ -16,14 +16,13 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { toast } from 'react-toastify';
 import { nanoid } from 'nanoid';
-import { Save, ZoomIn, ZoomOut, PanelRight, LayoutGrid, Plus, Trash } from 'lucide-react';
+import { Plus, Trash, PanelRight } from 'lucide-react';
 import { useProject } from '../../context/ProjectContext';
 import { Button } from '../ui/Button';
 import PageNode from './nodes/PageNode';
 import SectionNode from './nodes/SectionNode';
 import PropertiesPanel from './PropertiesPanel';
 import EditorToolbar from './EditorToolbar';
-import { debounce } from '../../lib/utils';
 
 // Register custom node types
 const nodeTypes = {
@@ -36,16 +35,25 @@ interface EditorCanvasProps {
 }
 
 export function EditorCanvas({ projectId }: EditorCanvasProps) {
-  const { currentProject, saveProjectChanges, saveStatus } = useProject();
+  const { 
+    currentProject, 
+    updateProject, 
+    updateCurrentProjectLocally, 
+    saveStatus, 
+    setSaveStatus 
+  } = useProject();
+  
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [isPanelOpen, setIsPanelOpen] = useState(true);
-  const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
   
-  // Track if this is the initial load to prevent auto-save on load
-  const isInitialLoad = useRef(true);
+  // Auto-save management
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout>();
+  const lastSavedDataRef = useRef<string>('');
+  const isInitialLoadRef = useRef(true);
+  const isSavingRef = useRef(false);
 
   // Load sitemap data when currentProject changes
   useEffect(() => {
@@ -72,40 +80,88 @@ export function EditorCanvas({ projectId }: EditorCanvasProps) {
       
       setEdges(projectEdges);
       
-      // Mark initial load as complete after a short delay
+      // Set initial data reference
+      lastSavedDataRef.current = JSON.stringify({ nodes: projectNodes, edges: projectEdges });
+      
+      // Mark initial load as complete
       setTimeout(() => {
-        isInitialLoad.current = false;
+        isInitialLoadRef.current = false;
       }, 1000);
     }
   }, [currentProject, setNodes, setEdges]);
 
-  // Create a debounced save function
-  const debouncedSave = useCallback(
-    debounce((nodesToSave: Node[], edgesToSave: Edge[]) => {
-      if (currentProject && !isInitialLoad.current) {
-        saveProjectChanges({
-          sitemap_data: { nodes: nodesToSave, edges: edgesToSave },
-        });
-      }
-    }, 1500), // 1.5 second debounce
-    [currentProject, saveProjectChanges]
-  );
-
-  // Auto-save when nodes or edges change (but not on initial load)
-  useEffect(() => {
-    if (!isInitialLoad.current && (nodes.length > 0 || edges.length > 0)) {
-      debouncedSave(nodes, edges);
+  // Smart auto-save function
+  const scheduleAutoSave = useCallback((nodesToSave: Node[], edgesToSave: Edge[]) => {
+    if (!currentProject || isInitialLoadRef.current || isSavingRef.current) {
+      return;
     }
-  }, [nodes, edges, debouncedSave]);
 
-  // Manual save function for the save button
-  const handleManualSave = () => {
-    if (currentProject) {
-      saveProjectChanges({
-        sitemap_data: { nodes, edges },
+    const currentDataString = JSON.stringify({ nodes: nodesToSave, edges: edgesToSave });
+    
+    // Don't save if data hasn't changed
+    if (currentDataString === lastSavedDataRef.current) {
+      return;
+    }
+
+    // Update local state immediately for responsive UI
+    updateCurrentProjectLocally({
+      sitemap_data: { nodes: nodesToSave, edges: edgesToSave }
+    });
+
+    // Clear existing timeout
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+
+    // Set status to pending
+    setSaveStatus('pending');
+
+    // Schedule auto-save
+    autoSaveTimeoutRef.current = setTimeout(async () => {
+      if (isSavingRef.current) return;
+
+      isSavingRef.current = true;
+      
+      const success = await updateProject(currentProject.id, {
+        sitemap_data: { nodes: nodesToSave, edges: edgesToSave }
       });
-      toast.success('Sitemap saved manually');
+
+      if (success) {
+        lastSavedDataRef.current = currentDataString;
+      }
+
+      isSavingRef.current = false;
+    }, 2000); // 2 second delay
+  }, [currentProject, updateProject, updateCurrentProjectLocally, setSaveStatus]);
+
+  // Auto-save when nodes or edges change
+  useEffect(() => {
+    if (!isInitialLoadRef.current) {
+      scheduleAutoSave(nodes, edges);
     }
+  }, [nodes, edges, scheduleAutoSave]);
+
+  // Manual save function
+  const handleManualSave = async () => {
+    if (!currentProject || isSavingRef.current) return;
+
+    // Clear any pending auto-save
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+
+    isSavingRef.current = true;
+    
+    const success = await updateProject(currentProject.id, {
+      sitemap_data: { nodes, edges }
+    });
+
+    if (success) {
+      lastSavedDataRef.current = JSON.stringify({ nodes, edges });
+      toast.success('Sitemap saved');
+    }
+
+    isSavingRef.current = false;
   };
 
   // Handle connecting nodes
@@ -190,17 +246,25 @@ export function EditorCanvas({ projectId }: EditorCanvasProps) {
     }
   }, [selectedNode, setNodes, setEdges]);
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, []);
+
   return (
     <div className="h-full flex flex-col">
       <EditorToolbar 
         projectTitle={currentProject?.title || 'Untitled Sitemap'} 
-        isSaving={saveStatus === 'saving'}
         onSave={handleManualSave}
         saveStatus={saveStatus}
       />
       
       <div className="flex-grow flex" style={{ height: 'calc(100vh - 64px)' }}>
-        <div ref={reactFlowWrapper} className="flex-grow h-full">
+        <div className="flex-grow h-full">
           <ReactFlowProvider>
             <ReactFlow
               nodes={nodes}

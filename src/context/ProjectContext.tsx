@@ -1,5 +1,4 @@
-// src/context/ProjectContext.tsx - Clean version
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { Edge, Node } from 'reactflow';
@@ -48,16 +47,27 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  
+  // Refs to prevent unnecessary re-renders and race conditions
+  const loadingRef = useRef(false);
+  const projectsRef = useRef<Project[]>([]);
+  const lastLoadRef = useRef<number>(0);
 
-  const clearError = () => setError(null);
+  const clearError = useCallback(() => setError(null), []);
 
-  const loadProjects = async () => {
-    if (!user) return;
+  const loadProjects = useCallback(async () => {
+    if (!user || loadingRef.current) return;
 
-    const result = await handleAsyncError(async () => {
-      setLoading(true);
-      setError(null);
+    const now = Date.now();
+    // Prevent multiple simultaneous loads and rapid re-loads
+    if (now - lastLoadRef.current < 1000) return;
+    lastLoadRef.current = now;
+    
+    loadingRef.current = true;
+    setLoading(true);
+    setError(null);
 
+    try {
       const { data, error } = await supabase
         .from('projects')
         .select('*')
@@ -66,11 +76,15 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
       if (error) throw error;
       
+      projectsRef.current = data as Project[];
       setProjects(data as Project[]);
-    }, { operation: 'loadProjects', userId: user.id });
-
-    setLoading(false);
-  };
+    } catch (error) {
+      AppErrorHandler.handle(error, { operation: 'loadProjects', userId: user.id });
+    } finally {
+      loadingRef.current = false;
+      setLoading(false);
+    }
+  }, [user]);
 
   const createProject = async (title: string, description?: string): Promise<Project | null> => {
     if (!user) {
@@ -220,7 +234,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       setProjects([]);
       setCurrentProject(null);
     }
-  }, [user]);
+  }, [user, loadProjects]);
 
   const value = {
     projects,

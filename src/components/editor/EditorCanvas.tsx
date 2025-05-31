@@ -1,4 +1,3 @@
-// src/components/editor/EditorCanvas.tsx (modified sections)
 import React, {
   useState,
   useEffect,
@@ -68,6 +67,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import { EditorToolbar } from './EditorToolbar';
 
 import WireframePageNode from './nodes/WireframePageNode';
 import EnhancedPageNode from './nodes/PageNode';
@@ -376,7 +376,7 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
   return (
     <ReactFlowProvider>
       <div className="h-screen flex flex-col bg-gray-100">
-        <EnhancedToolbar
+        <EditorToolbar
           projectTitle="Professional Sitemap Editor"
           onSave={() => {
             setSaveStatus('saving');

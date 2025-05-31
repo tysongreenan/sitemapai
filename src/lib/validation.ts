@@ -4,14 +4,11 @@ export interface ValidationResult {
 }
 
 export const validateProjectTitle = (title: string): ValidationResult => {
-  if (!title.trim()) {
+  if (!title || !title.trim()) {
     return { isValid: false, error: "Title is required" };
   }
   if (title.length > 255) {
     return { isValid: false, error: "Title must be less than 255 characters" };
-  }
-  if (title.length < 1) {
-    return { isValid: false, error: "Title must be at least 1 character" };
   }
   return { isValid: true };
 };

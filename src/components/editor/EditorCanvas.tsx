@@ -68,9 +68,40 @@ import {
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import EnhancedToolbar from './EditorToolbar';
+import ComponentLibrary from './ComponentLibrary';
 
 import WireframePageNode from './nodes/WireframePageNode';
 import EnhancedPageNode from './nodes/PageNode';
+
+const componentCategories = {
+  layout: {
+    name: 'Layout Components',
+    components: [
+      { id: 'header', name: 'Header' },
+      { id: 'footer', name: 'Footer' },
+      { id: 'sidebar', name: 'Sidebar' },
+      { id: 'container', name: 'Container' },
+    ],
+  },
+  content: {
+    name: 'Content Components',
+    components: [
+      { id: 'hero', name: 'Hero Section' },
+      { id: 'features', name: 'Features Grid' },
+      { id: 'testimonials', name: 'Testimonials' },
+      { id: 'pricing', name: 'Pricing Table' },
+    ],
+  },
+  forms: {
+    name: 'Form Components',
+    components: [
+      { id: 'contact', name: 'Contact Form' },
+      { id: 'signup', name: 'Sign Up Form' },
+      { id: 'login', name: 'Login Form' },
+      { id: 'newsletter', name: 'Newsletter Form' },
+    ],
+  },
+};
 
 export default function EditorCanvas({ projectId }: { projectId: string }) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -86,6 +117,35 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
   const nodeTypes = React.useMemo(() => ({
     page: viewMode === 'sitemap' ? EnhancedPageNode : WireframePageNode,
   }), [viewMode]);
+
+  const handleAddComponent = useCallback((componentId: string) => {
+    if (!reactFlowWrapper.current) return;
+
+    const bounds = reactFlowWrapper.current.getBoundingClientRect();
+    const position = {
+      x: bounds.width / 2,
+      y: bounds.height / 2,
+    };
+
+    const component = Object.values(componentCategories)
+      .flatMap((cat) => cat.components)
+      .find((c) => c.id === componentId);
+    if (!component) return;
+
+    const newNode = {
+      id: nanoid(),
+      type: 'page',
+      position,
+      data: {
+        label: component.name,
+        url: `/${component.id}`,
+        description: `${component.name} section`,
+        components: [componentId],
+      },
+    };
+
+    setNodes((nds) => nds.concat(newNode));
+  }, [setNodes]);
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
@@ -131,7 +191,6 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
     [setEdges]
   );
 
-  // Add the missing handleFitView function
   const handleFitView = useCallback(() => {
     fitView({ padding: 0.2, includeHiddenNodes: false });
   }, [fitView]);

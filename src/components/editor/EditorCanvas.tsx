@@ -51,7 +51,7 @@ import ComponentLibrary from './ComponentLibrary';
 
 // ... (keep all other code exactly the same until handleShowNodeContextMenu)
 
-Object.assign(handleShowNodeContextMenu, useCallback((nodeId: string, clickPos: { x: number; y: number }) => {
+const handleShowNodeContextMenu = useCallback((nodeId: string, clickPos: { x: number; y: number }) => {
   const node = getNode(nodeId);
   if (!node) return;
 
@@ -92,7 +92,7 @@ Object.assign(handleShowNodeContextMenu, useCallback((nodeId: string, clickPos: 
       },
     ],
   });
-}, [getNode, handleAddChildPage, handleDuplicateNode, handleDeleteNodes, handleCutNodes, handleCopyNodes, handleSetAsHomePage]));
+}, [getNode, handleAddChildPage, handleDuplicateNode, handleDeleteNodes, handleCutNodes, handleCopyNodes, handleSetAsHomePage]);
 
 // ... (keep all remaining code exactly the same)
 

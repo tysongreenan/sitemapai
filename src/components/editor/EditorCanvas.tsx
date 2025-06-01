@@ -81,13 +81,57 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
             label: 'Home',
             url: '/',
             description: 'Main landing page',
-            components: []
+            isHomePage: true,
+            sections: [
+              {
+                id: nanoid(),
+                label: 'Hero Section',
+                description: 'Main hero section introducing the product',
+                components: ['hero-centered']
+              }
+            ]
           }
         };
         setNodes([defaultNode]);
       }
     }
   }, [currentProject?.sitemap_data]);
+
+  // Handle adding components to sections
+  const onAddComponent = useCallback((componentId: string) => {
+    if (!selectedNode) {
+      toast.info('Please select a page first');
+      return;
+    }
+
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === selectedNode.id) {
+          const newSection = {
+            id: nanoid(),
+            label: componentId.split('-').map(word => 
+              word.charAt(0).toUpperCase() + word.slice(1)
+            ).join(' '),
+            description: `${componentId.split('-').map(word => 
+              word.charAt(0).toUpperCase() + word.slice(1)
+            ).join(' ')} section`,
+            components: [componentId]
+          };
+
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              sections: [...(node.data.sections || []), newSection]
+            }
+          };
+        }
+        return node;
+      })
+    );
+
+    toast.success(`Added ${componentId.replace(/-/g, ' ')} section`);
+  }, [selectedNode]);
 
   // Handle connections
   const onConnect = useCallback((connection: Connection) => {
@@ -122,36 +166,6 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
     );
   }, []);
 
-  // Handle adding components
-  const onAddComponent = useCallback((componentId: string) => {
-    if (!reactFlowWrapper.current) return;
-
-    const reactFlowBounds = reactFlowWrapper.current.getBoundingClientRect();
-    const position = reactFlowInstance.project({
-      x: (reactFlowBounds.width / 2) - 150,
-      y: (reactFlowBounds.height / 2) - 100
-    });
-
-    const newNode: Node = {
-      id: nanoid(),
-      type: 'page',
-      position,
-      data: {
-        label: componentId.split('-').map(word => 
-          word.charAt(0).toUpperCase() + word.slice(1)
-        ).join(' '),
-        url: `/${componentId}`,
-        description: `${componentId.split('-').map(word => 
-          word.charAt(0).toUpperCase() + word.slice(1)
-        ).join(' ')} section`,
-        components: [componentId]
-      }
-    };
-
-    setNodes((nds) => [...nds, newNode]);
-    toast.success(`Added ${componentId.replace(/-/g, ' ')} component`);
-  }, [reactFlowInstance]);
-
   // Handle drag over
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
@@ -171,24 +185,31 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
       y: event.clientY - reactFlowBounds.top
     });
 
-    const newNode: Node = {
+    const newNode = {
       id: nanoid(),
       type: 'page',
       position,
       data: {
-        label: componentId.split('-').map(word => 
-          word.charAt(0).toUpperCase() + word.slice(1)
-        ).join(' '),
-        url: `/${componentId}`,
-        description: `${componentId.split('-').map(word => 
-          word.charAt(0).toUpperCase() + word.slice(1)
-        ).join(' ')} section`,
-        components: [componentId]
+        label: 'New Page',
+        url: '/new-page',
+        description: 'A new page',
+        sections: [
+          {
+            id: nanoid(),
+            label: componentId.split('-').map(word => 
+              word.charAt(0).toUpperCase() + word.slice(1)
+            ).join(' '),
+            description: `${componentId.split('-').map(word => 
+              word.charAt(0).toUpperCase() + word.slice(1)
+            ).join(' ')} section`,
+            components: [componentId]
+          }
+        ]
       }
     };
 
     setNodes((nds) => [...nds, newNode]);
-    toast.success(`Added ${componentId.replace(/-/g, ' ')} component`);
+    toast.success('Added new page');
   }, [reactFlowInstance]);
 
   // Save changes

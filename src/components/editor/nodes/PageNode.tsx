@@ -1,6 +1,7 @@
 import React, { memo, useState } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
-import { FileText, Eye, EyeOff, Package, ChevronDown, ChevronUp } from 'lucide-react';
+import { FileText, Eye, EyeOff, Package, ChevronDown, ChevronUp, Plus, Sparkles } from 'lucide-react';
+import { Button } from '../../ui/Button';
 
 // Component categories for icon mapping
 const componentIcons: Record<string, React.ReactNode> = {
@@ -28,6 +29,21 @@ import {
   Users, 
   Zap 
 } from 'lucide-react';
+
+interface Section {
+  id: string;
+  label: string;
+  description: string;
+  components: string[];
+}
+
+interface PageData {
+  label: string;
+  url: string;
+  description?: string;
+  isHomePage?: boolean;
+  sections: Section[];
+}
 
 // Component preview renderer
 export const ComponentPreview = ({ type }: { type: string }) => {
@@ -145,11 +161,21 @@ export const ComponentPreview = ({ type }: { type: string }) => {
   return previews[type] || previews.default;
 };
 
-// Enhanced page node component
-const EnhancedPageNode = ({ data, selected }: NodeProps) => {
+const PageNode = ({ data, selected }: NodeProps<PageData>) => {
   const [showPreview, setShowPreview] = useState(true);
-  const [expandedComponents, setExpandedComponents] = useState(false);
-  
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+  const [editingSection, setEditingSection] = useState<string | null>(null);
+
+  const toggleSection = (sectionId: string) => {
+    const newExpanded = new Set(expandedSections);
+    if (newExpanded.has(sectionId)) {
+      newExpanded.delete(sectionId);
+    } else {
+      newExpanded.add(sectionId);
+    }
+    setExpandedSections(newExpanded);
+  };
+
   return (
     <div
       className={`min-w-[280px] max-w-[320px] bg-white border-2 rounded-lg shadow-lg overflow-hidden transition-all duration-200 ${
@@ -176,25 +202,34 @@ const EnhancedPageNode = ({ data, selected }: NodeProps) => {
           <div className="text-xs text-gray-600 mb-3 line-clamp-2">{data.description}</div>
         )}
         
-        {data.components && data.components.length > 0 && (
-          <div className="border-t pt-3">
-            <button
-              onClick={() => setExpandedComponents(!expandedComponents)}
-              className="w-full flex items-center justify-between text-xs font-medium text-gray-700 hover:text-gray-900 transition-colors"
-            >
-              <span>Components ({data.components.length})</span>
-              {expandedComponents ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            </button>
-            
-            {expandedComponents && showPreview && (
-              <div className="mt-2 space-y-2">
-                {data.components.map((componentId: string, index: number) => {
-                  const icon = componentIcons[componentId];
+        <div className="space-y-2">
+          {data.sections.map((section) => (
+            <div key={section.id} className="border rounded-lg overflow-hidden">
+              <button
+                onClick={() => toggleSection(section.id)}
+                className="w-full flex items-center justify-between p-2 bg-gray-50 hover:bg-gray-100 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">{section.label}</span>
+                  <span className="text-xs text-gray-500">
+                    ({section.components.length})
+                  </span>
+                </div>
+                {expandedSections.has(section.id) ? (
+                  <ChevronUp size={14} />
+                ) : (
+                  <ChevronDown size={14} />
+                )}
+              </button>
+              
+              {expandedSections.has(section.id) && (
+                <div className="p-2 space-y-2 bg-white">
+                  <div className="text-xs text-gray-600">{section.description}</div>
                   
-                  return (
+                  {showPreview && section.components.map((componentId, index) => (
                     <div key={index} className="bg-gray-50 rounded p-2">
                       <div className="flex items-center gap-2 mb-1">
-                        {icon || <Package size={12} />}
+                        {componentIcons[componentId] || <Package size={12} />}
                         <span className="text-xs font-medium capitalize">
                           {componentId.replace(/-/g, ' ')}
                         </span>
@@ -203,12 +238,38 @@ const EnhancedPageNode = ({ data, selected }: NodeProps) => {
                         <ComponentPreview type={componentId} />
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 space-y-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            className="w-full"
+            leftIcon={<Plus size={14} />}
+            onClick={() => {
+              // Handle adding new section
+            }}
+          >
+            Add Section
+          </Button>
+          
+          <Button
+            variant="secondary"
+            size="sm"
+            className="w-full"
+            leftIcon={<Sparkles size={14} />}
+            onClick={() => {
+              // Handle generating content
+            }}
+          >
+            Generate Content
+          </Button>
+        </div>
       </div>
       
       <Handle
@@ -227,4 +288,4 @@ const EnhancedPageNode = ({ data, selected }: NodeProps) => {
   );
 };
 
-export default memo(EnhancedPageNode);
+export default memo(PageNode);

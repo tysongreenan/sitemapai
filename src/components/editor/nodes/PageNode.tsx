@@ -78,9 +78,9 @@ const AddNodeButton = ({ direction, onAdd, visible }: AddNodeButtonProps) => {
   const getPositionClasses = () => {
     switch (direction) {
       case 'bottom':
-        return 'bottom-[35px] left-1/2 transform -translate-x-1/2';
+        return 'bottom-[-35px] left-1/2 transform -translate-x-1/2';
       case 'left':
-        return 'left-[35px] top-1/2 transform -translate-y-1/2';
+        return 'left-[-35px] top-1/2 transform -translate-y-1/2';
       case 'right':
         return 'right-[35px] top-1/2 transform -translate-y-1/2';
     }

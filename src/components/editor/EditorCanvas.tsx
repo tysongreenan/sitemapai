@@ -26,6 +26,16 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { toast } from 'react-toastify';
 import { nanoid } from 'nanoid';
+import {
+  Menu,
+  PanelRight,
+  Layout,
+  Grid,
+  MessageCircle,
+  Mail,
+  Users,
+  Zap,
+} from 'lucide-react';
 import { useProject } from '../../context/ProjectContext';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -51,6 +61,7 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
   const [isComponentLibraryOpen, setIsComponentLibraryOpen] = useState(true);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
+  const reactFlowInstance = useReactFlow();
 
   // Load initial data
   useEffect(() => {
@@ -92,6 +103,33 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
     );
   }, []);
 
+  // Handle adding components
+  const onAddComponent = useCallback((componentId: string) => {
+    const nodeId = nanoid();
+    const position = reactFlowInstance.project({
+      x: window.innerWidth / 2 - 150,
+      y: window.innerHeight / 2 - 50,
+    });
+
+    // Create a new node
+    const newNode: Node = {
+      id: nodeId,
+      type: 'page',
+      position,
+      data: {
+        label: componentId.split('-').map(word => 
+          word.charAt(0).toUpperCase() + word.slice(1)
+        ).join(' '),
+        url: `/pages/${componentId}`,
+        description: `A new ${componentId.replace(/-/g, ' ')} component`,
+        components: [componentId],
+      },
+    };
+
+    setNodes((nds) => [...nds, newNode]);
+    toast.success(`Added ${componentId.replace(/-/g, ' ')} component`);
+  }, [reactFlowInstance]);
+
   // Save changes
   useEffect(() => {
     if (currentProject) {
@@ -110,22 +148,21 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
       <ComponentLibrary
         isOpen={isComponentLibraryOpen}
         onClose={() => setIsComponentLibraryOpen(false)}
-        onAddComponent={(componentId) => {
-          // Handle adding components
-          console.log('Adding component:', componentId);
-        }}
+        onAddComponent={onAddComponent}
       />
       
       <div className="flex-1 h-full">
         <EnhancedToolbar
           projectTitle={currentProject?.title || ''}
           onSave={() => {
-            // Handle manual save
+            updateProject(currentProject?.id || '', {
+              sitemap_data: { nodes, edges },
+            });
           }}
           saveStatus={saveStatus}
           viewMode="sitemap"
           onViewModeChange={() => {}}
-          onFitView={() => {}}
+          onFitView={() => reactFlowInstance.fitView()}
           onExport={() => {}}
           onDuplicate={() => {}}
         />
@@ -187,5 +224,3 @@ export const componentCategories = {
   },
   // ... rest of the categories remain the same
 };
-
-export default EditorCanvas

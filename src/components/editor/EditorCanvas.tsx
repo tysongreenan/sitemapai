@@ -135,6 +135,16 @@ const componentCategories = {
   },
 };
 
-// Rest of the file remains exactly the same...
+// Export componentCategories separately
+export { componentCategories };
 
-export default componentCategories
+const EditorCanvas = () => {
+  // Component implementation would go here
+  return (
+    <div>
+      {/* Component content */}
+    </div>
+  );
+};
+
+export default EditorCanvas;

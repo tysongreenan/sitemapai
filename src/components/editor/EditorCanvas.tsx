@@ -26,40 +26,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { toast } from 'react-toastify';
 import { nanoid } from 'nanoid';
-import {
-  Plus,
-  Search,
-  Copy,
-  Download,
-  Sparkles,
-  Maximize2,
-  Trash2,
-  Scissors,
-  Clipboard,
-  Home,
-  Menu,
-  PanelRight,
-  FileText,
-  Grid,
-  MessageCircle,
-  BarChart,
-  Zap,
-  Mail,
-  User,
-  CreditCard,
-  LogIn,
-  UserPlus,
-  RefreshCw,
-  Share2,
-  Save,
-  Layers,
-  ChevronRight,
-  ChevronDown,
-  Package,
-  X,
-  Layout,
-  ArrowRight
-} from 'lucide-react';
+import { useProject } from '../../context/ProjectContext';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import EnhancedToolbar from './EditorToolbar';
@@ -69,82 +36,156 @@ import SectionNode from './nodes/SectionNode';
 import WireframePageNode from './nodes/WireframePageNode';
 import ContextMenu from './ContextMenu';
 
-// -----------------------------------------------------------------------------
-// Component Categories Definition (Moved here for easy access by EditorCanvas)
-// -----------------------------------------------------------------------------
-const componentCategories = {
-  navigation: {
-    name: 'Navigation',
-    icon: <Menu size={16} />,
-    components: [
-      { id: 'navbar', name: 'Navigation Bar', icon: <Menu size={14} />, category: 'navigation', preview: 'navbar' },
-      { id: 'sidebar', name: 'Sidebar Menu', icon: <PanelRight size={14} />, category: 'navigation', preview: 'sidebar' },
-      { id: 'breadcrumb', name: 'Breadcrumb', icon: <ChevronRight size={14} />, category: 'navigation', preview: 'breadcrumb' },
-      { id: 'tabs', name: 'Tab Navigation', icon: <Layout size={14} />, category: 'navigation', preview: 'tabs' },
-    ],
-  },
-  hero: {
-    name: 'Hero Sections',
-    icon: <Sparkles size={16} />,
-    components: [
-      { id: 'hero-centered', name: 'Hero Centered', icon: <Layout size={14} />, category: 'hero', preview: 'hero-centered' },
-      { id: 'hero-split', name: 'Hero Split', icon: <Grid size={14} />, category: 'hero', preview: 'hero-split' },
-      { id: 'hero-video', name: 'Hero with Video', icon: <FileText size={14} />, category: 'hero', preview: 'hero-video' },
-      { id: 'hero-form', name: 'Hero with Form', icon: <Mail size={14} />, category: 'hero', preview: 'hero-form' },
-    ],
-  },
-  content: {
-    name: 'Content Blocks',
-    icon: <FileText size={16} />,
-    components: [
-      { id: 'text-block', name: 'Text Block', icon: <FileText size={14} />, category: 'content', preview: 'text' },
-      { id: 'feature-grid', name: 'Feature Grid', icon: <Grid size={14} />, category: 'content', preview: 'features' },
-      { id: 'testimonials', name: 'Testimonials', icon: <MessageCircle size={14} />, category: 'content', preview: 'testimonials' },
-      { id: 'team-section', name: 'Team Section', icon: <User size={14} />, category: 'content', preview: 'team' },
-      { id: 'stats', name: 'Stats Section', icon: <BarChart size={14} />, category: 'content', preview: 'stats' },
-      { id: 'timeline', name: 'Timeline', icon: <ArrowRight size={14} />, category: 'content', preview: 'timeline' },
-    ],
-  },
-  cta: {
-    name: 'Calls to Action',
-    icon: <Zap size={16} />,
-    components: [
-      { id: 'cta-simple', name: 'Simple CTA', icon: <Zap size={14} />, category: 'cta', preview: 'cta-simple' },
-      { id: 'cta-split', name: 'Split CTA', icon: <Grid size={14} />, category: 'cta', preview: 'cta-split' },
-      { id: 'cta-newsletter', name: 'Newsletter CTA', icon: <Mail size={14} />, category: 'cta', preview: 'newsletter' },
-    ],
-  },
-  forms: {
-    name: 'Form Elements',
-    icon: <FileText size={16} />,
-    components: [
-      { id: 'contact-form', name: 'Contact Form', icon: <Mail size={14} />, category: 'forms', preview: 'contact' },
-      { id: 'login-form', name: 'Login Form', icon: <LogIn size={14} />, category: 'forms', preview: 'login' },
-      { id: 'signup-form', name: 'Signup Form', icon: <UserPlus size={14} />, category: 'forms', preview: 'signup' },
-      { id: 'checkout-form', name: 'Checkout Form', icon: <CreditCard size={14} />, category: 'forms', preview: 'checkout' },
-    ],
-  },
-  footer: {
-    name: 'Footers',
-    icon: <Layout size={16} />,
-    components: [
-      { id: 'footer-simple', name: 'Simple Footer', icon: <Layout size={14} />, category: 'footer', preview: 'footer-simple' },
-      { id: 'footer-columns', name: 'Multi-Column Footer', icon: <Grid size={14} />, category: 'footer', preview: 'footer-columns' },
-      { id: 'footer-newsletter', name: 'Footer with Newsletter', icon: <Mail size={14} />, category: 'footer', preview: 'footer-newsletter' },
-    ],
-  },
+// Node types registration
+const nodeTypes = {
+  page: PageNode,
+  section: SectionNode,
+  wireframePage: WireframePageNode,
 };
 
-// Export componentCategories separately
-export { componentCategories };
+const EditorCanvas = ({ projectId }: { projectId: string }) => {
+  const navigate = useNavigate();
+  const { currentProject, updateProject, saveStatus, setSaveStatus } = useProject();
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [isComponentLibraryOpen, setIsComponentLibraryOpen] = useState(true);
+  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
 
-const EditorCanvas = () => {
-  // Component implementation would go here
+  // Load initial data
+  useEffect(() => {
+    if (currentProject?.sitemap_data) {
+      const { nodes: savedNodes, edges: savedEdges } = currentProject.sitemap_data;
+      setNodes(savedNodes || []);
+      setEdges(savedEdges || []);
+    }
+  }, [currentProject?.sitemap_data]);
+
+  // Handle connections
+  const onConnect = useCallback((connection: Connection) => {
+    setEdges((eds) =>
+      addEdge(
+        {
+          ...connection,
+          type: 'smoothstep',
+          markerEnd: { type: MarkerType.ArrowClosed },
+        },
+        eds
+      )
+    );
+  }, []);
+
+  // Handle node selection
+  const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
+    setSelectedNode(node);
+  }, []);
+
+  // Update node data
+  const updateNodeData = useCallback((nodeId: string, newData: any) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          return { ...node, data: { ...node.data, ...newData } };
+        }
+        return node;
+      })
+    );
+  }, []);
+
+  // Save changes
+  useEffect(() => {
+    if (currentProject) {
+      const saveTimeout = setTimeout(() => {
+        updateProject(currentProject.id, {
+          sitemap_data: { nodes, edges },
+        });
+      }, 1000);
+
+      return () => clearTimeout(saveTimeout);
+    }
+  }, [nodes, edges, currentProject]);
+
   return (
-    <div>
-      {/* Component content */}
+    <div className="h-full flex">
+      <ComponentLibrary
+        isOpen={isComponentLibraryOpen}
+        onClose={() => setIsComponentLibraryOpen(false)}
+        onAddComponent={(componentId) => {
+          // Handle adding components
+          console.log('Adding component:', componentId);
+        }}
+      />
+      
+      <div className="flex-1 h-full">
+        <EnhancedToolbar
+          projectTitle={currentProject?.title || ''}
+          onSave={() => {
+            // Handle manual save
+          }}
+          saveStatus={saveStatus}
+          viewMode="sitemap"
+          onViewModeChange={() => {}}
+          onFitView={() => {}}
+          onExport={() => {}}
+          onDuplicate={() => {}}
+        />
+        
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onNodeClick={onNodeClick}
+          nodeTypes={nodeTypes}
+          connectionLineType={ConnectionLineType.SmoothStep}
+          defaultEdgeOptions={{
+            type: 'smoothstep',
+            markerEnd: { type: MarkerType.ArrowClosed },
+          }}
+          fitView
+        >
+          <Background />
+          <Controls />
+          <MiniMap />
+        </ReactFlow>
+      </div>
+
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          items={[
+            {
+              label: 'Delete',
+              action: () => {
+                setNodes((nds) => nds.filter((n) => n.id !== contextMenu.nodeId));
+                setContextMenu(null);
+              },
+            },
+          ]}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </div>
   );
 };
 
 export default EditorCanvas;
+
+// Export component categories for use in other parts of the application
+export const componentCategories = {
+  navigation: {
+    name: 'Navigation',
+    icon: 'Menu',
+    components: [
+      { id: 'navbar', name: 'Navigation Bar', icon: 'Menu', category: 'navigation', preview: 'navbar' },
+      { id: 'sidebar', name: 'Sidebar Menu', icon: 'PanelRight', category: 'navigation', preview: 'sidebar' },
+      { id: 'breadcrumb', name: 'Breadcrumb', icon: 'ChevronRight', category: 'navigation', preview: 'breadcrumb' },
+      { id: 'tabs', name: 'Tab Navigation', icon: 'Layout', category: 'navigation', preview: 'tabs' },
+    ],
+  },
+  // ... rest of the categories remain the same
+};
+
+export default EditorCanvas

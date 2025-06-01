@@ -49,8 +49,21 @@ import SectionNode from './nodes/SectionNode';
 import ContextMenu from './ContextMenu';
 import ComponentLibrary from './ComponentLibrary';
 
-const EditorCanvas = () => {
+interface EditorCanvasProps {
+  projectId: string;
+}
+
+const EditorCanvas = ({ projectId }: EditorCanvasProps) => {
   const { getNode } = useReactFlow();
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [isComponentLibraryOpen, setIsComponentLibraryOpen] = useState(true);
+  const [nodeContextMenu, setNodeContextMenu] = useState<{
+    id: string;
+    x: number;
+    y: number;
+    items: Array<{ label: string; action: () => void; icon: React.ReactNode }>;
+  } | null>(null);
   
   const handleShowNodeContextMenu = useCallback((nodeId: string, clickPos: { x: number; y: number }) => {
     const node = getNode(nodeId);
@@ -93,13 +106,85 @@ const EditorCanvas = () => {
         },
       ],
     });
-  }, [getNode, handleAddChildPage, handleDuplicateNode, handleDeleteNodes, handleCutNodes, handleCopyNodes, handleSetAsHomePage]);
+  }, [getNode]);
+
+  const handleAddComponent = useCallback((componentId: string) => {
+    const newNode = {
+      id: nanoid(),
+      type: 'section',
+      position: { x: 100, y: 100 },
+      data: { label: componentId },
+    };
+    setNodes((nds) => [...nds, newNode]);
+  }, [setNodes]);
+
+  const handleAddChildPage = useCallback((parentId: string) => {
+    // Implementation for adding child page
+    console.log('Adding child page to', parentId);
+  }, []);
+
+  const handleDuplicateNode = useCallback((nodeId: string) => {
+    // Implementation for duplicating node
+    console.log('Duplicating node', nodeId);
+  }, []);
+
+  const handleDeleteNodes = useCallback((nodeIds: string[]) => {
+    // Implementation for deleting nodes
+    console.log('Deleting nodes', nodeIds);
+  }, []);
+
+  const handleCutNodes = useCallback((nodeIds: string[]) => {
+    // Implementation for cutting nodes
+    console.log('Cutting nodes', nodeIds);
+  }, []);
+
+  const handleCopyNodes = useCallback((nodeIds: string[]) => {
+    // Implementation for copying nodes
+    console.log('Copying nodes', nodeIds);
+  }, []);
+
+  const handleSetAsHomePage = useCallback((nodeId: string) => {
+    // Implementation for setting home page
+    console.log('Setting as home page', nodeId);
+  }, []);
 
   return (
-    <ReactFlow>
-      {/* Rest of the component implementation */}
-    </ReactFlow>
+    <div className="h-full relative flex">
+      <ComponentLibrary
+        isOpen={isComponentLibraryOpen}
+        onClose={() => setIsComponentLibraryOpen(false)}
+        onAddComponent={handleAddComponent}
+      />
+      
+      <div className="flex-1">
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          nodeTypes={{
+            wireframePage: WireframePageNode,
+            page: PageNode,
+            section: SectionNode,
+          }}
+          fitView
+        >
+          <Background />
+          <Controls />
+          <MiniMap />
+        </ReactFlow>
+      </div>
+
+      {nodeContextMenu && (
+        <ContextMenu
+          x={nodeContextMenu.x}
+          y={nodeContextMenu.y}
+          items={nodeContextMenu.items}
+          onClose={() => setNodeContextMenu(null)}
+        />
+      )}
+    </div>
   );
 };
 
-export default ComponentLibrary;
+export default EditorCanvas;

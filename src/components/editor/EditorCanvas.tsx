@@ -1,3 +1,4 @@
+// src/components/editor/EditorCanvas.tsx
 import React, {
   useState,
   useEffect,
@@ -65,14 +66,17 @@ import {
   Eye as EyeIcon,
   EyeOff as EyeOffIcon,
   Clipboard,
-  MoreHorizontal, // Ensure this is imported for consistency if you use it directly
+  MoreHorizontal,
+  Trash2, // Ensure Trash2 is imported
+  Scissors, // Ensure Scissors is imported
+  Home, // Ensure Home is imported
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 
 import WireframePageNode from './nodes/WireframePageNode';
-import PageNode from './nodes/PageNode'; // Ensure this is imported correctly
-import SectionNode from './nodes/SectionNode'; // Import the SectionNode
+import PageNode from './nodes/PageNode';
+import SectionNode from './nodes/SectionNode';
 import ContextMenu from './ContextMenu';
 import ComponentLibrary from './ComponentLibrary';
 
@@ -87,64 +91,182 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
   const [viewMode, setViewMode] = useState<'sitemap' | 'wireframe'>('sitemap');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: { label: string; action: () => void; icon?: React.ReactNode }[] } | null>(null);
-  const [nodeContextMenu, setNodeContextMenu] = useState<{ id: string; x: number; y: number } | null>(null); // New state for node context menu
+  const [nodeContextMenu, setNodeContextMenu] = useState<{ id: string; x: number; y: number; items: { label: string; action: () => void; icon?: React.ReactNode }[] } | null>(null); // Added items to nodeContextMenu state
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const { fitView, getNodes, screenToFlowPosition, setNodes: setReactFlowNodes, setEdges: setReactFlowEdges, getIntersectingNodes, getNodesBounds } = useReactFlow(); // Add getIntersectingNodes, getNodesBounds
-  const store = useStoreApi(); // Access React Flow's internal store
+  const { fitView, getNodes, screenToFlowPosition, setNodes: setReactFlowNodes, setEdges: setReactFlowEdges, getIntersectingNodes, getNodesBounds } = useReactFlow();
+  const store = useStoreApi();
 
-  // Helper to get node by ID from current nodes state
+
+  // ───────────────────────────────────────────────────────────────
+  // Helper functions (defined first as they are used by callbacks below)
+  // ───────────────────────────────────────────────────────────────
   const getNode = useCallback((nodeId: string) => nodes.find(n => n.id === nodeId), [nodes]);
 
 
-  // Custom node types based on viewMode
-  const nodeTypes = React.useMemo(() => ({
-    page: (nodeProps: NodeProps) => ( // Pass additional props to PageNode
-      <PageNode
-        {...nodeProps}
-        onShowNodeContextMenu={handleShowNodeContextMenu} // Passed down to PageNode
-        onAddSection={handleAddSectionToPage} // Passed down to PageNode
-        onGenerateContent={handleGenerateContentForPage} // Placeholder
-        isHomePage={nodeProps.data.isHomePage} // Pass isHomePage status
-      />
-    ),
-    section: SectionNode, // Register the SectionNode
-    wireframePage: WireframePageNode, // Keep this from previous update
-  }), [handleShowNodeContextMenu, handleAddSectionToPage, handleGenerateContentForPage]);
-
-
   // ───────────────────────────────────────────────────────────────
-  // Node Context Menu Handlers (triggered from PageNode's "..." button)
+  // Callback functions (defined before nodeTypes where they are used)
   // ───────────────────────────────────────────────────────────────
-  const handleShowNodeContextMenu = useCallback((nodeId: string, clickPos: { x: number; y: number }) => {
-    const node = getNode(nodeId);
-    if (!node) return;
 
-    setNodeContextMenu({
-      id: nodeId,
-      x: clickPos.x,
-      y: clickPos.y,
-      items: [
-        { label: 'Ask AI', action: () => toast.info('Ask AI feature coming soon!'), icon: <Sparkles size={16} /> },
-        { label: 'Duplicate', action: () => handleDuplicateNode(nodeId), icon: <Copy size={16} /> },
-        { label: 'Delete', action: () => handleDeleteNodes([nodeId]), icon: <Trash2 size={16} /> }, // Assuming Trash2 from lucide-react, import it if needed
-        { label: 'Copy', action: () => handleCopyNodes([nodeId]), icon: <Clipboard size={16} /> },
-        { label: 'Cut', action: () => handleCutNodes([nodeId]), icon: <Scissors size={16} /> }, // Assuming Scissors, import if needed
-        { label: 'Paste', action: () => handlePasteNodes(), icon: <Clipboard size={16} /> },
-        { label: 'Add page', action: () => handleAddChildPage(nodeId), icon: <Plus size={16} /> },
-        { label: 'Add section', action: () => handleAddSectionToPage(nodeId), icon: <Plus size={16} /> },
-        { label: 'Set as home page', action: () => handleSetAsHomePage(nodeId), icon: <Home size={16} /> },
-        { label: 'Find page in wireframe', action: () => toast.info('Find in wireframe feature coming soon!'), icon: <Search size={16} /> }, // Placeholder
-      ] as { label: string; action: () => void; icon?: React.ReactNode }[], // Type assertion to match ContextMenuProps
+  const handleDeleteNodes = useCallback((nodeIds: string[]) => {
+    setNodes((nds) => nds.filter((n) => !nodeIds.includes(n.id)));
+    setEdges((eds) => eds.filter((ed) => !nodeIds.includes(ed.source) && !nodeIds.includes(ed.target)));
+    setSelectedElements([]); // Clear selection after deletion
+    toast.success('Nodes deleted.');
+  }, [setNodes, setEdges]);
+
+  const handleCopyNodes = useCallback((nodeIds: string[]) => {
+    const nodesToCopy = nodes.filter(n => nodeIds.includes(n.id));
+    // Also copy relevant edges if any
+    const edgesToCopy = edges.filter(e => nodeIds.includes(e.source) && nodeIds.includes(e.target));
+    localStorage.setItem('clipboard', JSON.stringify({ nodes: nodesToCopy, edges: edgesToCopy }));
+    toast.info('Copied selected nodes and edges!');
+  }, [nodes, edges]);
+
+  const handleCutNodes = useCallback((nodeIds: string[]) => {
+    handleCopyNodes(nodeIds); // Copy to clipboard first
+    handleDeleteNodes(nodeIds); // Then delete from canvas
+    toast.info('Cut selected nodes and edges!');
+  }, [handleCopyNodes, handleDeleteNodes]);
+
+  const handlePasteNodes = useCallback(() => {
+    const clipboardData = localStorage.getItem('clipboard');
+    if (!clipboardData) {
+      toast.error('Clipboard is empty.');
+      return;
+    }
+
+    try {
+      const { nodes: copiedNodes, edges: copiedEdges } = JSON.parse(clipboardData);
+      if (!Array.isArray(copiedNodes)) throw new Error('Invalid clipboard data');
+
+      const newNodes: Node[] = [];
+      const newEdges: Connection[] = [];
+      const idMap = new Map<string, string>(); // Map old IDs to new IDs
+
+      copiedNodes.forEach((node: Node) => {
+        const newId = nanoid();
+        idMap.set(node.id, newId);
+        newNodes.push({
+          ...node,
+          id: newId,
+          position: { x: node.position.x + 30, y: node.position.y + 30 }, // Offset
+          selected: false,
+          data: {
+            ...node.data,
+            // Re-bind functions for pasted nodes
+            onShowNodeContextMenu: (id, pos) => handleShowNodeContextMenu(id, pos), // Re-bind
+            onAddSection: (id) => handleAddSectionToPage(id), // Re-bind
+            onGenerateContent: (id) => handleGenerateContentForPage(id), // Re-bind
+          },
+        });
+      });
+
+      copiedEdges.forEach((edge: Connection) => {
+        const newSource = idMap.get(edge.source);
+        const newTarget = idMap.get(edge.target);
+        if (newSource && newTarget) {
+          newEdges.push({
+            ...edge,
+            id: nanoid(),
+            source: newSource,
+            target: newTarget,
+          });
+        }
+      });
+
+      setNodes((nds) => nds.concat(newNodes));
+      setEdges((eds) => eds.concat(newEdges));
+      toast.success('Pasted elements!');
+    } catch (e) {
+      console.error('Failed to parse clipboard data:', e);
+      toast.error('Failed to paste: Invalid clipboard data.');
+    }
+  }, [setNodes, setEdges]); // Dependencies for pasting, including the new handlers
+
+
+  const handleFitView = useCallback(() => {
+    const allNodes = getNodes();
+    if (allNodes.length === 0) return;
+    const bounds = getRectOfNodes(allNodes);
+    const { x, y, zoom } = getTransformForBounds(bounds, reactFlowWrapper.current!.offsetWidth, reactFlowWrapper.current!.offsetHeight, 0.5, 2);
+    fitView({ duration: 800 });
+  }, [fitView, getNodes]);
+
+  const handleExport = useCallback(() => {
+    const data = { nodes, edges };
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `sitemap-${Date.now()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [nodes, edges]);
+
+  const handleDuplicate = useCallback(() => {
+    const selected = store.getState().getSelectedElements();
+    if (!selected || selected.length === 0) {
+      toast.info('Select nodes to duplicate.');
+      return;
+    }
+    const nodesToDuplicate = selected.filter(el => el.type === 'page' || el.type === 'section');
+    if (nodesToDuplicate.length === 0) {
+      toast.info('No nodes selected for duplication.');
+      return;
+    }
+
+    const newNodes: Node[] = [];
+    const newEdges: Connection[] = [];
+    const idMap = new Map<string, string>();
+
+    nodesToDuplicate.forEach((node: Node) => {
+      const newId = nanoid();
+      idMap.set(node.id, newId);
+      newNodes.push({
+        ...node,
+        id: newId,
+        position: { x: node.position.x + 50, y: node.position.y + 50 },
+        selected: false,
+        data: {
+          ...node.data,
+          label: `${node.data.label} (Copy)`,
+          onShowNodeContextMenu: (id, pos) => handleShowNodeContextMenu(id, pos), // Re-bind
+          onAddSection: (id) => handleAddSectionToPage(id), // Re-bind
+          onGenerateContent: (id) => handleGenerateContentForPage(id), // Re-bind
+        },
+      });
     });
-  }, [getNode, handleDeleteNodes, handleDuplicateNode, handleCopyNodes, handleCutNodes, handlePasteNodes, handleAddChildPage, handleAddSectionToPage, handleSetAsHomePage]);
+
+    // Duplicate connected edges if both source and target are duplicated nodes
+    edges.forEach(edge => {
+        if (idMap.has(edge.source) && idMap.has(edge.target)) {
+            newEdges.push({
+                ...edge,
+                id: nanoid(),
+                source: idMap.get(edge.source)!,
+                target: idMap.get(edge.target)!,
+            });
+        }
+    });
+
+    setNodes((nds) => nds.concat(newNodes));
+    setEdges((eds) => eds.concat(newEdges));
+    toast.success('Selected elements duplicated!');
+  }, [setNodes, setEdges, nodes, edges, store]);
+
 
   const handleCloseNodeContextMenu = useCallback(() => {
     setNodeContextMenu(null);
   }, []);
 
-  // ───────────────────────────────────────────────────────────────
-  // Node Actions from Context Menu / Buttons
-  // ───────────────────────────────────────────────────────────────
+  const onContextMenuClose = useCallback(() => {
+    setContextMenu(null);
+    handleCloseNodeContextMenu(); // Also close node context menu if it was open
+  }, [handleCloseNodeContextMenu]);
+
 
   const handleAddSectionToPage = useCallback((pageId: string) => {
     const pageNode = getNode(pageId);
@@ -154,7 +276,7 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
     const newSection: Node = {
       id: newSectionId,
       type: 'section',
-      position: { x: pageNode.position.x + 50, y: pageNode.position.y + pageNode.height + 100 }, // Position below the page node
+      position: { x: pageNode.position.x + 50, y: pageNode.position.y + (pageNode.height || 200) + 50 }, // Position below the page node, added default height
       data: {
         label: 'New Section',
         description: `Section for ${pageNode.data.label}`,
@@ -206,9 +328,9 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
         url: `/${parentNode.data.label.toLowerCase().replace(/\s/g, '-')}-child`,
         description: `Child page of ${parentNode.data.label}`,
         components: [],
-        onShowNodeContextMenu: handleShowNodeContextMenu,
-        onAddSection: handleAddSectionToPage,
-        onGenerateContent: handleGenerateContentForPage,
+        onShowNodeContextMenu: (id, pos) => handleShowNodeContextMenu(id, pos), // Re-bind
+        onAddSection: (id) => handleAddSectionToPage(id), // Re-bind
+        onGenerateContent: (id) => handleGenerateContentForPage(id), // Re-bind
         isHomePage: false,
       },
     };
@@ -224,7 +346,7 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
       markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20, color: '#4f46e5' },
     }, eds));
     toast.success(`New page added as child of "${parentNode.data.label}"!`);
-  }, [getNode, setNodes, setEdges, handleShowNodeContextMenu, handleAddSectionToPage, handleGenerateContentForPage]);
+  }, [getNode, setNodes, setEdges]);
 
 
   const handleSetAsHomePage = useCallback((nodeId: string) => {
@@ -240,103 +362,104 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
     toast.success('Home page set!');
   }, [setNodes]);
 
-  const handleDeleteNodes = useCallback((nodeIds: string[]) => {
-    setNodes((nds) => nds.filter((n) => !nodeIds.includes(n.id)));
-    setEdges((eds) => eds.filter((ed) => !nodeIds.includes(ed.source) && !nodeIds.includes(ed.target)));
-    setSelectedElements([]); // Clear selection after deletion
-    toast.success('Nodes deleted.');
-  }, [setNodes, setEdges]);
+  const handleShowNodeContextMenu = useCallback((nodeId: string, clickPos: { x: number; y: number }) => {
+    const node = getNode(nodeId);
+    if (!node) return;
 
-  const handleDuplicateNode = useCallback((nodeId: string) => {
-    const nodeToDuplicate = getNode(nodeId);
-    if (!nodeToDuplicate) return;
+    setNodeContextMenu({
+      id: nodeId,
+      x: clickPos.x,
+      y: clickPos.y,
+      items: [
+        { label: 'Ask AI', action: () => toast.info('Ask AI feature coming soon!'), icon: <Sparkles size={16} /> },
+        { label: 'Duplicate', action: () => handleDuplicateNode(nodeId), icon: <Copy size={16} /> },
+        { label: 'Delete', action: () => handleDeleteNodes([nodeId]), icon: <Trash2 size={16} /> },
+        { label: 'Copy', action: () => handleCopyNodes([nodeId]), icon: <Clipboard size={16} /> },
+        { label: 'Cut', action: () => handleCutNodes([nodeId]), icon: <Scissors size={16} /> },
+        { label: 'Paste', action: () => handlePasteNodes(), icon: <Clipboard size={16} /> },
+        { label: 'Add page', action: () => handleAddChildPage(nodeId), icon: <Plus size={16} /> },
+        { label: 'Add section', action: () => handleAddSectionToPage(nodeId), icon: <Plus size={16} /> },
+        { label: 'Set as home page', action: () => handleSetAsHomePage(nodeId), icon: <Home size={16} /> },
+        { label: 'Find page in wireframe', action: () => toast.info('Find in wireframe feature coming soon!'), icon: <Search size={16} /> },
+      ],
+    });
+  }, [getNode, handleDeleteNodes, handleDuplicateNode, handleCopyNodes, handleCutNodes, handlePasteNodes, handleAddChildPage, handleAddSectionToPage, handleSetAsHomePage]);
 
-    const duplicatedNode: Node = {
-      ...nodeToDuplicate,
+
+  const addPageNode = useCallback((position?: { x: number; y: number }) => {
+    const defaultPosition = position || { x: 50, y: 50 };
+    const newNode = {
       id: nanoid(),
-      position: { x: nodeToDuplicate.position.x + 50, y: nodeToDuplicate.position.y + 50 }, // Offset
+      type: 'page',
+      position: defaultPosition,
       data: {
-        ...nodeToDuplicate.data,
-        label: `${nodeToDuplicate.data.label} (Copy)`,
-        // Ensure functions are rebound if they are not primitives
-        onShowNodeContextMenu: handleShowNodeContextMenu,
-        onAddSection: handleAddSectionToPage,
-        onGenerateContent: handleGenerateContentForPage,
+        label: 'New Page',
+        url: '/new-page',
+        description: 'A newly added page',
+        components: [],
+        onShowNodeContextMenu: (id, pos) => handleShowNodeContextMenu(id, pos),
+        onAddSection: (id) => handleAddSectionToPage(id),
+        onGenerateContent: (id) => handleGenerateContentForPage(id),
+        isHomePage: false,
       },
-      selected: false,
     };
-    setNodes((nds) => nds.concat(duplicatedNode));
-    toast.success('Node duplicated!');
-  }, [getNode, setNodes, handleShowNodeContextMenu, handleAddSectionToPage, handleGenerateContentForPage]);
+    setNodes((nds) => nds.concat(newNode));
+    toast.success('New page added!');
+  }, [setNodes]);
 
-  const handleCopyNodes = useCallback((nodeIds: string[]) => {
-    const nodesToCopy = nodes.filter(n => nodeIds.includes(n.id));
-    // Also copy relevant edges if any
-    const edgesToCopy = edges.filter(e => nodeIds.includes(e.source) && nodeIds.includes(e.target));
-    localStorage.setItem('clipboard', JSON.stringify({ nodes: nodesToCopy, edges: edgesToCopy }));
-    toast.info('Copied selected nodes and edges!');
-  }, [nodes, edges]);
 
-  const handleCutNodes = useCallback((nodeIds: string[]) => {
-    handleCopyNodes(nodeIds); // Copy to clipboard first
-    handleDeleteNodes(nodeIds); // Then delete from canvas
-    toast.info('Cut selected nodes and edges!');
-  }, [handleCopyNodes, handleDeleteNodes]);
+  const onPaneContextMenu = useCallback(
+    (event: React.MouseEvent) => {
+      event.preventDefault();
+      handleCloseNodeContextMenu();
 
-  const handlePasteNodes = useCallback(() => {
-    const clipboardData = localStorage.getItem('clipboard');
-    if (!clipboardData) {
-      toast.error('Clipboard is empty.');
-      return;
-    }
+      const pane = reactFlowWrapper.current?.getBoundingClientRect();
+      if (!pane) return;
 
-    try {
-      const { nodes: copiedNodes, edges: copiedEdges } = JSON.parse(clipboardData);
-      if (!Array.isArray(copiedNodes)) throw new Error('Invalid clipboard data');
+      const x = event.clientX - pane.left;
+      const y = event.clientY - pane.top;
 
-      const newNodes: Node[] = [];
-      const newEdges: Connection[] = [];
-      const idMap = new Map<string, string>(); // Map old IDs to new IDs
+      const flowPosition = screenToFlowPosition({ x, y });
 
-      copiedNodes.forEach((node: Node) => {
-        const newId = nanoid();
-        idMap.set(node.id, newId);
-        newNodes.push({
-          ...node,
-          id: newId,
-          position: { x: node.position.x + 30, y: node.position.y + 30 }, // Offset
-          selected: false,
-          data: {
-            ...node.data,
-            // Re-bind functions for pasted nodes
-            onShowNodeContextMenu: handleShowNodeContextMenu,
-            onAddSection: handleAddSectionToPage,
-            onGenerateContent: handleGenerateContentForPage,
+      setContextMenu({
+        x: event.clientX,
+        y: event.clientY,
+        items: [
+          {
+            label: 'Add New Page',
+            action: () => addPageNode(flowPosition),
+            icon: <Plus size={16} />,
           },
-        });
+          {
+            label: 'Fit View',
+            action: handleFitView,
+            icon: <Maximize2 size={16} />,
+          },
+        ],
       });
+    },
+    [addPageNode, handleFitView, screenToFlowPosition, handleCloseNodeContextMenu]
+  );
 
-      copiedEdges.forEach((edge: Connection) => {
-        const newSource = idMap.get(edge.source);
-        const newTarget = idMap.get(edge.target);
-        if (newSource && newTarget) {
-          newEdges.push({
-            ...edge,
-            id: nanoid(),
-            source: newSource,
-            target: newTarget,
-          });
-        }
-      });
-
-      setNodes((nds) => nds.concat(newNodes));
-      setEdges((eds) => eds.concat(newEdges));
-      toast.success('Pasted elements!');
-    } catch (e) {
-      console.error('Failed to parse clipboard data:', e);
-      toast.error('Failed to paste: Invalid clipboard data.');
-    }
-  }, [setNodes, setEdges, handleShowNodeContextMenu, handleAddSectionToPage, handleGenerateContentForPage]);
+  const handleAddComponent = useCallback(
+    (componentId: string) => {
+      if (!selectedNode) {
+        toast.info('Select a page node first');
+        return;
+      }
+      setNodes((nds) =>
+        nds.map((node) => {
+          if (node.id === selectedNode.id) {
+            const existing = node.data.components || [];
+            return { ...node, data: { ...node.data, components: [...existing, componentId] } };
+          }
+          return node;
+        })
+      );
+      toast.success('Component added');
+    },
+    [selectedNode, setNodes]
+  );
 
 
   // ───────────────────────────────────────────────────────────────
@@ -349,7 +472,7 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
       if (!componentId || !reactFlowWrapper.current) return;
 
       const bounds = reactFlowWrapper.current.getBoundingClientRect();
-      const position = store.getState().project({ // Use store.getState().project for accuracy
+      const position = store.getState().project({
         x: event.clientX - bounds.left,
         y: event.clientY - bounds.top,
       });
@@ -368,16 +491,16 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
           url: `/${component.id}`,
           description: `${component.name} section`,
           components: [componentId],
-          onShowNodeContextMenu: handleShowNodeContextMenu, // Important: pass down these functions
-          onAddSection: handleAddSectionToPage,
-          onGenerateContent: handleGenerateContentForPage,
+          onShowNodeContextMenu: (id, pos) => handleShowNodeContextMenu(id, pos),
+          onAddSection: (id) => handleAddSectionToPage(id),
+          onGenerateContent: (id) => handleGenerateContentForPage(id),
           isHomePage: false,
         },
       };
 
       setNodes((nds) => nds.concat(newNode));
     },
-    [setNodes, handleShowNodeContextMenu, handleAddSectionToPage, handleGenerateContentForPage, store]
+    [setNodes, store]
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -406,242 +529,6 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
     [setEdges]
   );
 
-  // ───────────────────────────────────────────────────────────────
-  // handleAddComponent: Adds a component to the selected node's data
-  // ───────────────────────────────────────────────────────────────
-  const handleAddComponent = useCallback(
-    (componentId: string) => {
-      if (!selectedNode) {
-        toast.info('Select a page node first');
-        return;
-      }
-      setNodes((nds) =>
-        nds.map((node) => {
-          if (node.id === selectedNode.id) {
-            const existing = node.data.components || [];
-            return { ...node, data: { ...node.data, components: [...existing, componentId] } };
-          }
-          return node;
-        })
-      );
-      toast.success('Component added');
-    },
-    [selectedNode, setNodes]
-  );
-
-  // ───────────────────────────────────────────────────────────────
-  // handleAddPageNode: Adds a new default page node to the canvas (from canvas context menu)
-  // ───────────────────────────────────────────────────────────────
-  const addPageNode = useCallback((position?: { x: number; y: number }) => {
-    const defaultPosition = position || { x: 50, y: 50 }; // Default if no position is provided
-    const newNode = {
-      id: nanoid(),
-      type: 'page',
-      position: defaultPosition,
-      data: {
-        label: 'New Page',
-        url: '/new-page',
-        description: 'A newly added page',
-        components: [],
-        onShowNodeContextMenu: handleShowNodeContextMenu, // Pass functions down
-        onAddSection: handleAddSectionToPage,
-        onGenerateContent: handleGenerateContentForPage,
-        isHomePage: false,
-      },
-    };
-    setNodes((nds) => nds.concat(newNode));
-    toast.success('New page added!');
-  }, [setNodes, handleShowNodeContextMenu, handleAddSectionToPage, handleGenerateContentForPage]);
-
-
-  // ───────────────────────────────────────────────────────────────
-  // Canvas Context Menu Handler (triggered from pane right-click)
-  // ───────────────────────────────────────────────────────────────
-  const onPaneContextMenu = useCallback(
-    (event: React.MouseEvent) => {
-      event.preventDefault(); // Prevent default browser context menu
-      handleCloseNodeContextMenu(); // Close node context menu if open
-
-      // Calculate position relative to the React Flow instance
-      const pane = reactFlowWrapper.current?.getBoundingClientRect();
-      if (!pane) return;
-
-      const x = event.clientX - pane.left;
-      const y = event.clientY - pane.top;
-
-      // Convert screen coordinates to flow coordinates
-      const flowPosition = screenToFlowPosition({ x, y });
-
-      setContextMenu({
-        x: event.clientX,
-        y: event.clientY,
-        items: [
-          {
-            label: 'Add New Page',
-            action: () => addPageNode(flowPosition),
-            icon: <Plus size={16} />,
-          },
-          {
-            label: 'Fit View',
-            action: handleFitView,
-            icon: <Maximize2 size={16} />,
-          },
-          // Add more canvas context menu items here
-        ],
-      });
-    },
-    [addPageNode, handleFitView, screenToFlowPosition, handleCloseNodeContextMenu]
-  );
-
-  const onContextMenuClose = useCallback(() => {
-    setContextMenu(null);
-    handleCloseNodeContextMenu(); // Also close node context menu if it was open
-  }, [handleCloseNodeContextMenu]);
-
-
-  // ───────────────────────────────────────────────────────────────
-  // Fit view handler: Centers and zooms out to show all nodes
-  // ───────────────────────────────────────────────────────────────
-  const handleFitView = useCallback(() => {
-    const allNodes = getNodes();
-    if (allNodes.length === 0) return;
-    const bounds = getRectOfNodes(allNodes);
-    const { x, y, zoom } = getTransformForBounds(bounds, reactFlowWrapper.current!.offsetWidth, reactFlowWrapper.current!.offsetHeight, 0.5, 2);
-    fitView({ duration: 800 });
-  }, [fitView, getNodes]);
-
-  // ───────────────────────────────────────────────────────────────
-  // Export: Download nodes & edges as JSON
-  // ───────────────────────────────────────────────────────────────
-  const handleExport = useCallback(() => {
-    const data = { nodes, edges };
-    const json = JSON.stringify(data, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `sitemap-${Date.now()}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  }, [nodes, edges]);
-
-  // ───────────────────────────────────────────────────────────────
-  // Duplicate placeholder (now handles multiple nodes)
-  // ───────────────────────────────────────────────────────────────
-  const handleDuplicate = useCallback(() => {
-    const selected = store.getState().getSelectedElements();
-    if (!selected || selected.length === 0) {
-      toast.info('Select nodes to duplicate.');
-      return;
-    }
-    const nodesToDuplicate = selected.filter(el => el.type === 'page' || el.type === 'section');
-    if (nodesToDuplicate.length === 0) {
-      toast.info('No nodes selected for duplication.');
-      return;
-    }
-
-    const newNodes: Node[] = [];
-    const newEdges: Connection[] = [];
-    const idMap = new Map<string, string>();
-
-    nodesToDuplicate.forEach((node: Node) => {
-      const newId = nanoid();
-      idMap.set(node.id, newId);
-      newNodes.push({
-        ...node,
-        id: newId,
-        position: { x: node.position.x + 50, y: node.position.y + 50 },
-        selected: false,
-        data: {
-          ...node.data,
-          label: `${node.data.label} (Copy)`,
-          onShowNodeContextMenu: handleShowNodeContextMenu,
-          onAddSection: handleAddSectionToPage,
-          onGenerateContent: handleGenerateContentForPage,
-        },
-      });
-    });
-
-    // Duplicate connected edges if both source and target are duplicated nodes
-    edges.forEach(edge => {
-        if (idMap.has(edge.source) && idMap.has(edge.target)) {
-            newEdges.push({
-                ...edge,
-                id: nanoid(),
-                source: idMap.get(edge.source)!,
-                target: idMap.get(edge.target)!,
-            });
-        }
-    });
-
-    setNodes((nds) => nds.concat(newNodes));
-    setEdges((eds) => eds.concat(newEdges));
-    toast.success('Selected elements duplicated!');
-  }, [setNodes, setEdges, nodes, edges, store, handleShowNodeContextMenu, handleAddSectionToPage, handleGenerateContentForPage]);
-
-
-  // ───────────────────────────────────────────────────────────────
-  // Initialize with sample data
-  // ───────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (nodes.length === 0) {
-      const initialNodes = [
-        {
-          id: '1',
-          type: 'page',
-          position: { x: 300, y: 100 },
-          data: {
-            label: 'Home',
-            url: '/',
-            description: 'Welcome page',
-            components: ['navbar', 'hero-centered', 'footer-simple'],
-            onShowNodeContextMenu: handleShowNodeContextMenu, // Pass functions
-            onAddSection: handleAddSectionToPage,
-            onGenerateContent: handleGenerateContentForPage,
-            isHomePage: true, // Mark home page
-          },
-        },
-        {
-          id: '2',
-          type: 'page',
-          position: { x: 100, y: 300 },
-          data: {
-            label: 'About',
-            url: '/about',
-            description: 'About us',
-            components: ['navbar', 'text-block', 'footer-simple'],
-            onShowNodeContextMenu: handleShowNodeContextMenu,
-            onAddSection: handleAddSectionToPage,
-            onGenerateContent: handleGenerateContentForPage,
-            isHomePage: false,
-          },
-        },
-        {
-          id: '3',
-          type: 'page',
-          position: { x: 500, y: 300 },
-          data: {
-            label: 'Services',
-            url: '/services',
-            description: 'Our services',
-            components: ['navbar', 'feature-grid', 'footer-simple'],
-            onShowNodeContextMenu: handleShowNodeContextMenu,
-            onAddSection: handleAddSectionToPage,
-            onGenerateContent: handleGenerateContentForPage,
-            isHomePage: false,
-          },
-        },
-      ];
-      const initialEdges = [
-        { id: 'e1-2', source: '1', target: '2', type: 'smoothstep', animated: true },
-        { id: 'e1-3', source: '1', target: '3', type: 'smoothstep', animated: true },
-      ];
-      setNodes(initialNodes);
-      setEdges(initialEdges);
-    }
-  }, [nodes.length, setNodes, setEdges, handleShowNodeContextMenu, handleAddSectionToPage, handleGenerateContentForPage]); // Add dependencies
 
   // ───────────────────────────────────────────────────────────────
   // Selection handlers: track multi-select & node selection
@@ -671,19 +558,15 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
 
   // Keyboard shortcuts: Delete selected nodes/edges
   const onKeyDown = useCallback((e: KeyboardEvent) => {
-    // Check for 'Delete' key press
     if (e.key === 'Delete' && selectedElements.length > 0) {
       handleDeleteNodes(selectedElements.map(el => el.id));
     }
-    // Handle Copy (Cmd/Ctrl + C)
     if ((e.ctrlKey || e.metaKey) && e.key === 'c' && selectedElements.length > 0) {
       handleCopyNodes(selectedElements.map(el => el.id));
     }
-    // Handle Cut (Cmd/Ctrl + X)
     if ((e.ctrlKey || e.metaKey) && e.key === 'x' && selectedElements.length > 0) {
       handleCutNodes(selectedElements.map(el => el.id));
     }
-    // Handle Paste (Cmd/Ctrl + V)
     if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
       handlePasteNodes();
     }
@@ -698,6 +581,66 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
   useEffect(() => {
     localStorage.setItem('sitemap-data', JSON.stringify({ nodes, edges }));
   }, [nodes, edges]);
+
+  // ───────────────────────────────────────────────────────────────
+  // Initialize with sample data (Ensure functions are passed here too)
+  // ───────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (nodes.length === 0) {
+      const initialNodes = [
+        {
+          id: '1',
+          type: 'page',
+          position: { x: 300, y: 100 },
+          data: {
+            label: 'Home',
+            url: '/',
+            description: 'Welcome page',
+            components: ['navbar', 'hero-centered', 'footer-simple'],
+            onShowNodeContextMenu: (id, pos) => handleShowNodeContextMenu(id, pos), // Pass functions
+            onAddSection: (id) => handleAddSectionToPage(id),
+            onGenerateContent: (id) => handleGenerateContentForPage(id),
+            isHomePage: true,
+          },
+        },
+        {
+          id: '2',
+          type: 'page',
+          position: { x: 100, y: 300 },
+          data: {
+            label: 'About',
+            url: '/about',
+            description: 'About us',
+            components: ['navbar', 'text-block', 'footer-simple'],
+            onShowNodeContextMenu: (id, pos) => handleShowNodeContextMenu(id, pos),
+            onAddSection: (id) => handleAddSectionToPage(id),
+            onGenerateContent: (id) => handleGenerateContentForPage(id),
+            isHomePage: false,
+          },
+        },
+        {
+          id: '3',
+          type: 'page',
+          position: { x: 500, y: 300 },
+          data: {
+            label: 'Services',
+            url: '/services',
+            description: 'Our services',
+            components: ['navbar', 'feature-grid', 'footer-simple'],
+            onShowNodeContextMenu: (id, pos) => handleShowNodeContextMenu(id, pos),
+            onAddSection: (id) => handleAddSectionToPage(id),
+            onGenerateContent: (id) => handleGenerateContentForPage(id),
+            isHomePage: false,
+          },
+        },
+      ];
+      setNodes(initialNodes);
+      setEdges([
+        { id: 'e1-2', source: '1', target: '2', type: 'smoothstep', animated: true },
+        { id: 'e1-3', source: '1', target: '3', type: 'smoothstep', animated: true },
+      ]);
+    }
+  }, [nodes.length, setNodes, setEdges]); // Removed specific handlers as dependencies here; they are passed in node data
 
   // ───────────────────────────────────────────────────────────────
   // RENDER
@@ -720,7 +663,7 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
           onViewModeChange={setViewMode}
           onFitView={handleFitView}
           onExport={handleExport}
-          onDuplicate={handleDuplicate} // Use the new handleDuplicate
+          onDuplicate={handleDuplicate}
         />
 
         <div className="flex flex-1">
@@ -770,12 +713,12 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
               <MiniMap
                 nodeStrokeColor={(n) => {
                   if (n.type === 'page') return '#4f46e5';
-                  if (n.type === 'section') return '#ec4899'; // Pink for sections
+                  if (n.type === 'section') return '#ec4899';
                   return '#999';
                 }}
                 nodeColor={(n) => {
                   if (n.type === 'page') return '#a5b4fc';
-                  if (n.type === 'section') return '#fbcfe8'; // Lighter pink for sections
+                  if (n.type === 'section') return '#fbcfe8';
                   return '#eee';
                 }}
               />
@@ -788,7 +731,7 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
                 onClose={onContextMenuClose}
               />
             )}
-            {nodeContextMenu && ( // Render node specific context menu
+            {nodeContextMenu && (
               <ContextMenu
                 x={nodeContextMenu.x}
                 y={nodeContextMenu.y}

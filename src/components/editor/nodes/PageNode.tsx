@@ -176,6 +176,9 @@ const PageNode = ({ data, selected }: NodeProps<PageData>) => {
     setExpandedSections(newExpanded);
   };
 
+  // Ensure data.sections is an array
+  const sections = data.sections || [];
+
   return (
     <div
       className={`min-w-[280px] max-w-[320px] bg-white border-2 rounded-lg shadow-lg overflow-hidden transition-all duration-200 ${
@@ -203,7 +206,7 @@ const PageNode = ({ data, selected }: NodeProps<PageData>) => {
         )}
         
         <div className="space-y-2">
-          {data.sections.map((section) => (
+          {sections.map((section) => (
             <div key={section.id} className="border rounded-lg overflow-hidden">
               <button
                 onClick={() => toggleSection(section.id)}
@@ -212,7 +215,7 @@ const PageNode = ({ data, selected }: NodeProps<PageData>) => {
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium">{section.label}</span>
                   <span className="text-xs text-gray-500">
-                    ({section.components.length})
+                    ({section.components?.length || 0})
                   </span>
                 </div>
                 {expandedSections.has(section.id) ? (
@@ -226,7 +229,7 @@ const PageNode = ({ data, selected }: NodeProps<PageData>) => {
                 <div className="p-2 space-y-2 bg-white">
                   <div className="text-xs text-gray-600">{section.description}</div>
                   
-                  {showPreview && section.components.map((componentId, index) => (
+                  {showPreview && (section.components || []).map((componentId, index) => (
                     <div key={index} className="bg-gray-50 rounded p-2">
                       <div className="flex items-center gap-2 mb-1">
                         {componentIcons[componentId] || <Package size={12} />}

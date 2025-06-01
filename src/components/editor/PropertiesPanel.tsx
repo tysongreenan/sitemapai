@@ -48,17 +48,20 @@ export default function PropertiesPanel({
   const handleAddComponent = () => {
     if (!newComponent.trim() || !selectedNode) return;
     
-    const components = [...(nodeData.components || []), newComponent.trim()];
-    const updatedData = { ...nodeData, components };
-    
-    setNodeData(updatedData);
-    updateNodeData(selectedNode.id, updatedData);
-    setNewComponent('');
+    // Only handle components for non-page nodes
+    if (selectedNode.type !== 'page') {
+      const components = [...(nodeData.components || []), newComponent.trim()];
+      const updatedData = { ...nodeData, components };
+      
+      setNodeData(updatedData);
+      updateNodeData(selectedNode.id, updatedData);
+      setNewComponent('');
+    }
   };
 
   // Remove component from the node
   const handleRemoveComponent = (index: number) => {
-    if (!selectedNode) return;
+    if (!selectedNode || selectedNode.type === 'page') return;
     
     const components = [...(nodeData.components || [])];
     components.splice(index, 1);
@@ -132,53 +135,56 @@ export default function PropertiesPanel({
           />
         </div>
         
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Components
-          </label>
-          <div className="flex space-x-2 mb-2">
-            <Input
-              value={newComponent}
-              onChange={(e) => setNewComponent(e.target.value)}
-              placeholder="Add component"
-              className="flex-grow"
-              onKeyPress={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleAddComponent();
-                }
-              }}
-            />
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={handleAddComponent}
-              leftIcon={<Plus size={16} />}
-            >
-              Add
-            </Button>
+        {/* Only show components section for non-page nodes */}
+        {selectedNode.type !== 'page' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Components
+            </label>
+            <div className="flex space-x-2 mb-2">
+              <Input
+                value={newComponent}
+                onChange={(e) => setNewComponent(e.target.value)}
+                placeholder="Add component"
+                className="flex-grow"
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddComponent();
+                  }
+                }}
+              />
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleAddComponent}
+                leftIcon={<Plus size={16} />}
+              >
+                Add
+              </Button>
+            </div>
+            
+            <div className="space-y-2 mt-3">
+              {nodeData.components && nodeData.components.length > 0 ? (
+                nodeData.components.map((component: string, index: number) => (
+                  <div key={index} className="flex justify-between items-center bg-gray-50 p-2 rounded">
+                    <span className="text-sm">{component}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-500 hover:text-red-700 p-1 h-auto"
+                      onClick={() => handleRemoveComponent(index)}
+                    >
+                      <X size={16} />
+                    </Button>
+                  </div>
+                ))
+              ) : (
+                <div className="text-sm text-gray-500">No components added</div>
+              )}
+            </div>
           </div>
-          
-          <div className="space-y-2 mt-3">
-            {nodeData.components && nodeData.components.length > 0 ? (
-              nodeData.components.map((component: string, index: number) => (
-                <div key={index} className="flex justify-between items-center bg-gray-50 p-2 rounded">
-                  <span className="text-sm">{component}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-red-500 hover:text-red-700 p-1 h-auto"
-                    onClick={() => handleRemoveComponent(index)}
-                  >
-                    <X size={16} />
-                  </Button>
-                </div>
-              ))
-            ) : (
-              <div className="text-sm text-gray-500">No components added</div>
-            )}
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );

@@ -1,9 +1,10 @@
 import React, { memo, useState } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { FileText, Eye, EyeOff, Package, ChevronDown, ChevronUp, Plus, Sparkles } from 'lucide-react';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Button } from '../../ui/Button';
+import { Menu, PanelRight, Layout, Grid, MessageCircle, Mail, Users, Zap } from 'lucide-react';
 
-// Component categories for icon mapping
 const componentIcons: Record<string, React.ReactNode> = {
   'navbar': <Menu size={12} />,
   'sidebar': <PanelRight size={12} />,
@@ -18,18 +19,6 @@ const componentIcons: Record<string, React.ReactNode> = {
   'cta-simple': <Zap size={12} />,
 };
 
-// Import missing icons
-import { 
-  Menu, 
-  PanelRight, 
-  Layout, 
-  Grid, 
-  MessageCircle, 
-  Mail, 
-  Users, 
-  Zap 
-} from 'lucide-react';
-
 interface Section {
   id: string;
   label: string;
@@ -43,9 +32,9 @@ interface PageData {
   description?: string;
   isHomePage?: boolean;
   sections: Section[];
+  onSectionsReorder?: (sections: Section[]) => void;
 }
 
-// Component preview renderer
 export const ComponentPreview = ({ type }: { type: string }) => {
   const previews: Record<string, JSX.Element> = {
     'navbar': (
@@ -176,7 +165,18 @@ const PageNode = ({ data, selected }: NodeProps<PageData>) => {
     setExpandedSections(newExpanded);
   };
 
-  // Ensure data.sections is an array
+  const handleDragEnd = (result: any) => {
+    if (!result.destination || !data.sections) return;
+
+    const items = Array.from(data.sections);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+
+    if (data.onSectionsReorder) {
+      data.onSectionsReorder(items);
+    }
+  };
+
   const sections = data.sections || [];
 
   return (
@@ -205,48 +205,81 @@ const PageNode = ({ data, selected }: NodeProps<PageData>) => {
           <div className="text-xs text-gray-600 mb-3 line-clamp-2">{data.description}</div>
         )}
         
-        <div className="space-y-2">
-          {sections.map((section) => (
-            <div key={section.id} className="border rounded-lg overflow-hidden">
-              <button
-                onClick={() => toggleSection(section.id)}
-                className="w-full flex items-center justify-between p-2 bg-gray-50 hover:bg-gray-100 transition-colors"
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <Droppable droppableId="sections">
+            {(provided) => (
+              <div
+                ref={provided.innerRef}
+                {...provided.droppableProps}
+                className="space-y-2"
               >
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">{section.label}</span>
-                  <span className="text-xs text-gray-500">
-                    ({section.components?.length || 0})
-                  </span>
-                </div>
-                {expandedSections.has(section.id) ? (
-                  <ChevronUp size={14} />
-                ) : (
-                  <ChevronDown size={14} />
-                )}
-              </button>
-              
-              {expandedSections.has(section.id) && (
-                <div className="p-2 space-y-2 bg-white">
-                  <div className="text-xs text-gray-600">{section.description}</div>
-                  
-                  {showPreview && (section.components || []).map((componentId, index) => (
-                    <div key={index} className="bg-gray-50 rounded p-2">
-                      <div className="flex items-center gap-2 mb-1">
-                        {componentIcons[componentId] || <Package size={12} />}
-                        <span className="text-xs font-medium capitalize">
-                          {componentId.replace(/-/g, ' ')}
-                        </span>
+                {sections.map((section, index) => (
+                  <Draggable
+                    key={section.id}
+                    draggableId={section.id}
+                    index={index}
+                  >
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        className={`border rounded-lg overflow-hidden transition-shadow ${
+                          snapshot.isDragging ? 'shadow-lg ring-2 ring-blue-200' : ''
+                        }`}
+                      >
+                        <div
+                          {...provided.dragHandleProps}
+                          className={`w-full flex items-center justify-between p-2 ${
+                            snapshot.isDragging ? 'bg-blue-50' : 'bg-gray-50'
+                          } hover:bg-gray-100 transition-colors cursor-grab active:cursor-grabbing`}
+                          onClick={() => toggleSection(section.id)}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">{section.label}</span>
+                            <span className="text-xs text-gray-500">
+                              ({section.components?.length || 0})
+                            </span>
+                          </div>
+                          {expandedSections.has(section.id) ? (
+                            <ChevronUp size={14} />
+                          ) : (
+                            <ChevronDown size={14} />
+                          )}
+                        </div>
+                        
+                        {expandedSections.has(section.id) && (
+                          <div className="p-2 space-y-2 bg-white">
+                            <div className="text-xs text-gray-600">{section.description}</div>
+                            
+                            {showPreview && (section.components || []).map((componentId, index) => (
+                              <div
+                                key={index}
+                                className={`bg-gray-50 rounded p-2 transition-transform ${
+                                  snapshot.isDragging ? 'scale-[0.98]' : ''
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 mb-1">
+                                  {componentIcons[componentId] || <Package size={12} />}
+                                  <span className="text-xs font-medium capitalize">
+                                    {componentId.replace(/-/g, ' ')}
+                                  </span>
+                                </div>
+                                <div className="h-12 overflow-hidden rounded border border-gray-200">
+                                  <ComponentPreview type={componentId} />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <div className="h-12 overflow-hidden rounded border border-gray-200">
-                        <ComponentPreview type={componentId} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+                    )}
+                  </Draggable>
+                ))}
+                {provided.placeholder}
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
 
         <div className="mt-4 space-y-2">
           <Button

@@ -1,10 +1,4 @@
-import React, {
-  useState,
-  useEffect,
-  useCallback,
-  useRef,
-  memo,
-} from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReactFlow, {
   ReactFlowProvider,
@@ -16,175 +10,362 @@ import ReactFlow, {
   MarkerType,
   useNodesState,
   useEdgesState,
-  Node,
+  Handle,
+  Position,
   NodeProps,
   ConnectionLineType,
   getRectOfNodes,
   getTransformForBounds,
   useReactFlow,
-  useStoreApi,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { toast } from 'react-toastify';
 import { nanoid } from 'nanoid';
 import {
   Plus,
+  PanelRight,
   Search,
+  Layout,
+  FileText,
   Copy,
   Download,
+  Grid,
+  Package,
   Sparkles,
+  Eye,
+  EyeOff,
+  ZoomIn,
+  ZoomOut,
   Maximize2,
-  Trash2,
-  Scissors,
+  ChevronDown,
+  ChevronRight,
+  ChevronLeft,
+  Menu,
+  X,
+  ArrowRight,
+  MessageCircle,
+  BarChart,
+  Zap,
+  Mail,
+  User,
+  CreditCard,
+  LogIn,
+  UserPlus,
+  RefreshCw,
+  Share2,
+  Save,
+  Layers,
   Clipboard,
+  Trash2,
   Home,
 } from 'lucide-react';
+
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import EnhancedToolbar from './EditorToolbar';
-
-import WireframePageNode from './nodes/WireframePageNode';
+import ComponentLibrary from './ComponentLibrary';
 import PageNode from './nodes/PageNode';
 import SectionNode from './nodes/SectionNode';
+import WireframePageNode from './nodes/WireframePageNode';
 import ContextMenu from './ContextMenu';
-import ComponentLibrary from './ComponentLibrary';
 
 interface EditorCanvasProps {
   projectId: string;
 }
 
-const EditorCanvas = ({ projectId }: EditorCanvasProps) => {
-  const { getNode } = useReactFlow();
+export default function EditorCanvas({ projectId }: EditorCanvasProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [selectedElements, setSelectedElements] = useState<any[]>([]);
+  const [selectedNode, setSelectedNode] = useState<any | null>(null);
   const [isComponentLibraryOpen, setIsComponentLibraryOpen] = useState(true);
-  const [nodeContextMenu, setNodeContextMenu] = useState<{
-    id: string;
+  const [viewMode, setViewMode] = useState<'sitemap' | 'wireframe'>('sitemap');
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
-    items: Array<{ label: string; action: () => void; icon: React.ReactNode }>;
+    nodeId: string;
   } | null>(null);
   
-  const handleShowNodeContextMenu = useCallback((nodeId: string, clickPos: { x: number; y: number }) => {
-    const node = getNode(nodeId);
-    if (!node) return;
+  const reactFlowWrapper = useRef<HTMLDivElement>(null);
+  const { fitView, getNodes, getNode } = useReactFlow();
 
-    setNodeContextMenu({
-      id: nodeId,
-      x: clickPos.x,
-      y: clickPos.y,
-      items: [
-        {
-          label: 'Add Child Page',
-          action: () => handleAddChildPage(nodeId),
-          icon: <Plus size={16} />,
-        },
-        {
-          label: 'Duplicate',
-          action: () => handleDuplicateNode(nodeId),
-          icon: <Copy size={16} />,
-        },
-        {
-          label: 'Delete',
-          action: () => handleDeleteNodes([nodeId]),
-          icon: <Trash2 size={16} />,
-        },
-        {
-          label: 'Cut',
-          action: () => handleCutNodes([nodeId]),
-          icon: <Scissors size={16} />,
-        },
-        {
-          label: 'Copy',
-          action: () => handleCopyNodes([nodeId]),
-          icon: <Clipboard size={16} />,
-        },
-        {
-          label: 'Set as Home Page',
-          action: () => handleSetAsHomePage(nodeId),
-          icon: <Home size={16} />,
-        },
-      ],
-    });
-  }, [getNode]);
+  // Node types configuration
+  const nodeTypes = {
+    page: PageNode,
+    section: SectionNode,
+    wireframePage: WireframePageNode,
+  };
 
-  const handleAddComponent = useCallback((componentId: string) => {
-    const newNode = {
-      id: nanoid(),
-      type: 'section',
-      position: { x: 100, y: 100 },
-      data: { label: componentId },
-    };
-    setNodes((nds) => [...nds, newNode]);
+  // Handle node context menu
+  const handleShowNodeContextMenu = useCallback((nodeId: string, position: { x: number; y: number }) => {
+    setContextMenu({ nodeId, ...position });
+  }, []);
+
+  // Handle adding components via drag & drop
+  const onDrop = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault();
+      const componentId = event.dataTransfer.getData('componentId');
+      if (!componentId || !reactFlowWrapper.current) return;
+
+      const bounds = reactFlowWrapper.current.getBoundingClientRect();
+      const position = (window as any).reactFlowInstance.project({
+        x: event.clientX - bounds.left,
+        y: event.clientY - bounds.top,
+      });
+
+      const newNode = {
+        id: nanoid(),
+        type: 'section',
+        position,
+        data: {
+          label: componentId,
+          onShowNodeContextMenu: handleShowNodeContextMenu,
+        },
+      };
+
+      setNodes((nds) => nds.concat(newNode));
+    },
+    [setNodes, handleShowNodeContextMenu]
+  );
+
+  const onDragOver = useCallback((event: React.DragEvent) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  }, []);
+
+  // Handle node connections
+  const onConnect = useCallback(
+    (params: Connection) => {
+      setEdges((eds) =>
+        addEdge(
+          {
+            ...params,
+            type: 'smoothstep',
+            animated: true,
+            style: { stroke: '#4f46e5', strokeWidth: 2 },
+            markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20, color: '#4f46e5' },
+          },
+          eds
+        )
+      );
+    },
+    [setEdges]
+  );
+
+  // Handle component addition
+  const handleAddComponent = useCallback(
+    (componentId: string) => {
+      if (!selectedNode) {
+        toast.info('Select a page node first');
+        return;
+      }
+
+      setNodes((nds) =>
+        nds.map((node) => {
+          if (node.id === selectedNode.id) {
+            const existing = node.data.components || [];
+            return {
+              ...node,
+              data: { ...node.data, components: [...existing, componentId] },
+            };
+          }
+          return node;
+        })
+      );
+      toast.success('Component added');
+    },
+    [selectedNode, setNodes]
+  );
+
+  // Handle view mode change
+  const handleViewModeChange = useCallback((mode: 'sitemap' | 'wireframe') => {
+    setViewMode(mode);
+    setNodes((nds) =>
+      nds.map((node) => ({
+        ...node,
+        type: mode === 'wireframe' && node.type === 'page' ? 'wireframePage' : node.type,
+      }))
+    );
   }, [setNodes]);
 
-  const handleAddChildPage = useCallback((parentId: string) => {
-    // Implementation for adding child page
-    console.log('Adding child page to', parentId);
-  }, []);
+  // Initialize with sample nodes
+  useEffect(() => {
+    if (nodes.length === 0) {
+      const initialNodes = [
+        {
+          id: '1',
+          type: 'page',
+          position: { x: 300, y: 100 },
+          data: {
+            label: 'Home',
+            url: '/',
+            description: 'Welcome page',
+            components: ['navbar', 'hero-centered', 'footer-simple'],
+            onShowNodeContextMenu: handleShowNodeContextMenu,
+            isHomePage: true,
+          },
+        },
+        {
+          id: '2',
+          type: 'page',
+          position: { x: 100, y: 300 },
+          data: {
+            label: 'About',
+            url: '/about',
+            description: 'About us',
+            components: ['navbar', 'text-block', 'footer-simple'],
+            onShowNodeContextMenu: handleShowNodeContextMenu,
+          },
+        },
+        {
+          id: '3',
+          type: 'page',
+          position: { x: 500, y: 300 },
+          data: {
+            label: 'Services',
+            url: '/services',
+            description: 'Our services',
+            components: ['navbar', 'feature-grid', 'footer-simple'],
+            onShowNodeContextMenu: handleShowNodeContextMenu,
+          },
+        },
+      ];
 
-  const handleDuplicateNode = useCallback((nodeId: string) => {
-    // Implementation for duplicating node
-    console.log('Duplicating node', nodeId);
-  }, []);
+      const initialEdges = [
+        {
+          id: 'e1-2',
+          source: '1',
+          target: '2',
+          type: 'smoothstep',
+          animated: true,
+          style: { stroke: '#4f46e5', strokeWidth: 2 },
+          markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20, color: '#4f46e5' },
+        },
+        {
+          id: 'e1-3',
+          source: '1',
+          target: '3',
+          type: 'smoothstep',
+          animated: true,
+          style: { stroke: '#4f46e5', strokeWidth: 2 },
+          markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20, color: '#4f46e5' },
+        },
+      ];
 
-  const handleDeleteNodes = useCallback((nodeIds: string[]) => {
-    // Implementation for deleting nodes
-    console.log('Deleting nodes', nodeIds);
-  }, []);
-
-  const handleCutNodes = useCallback((nodeIds: string[]) => {
-    // Implementation for cutting nodes
-    console.log('Cutting nodes', nodeIds);
-  }, []);
-
-  const handleCopyNodes = useCallback((nodeIds: string[]) => {
-    // Implementation for copying nodes
-    console.log('Copying nodes', nodeIds);
-  }, []);
-
-  const handleSetAsHomePage = useCallback((nodeId: string) => {
-    // Implementation for setting home page
-    console.log('Setting as home page', nodeId);
-  }, []);
+      setNodes(initialNodes);
+      setEdges(initialEdges);
+    }
+  }, [setNodes, setEdges, handleShowNodeContextMenu]);
 
   return (
-    <div className="h-full relative flex">
-      <ComponentLibrary
-        isOpen={isComponentLibraryOpen}
-        onClose={() => setIsComponentLibraryOpen(false)}
-        onAddComponent={handleAddComponent}
+    <div className="h-screen flex flex-col bg-gray-50">
+      <EnhancedToolbar
+        projectTitle="Professional Sitemap Editor"
+        onSave={() => {
+          setSaveStatus('saving');
+          setTimeout(() => {
+            setSaveStatus('saved');
+            setTimeout(() => setSaveStatus('idle'), 2000);
+          }, 1000);
+        }}
+        saveStatus={saveStatus}
+        viewMode={viewMode}
+        onViewModeChange={handleViewModeChange}
+        onFitView={() => fitView()}
+        onExport={() => {
+          const data = { nodes, edges };
+          const json = JSON.stringify(data, null, 2);
+          const blob = new Blob([json], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `sitemap-${Date.now()}.json`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        }}
+        onDuplicate={() => toast.info('Duplicate feature coming soon')}
       />
-      
-      <div className="flex-1">
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          nodeTypes={{
-            wireframePage: WireframePageNode,
-            page: PageNode,
-            section: SectionNode,
-          }}
-          fitView
-        >
-          <Background />
-          <Controls />
-          <MiniMap />
-        </ReactFlow>
-      </div>
 
-      {nodeContextMenu && (
-        <ContextMenu
-          x={nodeContextMenu.x}
-          y={nodeContextMenu.y}
-          items={nodeContextMenu.items}
-          onClose={() => setNodeContextMenu(null)}
+      <div className="flex flex-1">
+        <ComponentLibrary
+          isOpen={isComponentLibraryOpen}
+          onClose={() => setIsComponentLibraryOpen(false)}
+          onAddComponent={handleAddComponent}
         />
-      )}
+
+        <div
+          className="flex-1 h-full"
+          ref={reactFlowWrapper}
+          onDrop={onDrop}
+          onDragOver={onDragOver}
+        >
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            nodeTypes={nodeTypes}
+            connectionLineType={ConnectionLineType.SmoothStep}
+            snapToGrid
+            snapGrid={[20, 20]}
+            defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+          >
+            <Background gap={20} size={1} color="#e5e7eb" />
+            <Controls />
+            <MiniMap
+              nodeColor={(node) => {
+                switch (node.type) {
+                  case 'page':
+                    return '#4f46e5';
+                  case 'section':
+                    return '#ec4899';
+                  default:
+                    return '#9ca3af';
+                }
+              }}
+            />
+          </ReactFlow>
+        </div>
+
+        {contextMenu && (
+          <ContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            items={[
+              {
+                label: 'Add Child Page',
+                action: () => {
+                  // Implementation
+                  setContextMenu(null);
+                },
+                icon: <Plus size={16} />,
+              },
+              {
+                label: 'Delete',
+                action: () => {
+                  // Implementation
+                  setContextMenu(null);
+                },
+                icon: <Trash2 size={16} />,
+              },
+              {
+                label: 'Set as Home',
+                action: () => {
+                  // Implementation
+                  setContextMenu(null);
+                },
+                icon: <Home size={16} />,
+              },
+            ]}
+            onClose={() => setContextMenu(null)}
+          />
+        )}
+      </div>
     </div>
   );
-};
-
-export default EditorCanvas;
+}

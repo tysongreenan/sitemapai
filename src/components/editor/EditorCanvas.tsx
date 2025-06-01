@@ -49,51 +49,57 @@ import SectionNode from './nodes/SectionNode';
 import ContextMenu from './ContextMenu';
 import ComponentLibrary from './ComponentLibrary';
 
-// ... (keep all other code exactly the same until handleShowNodeContextMenu)
+const EditorCanvas = () => {
+  const { getNode } = useReactFlow();
+  
+  const handleShowNodeContextMenu = useCallback((nodeId: string, clickPos: { x: number; y: number }) => {
+    const node = getNode(nodeId);
+    if (!node) return;
 
-const handleShowNodeContextMenu = useCallback((nodeId: string, clickPos: { x: number; y: number }) => {
-  const node = getNode(nodeId);
-  if (!node) return;
+    setNodeContextMenu({
+      id: nodeId,
+      x: clickPos.x,
+      y: clickPos.y,
+      items: [
+        {
+          label: 'Add Child Page',
+          action: () => handleAddChildPage(nodeId),
+          icon: <Plus size={16} />,
+        },
+        {
+          label: 'Duplicate',
+          action: () => handleDuplicateNode(nodeId),
+          icon: <Copy size={16} />,
+        },
+        {
+          label: 'Delete',
+          action: () => handleDeleteNodes([nodeId]),
+          icon: <Trash2 size={16} />,
+        },
+        {
+          label: 'Cut',
+          action: () => handleCutNodes([nodeId]),
+          icon: <Scissors size={16} />,
+        },
+        {
+          label: 'Copy',
+          action: () => handleCopyNodes([nodeId]),
+          icon: <Clipboard size={16} />,
+        },
+        {
+          label: 'Set as Home Page',
+          action: () => handleSetAsHomePage(nodeId),
+          icon: <Home size={16} />,
+        },
+      ],
+    });
+  }, [getNode, handleAddChildPage, handleDuplicateNode, handleDeleteNodes, handleCutNodes, handleCopyNodes, handleSetAsHomePage]);
 
-  setNodeContextMenu({
-    id: nodeId,
-    x: clickPos.x,
-    y: clickPos.y,
-    items: [
-      {
-        label: 'Add Child Page',
-        action: () => handleAddChildPage(nodeId),
-        icon: <Plus size={16} />,
-      },
-      {
-        label: 'Duplicate',
-        action: () => handleDuplicateNode(nodeId),
-        icon: <Copy size={16} />,
-      },
-      {
-        label: 'Delete',
-        action: () => handleDeleteNodes([nodeId]),
-        icon: <Trash2 size={16} />,
-      },
-      {
-        label: 'Cut',
-        action: () => handleCutNodes([nodeId]),
-        icon: <Scissors size={16} />,
-      },
-      {
-        label: 'Copy',
-        action: () => handleCopyNodes([nodeId]),
-        icon: <Clipboard size={16} />,
-      },
-      {
-        label: 'Set as Home Page',
-        action: () => handleSetAsHomePage(nodeId),
-        icon: <Home size={16} />,
-      },
-    ],
-  });
-}, [getNode, handleAddChildPage, handleDuplicateNode, handleDeleteNodes, handleCutNodes, handleCopyNodes, handleSetAsHomePage]);
+  return (
+    <ReactFlow>
+      {/* Rest of the component implementation */}
+    </ReactFlow>
+  );
+};
 
-// ... (keep all remaining code exactly the same)
-
-export default ComponentLibrary
+export default ComponentLibrary;

@@ -1,6 +1,6 @@
 import React, { memo, useState } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
-import { FileText, Eye, EyeOff, Package, ChevronDown, ChevronUp, Plus, Sparkles } from 'lucide-react';
+import { FileText, Eye, EyeOff, Package, ChevronDown, ChevronUp, Plus, Sparkles, GripVertical } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Button } from '../../ui/Button';
 import { Menu, PanelRight, Layout, Grid, MessageCircle, Mail, Users, Zap } from 'lucide-react';
@@ -150,10 +150,24 @@ export const ComponentPreview = ({ type }: { type: string }) => {
   return previews[type] || previews.default;
 };
 
+const DragHandle = ({ isDragging }: { isDragging: boolean }) => (
+  <div
+    className={`p-1.5 rounded-md transition-colors ${
+      isDragging ? 'bg-blue-100' : 'hover:bg-gray-100'
+    } cursor-grab active:cursor-grabbing`}
+  >
+    <GripVertical
+      size={14}
+      className={`transition-colors ${isDragging ? 'text-blue-600' : 'text-gray-400'}`}
+    />
+  </div>
+);
+
 const PageNode = ({ data, selected }: NodeProps<PageData>) => {
   const [showPreview, setShowPreview] = useState(true);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [editingSection, setEditingSection] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   const toggleSection = (sectionId: string) => {
     const newExpanded = new Set(expandedSections);
@@ -165,7 +179,12 @@ const PageNode = ({ data, selected }: NodeProps<PageData>) => {
     setExpandedSections(newExpanded);
   };
 
+  const handleDragStart = () => {
+    setIsDragging(true);
+  };
+
   const handleDragEnd = (result: any) => {
+    setIsDragging(false);
     if (!result.destination || !data.sections) return;
 
     const items = Array.from(data.sections);
@@ -205,7 +224,7 @@ const PageNode = ({ data, selected }: NodeProps<PageData>) => {
           <div className="text-xs text-gray-600 mb-3 line-clamp-2">{data.description}</div>
         )}
         
-        <DragDropContext onDragEnd={handleDragEnd}>
+        <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
           <Droppable droppableId="sections">
             {(provided) => (
               <div
@@ -223,28 +242,38 @@ const PageNode = ({ data, selected }: NodeProps<PageData>) => {
                       <div
                         ref={provided.innerRef}
                         {...provided.draggableProps}
-                        className={`border rounded-lg overflow-hidden transition-shadow ${
-                          snapshot.isDragging ? 'shadow-lg ring-2 ring-blue-200' : ''
+                        className={`border rounded-lg overflow-hidden transition-all ${
+                          snapshot.isDragging 
+                            ? 'shadow-lg ring-2 ring-blue-200 bg-white' 
+                            : 'hover:shadow'
                         }`}
                       >
-                        <div
-                          {...provided.dragHandleProps}
-                          className={`w-full flex items-center justify-between p-2 ${
-                            snapshot.isDragging ? 'bg-blue-50' : 'bg-gray-50'
-                          } hover:bg-gray-100 transition-colors cursor-grab active:cursor-grabbing`}
-                          onClick={() => toggleSection(section.id)}
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium">{section.label}</span>
-                            <span className="text-xs text-gray-500">
-                              ({section.components?.length || 0})
-                            </span>
+                        <div className={`flex items-center bg-gray-50 ${
+                          snapshot.isDragging ? 'bg-blue-50' : ''
+                        }`}>
+                          <div
+                            {...provided.dragHandleProps}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <DragHandle isDragging={snapshot.isDragging} />
                           </div>
-                          {expandedSections.has(section.id) ? (
-                            <ChevronUp size={14} />
-                          ) : (
-                            <ChevronDown size={14} />
-                          )}
+                          
+                          <button
+                            className="flex-1 flex items-center justify-between p-2 hover:bg-gray-100 transition-colors"
+                            onClick={() => toggleSection(section.id)}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium">{section.label}</span>
+                              <span className="text-xs text-gray-500">
+                                ({section.components?.length || 0})
+                              </span>
+                            </div>
+                            {expandedSections.has(section.id) ? (
+                              <ChevronUp size={14} />
+                            ) : (
+                              <ChevronDown size={14} />
+                            )}
+                          </button>
                         </div>
                         
                         {expandedSections.has(section.id) && (

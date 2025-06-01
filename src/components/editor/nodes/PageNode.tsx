@@ -33,6 +33,8 @@ interface PageData {
   isHomePage?: boolean;
   sections: Section[];
   onSectionsReorder?: (sections: Section[]) => void;
+  onSectionDragStart?: () => void;
+  onSectionDragEnd?: () => void;
 }
 
 export const ComponentPreview = ({ type }: { type: string }) => {
@@ -181,10 +183,13 @@ const PageNode = ({ data, selected }: NodeProps<PageData>) => {
 
   const handleDragStart = () => {
     setIsDragging(true);
+    data.onSectionDragStart?.();
   };
 
   const handleDragEnd = (result: any) => {
     setIsDragging(false);
+    data.onSectionDragEnd?.();
+    
     if (!result.destination || !data.sections) return;
 
     const items = Array.from(data.sections);

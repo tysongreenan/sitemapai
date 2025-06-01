@@ -91,7 +91,7 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
   const [viewMode, setViewMode] = useState<'sitemap' | 'wireframe'>('sitemap');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: { label: string; action: () => void; icon?: React.ReactNode }[] } | null>(null);
-  const [nodeContextMenu, setNodeContextMenu] = useState<{ id: string; x: number; y: number; items: { label: string; action: () => void; icon?: React.ReactNode }[] } | null>(null); // Added items to nodeContextMenu state
+  const [nodeContextMenu, setNodeContextMenu] = useState<{ id: string; x: number; y: number; items: { label: string; action: () => void; icon?: React.ReactNode }[] } | null>(null);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { fitView, getNodes, screenToFlowPosition, setNodes: setReactFlowNodes, setEdges: setReactFlowEdges, getIntersectingNodes, getNodesBounds } = useReactFlow();
   const store = useStoreApi();
@@ -128,6 +128,23 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
     toast.info('Cut selected nodes and edges!');
   }, [handleCopyNodes, handleDeleteNodes]);
 
+  // Declare handleShowNodeContextMenu, handleAddSectionToPage, handleGenerateContentForPage first
+  // with placeholders if they have circular dependencies, then define them fully below.
+  // This helps break potential circular initialization issues.
+  const handleShowNodeContextMenu = useCallback((nodeId: string, clickPos: { x: number; y: number }) => {
+    // This will be fully defined below, but we need its reference here
+    // for other callbacks that are defined earlier.
+  }, []); // Dependencies will be added in its full definition below
+
+  const handleAddSectionToPage = useCallback((pageId: string) => {
+    // This will be fully defined below
+  }, []); // Dependencies will be added in its full definition below
+
+  const handleGenerateContentForPage = useCallback((pageId: string) => {
+    // This will be fully defined below
+  }, []); // Dependencies will be added in its full definition below
+
+
   const handlePasteNodes = useCallback(() => {
     const clipboardData = localStorage.getItem('clipboard');
     if (!clipboardData) {
@@ -153,10 +170,10 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
           selected: false,
           data: {
             ...node.data,
-            // Re-bind functions for pasted nodes
-            onShowNodeContextMenu: (id, pos) => handleShowNodeContextMenu(id, pos), // Re-bind
-            onAddSection: (id) => handleAddSectionToPage(id), // Re-bind
-            onGenerateContent: (id) => handleGenerateContentForPage(id), // Re-bind
+            // Re-bind functions for pasted nodes by passing the direct references
+            onShowNodeContextMenu: handleShowNodeContextMenu, // Pass direct reference
+            onAddSection: handleAddSectionToPage, // Pass direct reference
+            onGenerateContent: handleGenerateContentForPage, // Pass direct reference
           },
         });
       });
@@ -181,7 +198,7 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
       console.error('Failed to parse clipboard data:', e);
       toast.error('Failed to paste: Invalid clipboard data.');
     }
-  }, [setNodes, setEdges]); // Dependencies for pasting, including the new handlers
+  }, [setNodes, setEdges, handleShowNodeContextMenu, handleAddSectionToPage, handleGenerateContentForPage]);
 
 
   const handleFitView = useCallback(() => {
@@ -205,6 +222,29 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   }, [nodes, edges]);
+
+  const handleDuplicateNode = useCallback((nodeId: string) => {
+    const nodeToDuplicate = getNode(nodeId);
+    if (!nodeToDuplicate) return;
+
+    const duplicatedNode: Node = {
+      ...nodeToDuplicate,
+      id: nanoid(),
+      position: { x: nodeToDuplicate.position.x + 50, y: nodeToDuplicate.position.y + 50 },
+      selected: false,
+      data: {
+        ...nodeToDuplicate.data,
+        label: `${nodeToDuplicate.data.label} (Copy)`,
+        // Pass direct references
+        onShowNodeContextMenu: handleShowNodeContextMenu,
+        onAddSection: handleAddSectionToPage,
+        onGenerateContent: handleGenerateContentForPage,
+      },
+    };
+    setNodes((nds) => nds.concat(duplicatedNode));
+    toast.success('Node duplicated!');
+  }, [getNode, setNodes, handleShowNodeContextMenu, handleAddSectionToPage, handleGenerateContentForPage]);
+
 
   const handleDuplicate = useCallback(() => {
     const selected = store.getState().getSelectedElements();
@@ -233,9 +273,10 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
         data: {
           ...node.data,
           label: `${node.data.label} (Copy)`,
-          onShowNodeContextMenu: (id, pos) => handleShowNodeContextMenu(id, pos), // Re-bind
-          onAddSection: (id) => handleAddSectionToPage(id), // Re-bind
-          onGenerateContent: (id) => handleGenerateContentForPage(id), // Re-bind
+          // Pass direct references
+          onShowNodeContextMenu: handleShowNodeContextMenu,
+          onAddSection: handleAddSectionToPage,
+          onGenerateContent: handleGenerateContentForPage,
         },
       });
     });
@@ -255,7 +296,7 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
     setNodes((nds) => nds.concat(newNodes));
     setEdges((eds) => eds.concat(newEdges));
     toast.success('Selected elements duplicated!');
-  }, [setNodes, setEdges, nodes, edges, store]);
+  }, [setNodes, setEdges, nodes, edges, store, handleShowNodeContextMenu, handleAddSectionToPage, handleGenerateContentForPage]);
 
 
   const handleCloseNodeContextMenu = useCallback(() => {
@@ -268,101 +309,8 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
   }, [handleCloseNodeContextMenu]);
 
 
-  const handleAddSectionToPage = useCallback((pageId: string) => {
-    const pageNode = getNode(pageId);
-    if (!pageNode) return;
-
-    const newSectionId = nanoid();
-    const newSection: Node = {
-      id: newSectionId,
-      type: 'section',
-      position: { x: pageNode.position.x + 50, y: pageNode.position.y + (pageNode.height || 200) + 50 }, // Position below the page node, added default height
-      data: {
-        label: 'New Section',
-        description: `Section for ${pageNode.data.label}`,
-        components: [],
-      },
-      parentNode: pageId, // Link to parent page node (optional, but good for structure)
-      extent: 'parent', // Ensure section stays within parent bounds if parent node is resized
-    };
-
-    setNodes((nds) => {
-      const updatedNodes = nds.concat(newSection);
-      // Optional: Adjust position if sections overlap, or create a layout function
-      return updatedNodes;
-    });
-
-    // Automatically connect the new section to the page node
-    setEdges((eds) => addEdge({
-      id: nanoid(),
-      source: pageId,
-      target: newSectionId,
-      type: 'smoothstep',
-      animated: true,
-      style: { stroke: '#8b5cf6', strokeWidth: 2 }, // Purple for section connections
-      markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20, color: '#8b5cf6' },
-    }, eds));
-
-    toast.success(`Section added to "${pageNode.data.label}"!`);
-  }, [getNode, setNodes, setEdges]);
-
-  const handleGenerateContentForPage = useCallback((pageId: string) => {
-    const pageNode = getNode(pageId);
-    if (pageNode) {
-      toast.info(`Generating content for "${pageNode.data.label}" (feature coming soon!)`);
-      // Implement AI content generation logic here later
-    }
-  }, [getNode]);
-
-  const handleAddChildPage = useCallback((parentId: string) => {
-    const parentNode = getNode(parentId);
-    if (!parentNode) return;
-
-    const newPageId = nanoid();
-    const newPage: Node = {
-      id: newPageId,
-      type: 'page',
-      position: { x: parentNode.position.x + 250, y: parentNode.position.y + 100 }, // Offset from parent
-      data: {
-        label: 'Child Page',
-        url: `/${parentNode.data.label.toLowerCase().replace(/\s/g, '-')}-child`,
-        description: `Child page of ${parentNode.data.label}`,
-        components: [],
-        onShowNodeContextMenu: (id, pos) => handleShowNodeContextMenu(id, pos), // Re-bind
-        onAddSection: (id) => handleAddSectionToPage(id), // Re-bind
-        onGenerateContent: (id) => handleGenerateContentForPage(id), // Re-bind
-        isHomePage: false,
-      },
-    };
-
-    setNodes((nds) => nds.concat(newPage));
-    setEdges((eds) => addEdge({
-      id: nanoid(),
-      source: parentId,
-      target: newPageId,
-      type: 'smoothstep',
-      animated: true,
-      style: { stroke: '#4f46e5', strokeWidth: 2 },
-      markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20, color: '#4f46e5' },
-    }, eds));
-    toast.success(`New page added as child of "${parentNode.data.label}"!`);
-  }, [getNode, setNodes, setEdges]);
-
-
-  const handleSetAsHomePage = useCallback((nodeId: string) => {
-    setNodes((nds) =>
-      nds.map((n) => ({
-        ...n,
-        data: {
-          ...n.data,
-          isHomePage: n.id === nodeId, // Set selected node as home, others as false
-        },
-      }))
-    );
-    toast.success('Home page set!');
-  }, [setNodes]);
-
-  const handleShowNodeContextMenu = useCallback((nodeId: string, clickPos: { x: number; y: number }) => {
+  // Full definitions for callbacks that were forward-declared or referenced early
+  Object.assign(handleShowNodeContextMenu, useCallback((nodeId: string, clickPos: { x: number; y: number }) => {
     const node = getNode(nodeId);
     if (!node) return;
 
@@ -383,7 +331,99 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
         { label: 'Find page in wireframe', action: () => toast.info('Find in wireframe feature coming soon!'), icon: <Search size={16} /> },
       ],
     });
-  }, [getNode, handleDeleteNodes, handleDuplicateNode, handleCopyNodes, handleCutNodes, handlePasteNodes, handleAddChildPage, handleAddSectionToPage, handleSetAsHomePage]);
+  }, [getNode, handleDeleteNodes, handleDuplicateNode, handleCopyNodes, handleCutNodes, handlePasteNodes, handleAddChildPage, handleAddSectionToPage, handleSetAsHomePage, setNodeContextMenu]));
+
+
+  Object.assign(handleAddSectionToPage, useCallback((pageId: string) => {
+    const pageNode = getNode(pageId);
+    if (!pageNode) return;
+
+    const newSectionId = nanoid();
+    const newSection: Node = {
+      id: newSectionId,
+      type: 'section',
+      position: { x: pageNode.position.x + 50, y: pageNode.position.y + (pageNode.height || 200) + 50 },
+      data: {
+        label: 'New Section',
+        description: `Section for ${pageNode.data.label}`,
+        components: [],
+      },
+      parentNode: pageId,
+      extent: 'parent',
+    };
+
+    setNodes((nds) => {
+      const updatedNodes = nds.concat(newSection);
+      return updatedNodes;
+    });
+
+    setEdges((eds) => addEdge({
+      id: nanoid(),
+      source: pageId,
+      target: newSectionId,
+      type: 'smoothstep',
+      animated: true,
+      style: { stroke: '#8b5cf6', strokeWidth: 2 },
+      markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20, color: '#8b5cf6' },
+    }, eds));
+
+    toast.success(`Section added to "${pageNode.data.label}"!`);
+  }, [getNode, setNodes, setEdges]));
+
+  Object.assign(handleGenerateContentForPage, useCallback((pageId: string) => {
+    const pageNode = getNode(pageId);
+    if (pageNode) {
+      toast.info(`Generating content for "${pageNode.data.label}" (feature coming soon!)`);
+    }
+  }, [getNode]));
+
+  const handleAddChildPage = useCallback((parentId: string) => {
+    const parentNode = getNode(parentId);
+    if (!parentNode) return;
+
+    const newPageId = nanoid();
+    const newPage: Node = {
+      id: newPageId,
+      type: 'page',
+      position: { x: parentNode.position.x + 250, y: parentNode.position.y + 100 },
+      data: {
+        label: 'Child Page',
+        url: `/${parentNode.data.label.toLowerCase().replace(/\s/g, '-')}-child`,
+        description: `Child page of ${parentNode.data.label}`,
+        components: [],
+        onShowNodeContextMenu: handleShowNodeContextMenu, // Pass direct reference
+        onAddSection: handleAddSectionToPage, // Pass direct reference
+        onGenerateContent: handleGenerateContentForPage, // Pass direct reference
+        isHomePage: false,
+      },
+    };
+
+    setNodes((nds) => nds.concat(newPage));
+    setEdges((eds) => addEdge({
+      id: nanoid(),
+      source: parentId,
+      target: newPageId,
+      type: 'smoothstep',
+      animated: true,
+      style: { stroke: '#4f46e5', strokeWidth: 2 },
+      markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20, color: '#4f46e5' },
+    }, eds));
+    toast.success(`New page added as child of "${parentNode.data.label}"!`);
+  }, [getNode, setNodes, setEdges, handleShowNodeContextMenu, handleAddSectionToPage, handleGenerateContentForPage]);
+
+
+  const handleSetAsHomePage = useCallback((nodeId: string) => {
+    setNodes((nds) =>
+      nds.map((n) => ({
+        ...n,
+        data: {
+          ...n.data,
+          isHomePage: n.id === nodeId,
+        },
+      }))
+    );
+    toast.success('Home page set!');
+  }, [setNodes]);
 
 
   const addPageNode = useCallback((position?: { x: number; y: number }) => {
@@ -397,15 +437,15 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
         url: '/new-page',
         description: 'A newly added page',
         components: [],
-        onShowNodeContextMenu: (id, pos) => handleShowNodeContextMenu(id, pos),
-        onAddSection: (id) => handleAddSectionToPage(id),
-        onGenerateContent: (id) => handleGenerateContentForPage(id),
+        onShowNodeContextMenu: handleShowNodeContextMenu, // Pass direct reference
+        onAddSection: handleAddSectionToPage, // Pass direct reference
+        onGenerateContent: handleGenerateContentForPage, // Pass direct reference
         isHomePage: false,
       },
     };
     setNodes((nds) => nds.concat(newNode));
     toast.success('New page added!');
-  }, [setNodes]);
+  }, [setNodes, handleShowNodeContextMenu, handleAddSectionToPage, handleGenerateContentForPage]);
 
 
   const onPaneContextMenu = useCallback(
@@ -491,16 +531,16 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
           url: `/${component.id}`,
           description: `${component.name} section`,
           components: [componentId],
-          onShowNodeContextMenu: (id, pos) => handleShowNodeContextMenu(id, pos),
-          onAddSection: (id) => handleAddSectionToPage(id),
-          onGenerateContent: (id) => handleGenerateContentForPage(id),
+          onShowNodeContextMenu: handleShowNodeContextMenu, // Pass direct reference
+          onAddSection: handleAddSectionToPage, // Pass direct reference
+          onGenerateContent: handleGenerateContentForPage, // Pass direct reference
           isHomePage: false,
         },
       };
 
       setNodes((nds) => nds.concat(newNode));
     },
-    [setNodes, store]
+    [setNodes, store, handleShowNodeContextMenu, handleAddSectionToPage, handleGenerateContentForPage]
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -597,9 +637,9 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
             url: '/',
             description: 'Welcome page',
             components: ['navbar', 'hero-centered', 'footer-simple'],
-            onShowNodeContextMenu: (id, pos) => handleShowNodeContextMenu(id, pos), // Pass functions
-            onAddSection: (id) => handleAddSectionToPage(id),
-            onGenerateContent: (id) => handleGenerateContentForPage(id),
+            onShowNodeContextMenu: handleShowNodeContextMenu, // Pass direct reference
+            onAddSection: handleAddSectionToPage, // Pass direct reference
+            onGenerateContent: handleGenerateContentForPage, // Pass direct reference
             isHomePage: true,
           },
         },
@@ -612,9 +652,9 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
             url: '/about',
             description: 'About us',
             components: ['navbar', 'text-block', 'footer-simple'],
-            onShowNodeContextMenu: (id, pos) => handleShowNodeContextMenu(id, pos),
-            onAddSection: (id) => handleAddSectionToPage(id),
-            onGenerateContent: (id) => handleGenerateContentForPage(id),
+            onShowNodeContextMenu: handleShowNodeContextMenu,
+            onAddSection: handleAddSectionToPage,
+            onGenerateContent: handleGenerateContentForPage,
             isHomePage: false,
           },
         },
@@ -627,9 +667,9 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
             url: '/services',
             description: 'Our services',
             components: ['navbar', 'feature-grid', 'footer-simple'],
-            onShowNodeContextMenu: (id, pos) => handleShowNodeContextMenu(id, pos),
-            onAddSection: (id) => handleAddSectionToPage(id),
-            onGenerateContent: (id) => handleGenerateContentForPage(id),
+            onShowNodeContextMenu: handleShowNodeContextMenu,
+            onAddSection: handleAddSectionToPage,
+            onGenerateContent: handleGenerateContentForPage,
             isHomePage: false,
           },
         },
@@ -671,7 +711,7 @@ export default function EditorCanvas({ projectId }: { projectId: string }) {
           <ComponentLibrary
             onAddComponent={handleAddComponent}
             isOpen={isLibraryOpen}
-            onClose={() => setIsLibraryOpen(false)}
+            onClose={() => setIsLibraryShow(false)}
           />
 
           {/* Canvas Area */}

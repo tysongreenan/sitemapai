@@ -95,3 +95,5 @@ Object.assign(handleShowNodeContextMenu, useCallback((nodeId: string, clickPos: 
 }, [getNode, handleAddChildPage, handleDuplicateNode, handleDeleteNodes, handleCutNodes, handleCopyNodes, handleSetAsHomePage]));
 
 // ... (keep all remaining code exactly the same)
+
+export default ComponentLibrary

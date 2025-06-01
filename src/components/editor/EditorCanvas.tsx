@@ -62,7 +62,7 @@ import {
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import EnhancedToolbar from './EditorToolbar'; // Ensure this path is correct
-import AddElementsPanel from './AddElementsPanel'; // Changed from ComponentLibrary
+import ComponentLibrary from './ComponentLibrary'; // Changed from ComponentLibrary
 import PageNode from './nodes/PageNode';
 import SectionNode from './nodes/SectionNode';
 import WireframePageNode from './nodes/WireframePageNode';

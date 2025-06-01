@@ -61,6 +61,7 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
   const [isComponentLibraryOpen, setIsComponentLibraryOpen] = useState(true);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
+  const [isSectionDragging, setIsSectionDragging] = useState(false);
   const reactFlowInstance = useReactFlow();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
@@ -69,7 +70,15 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
     if (currentProject?.sitemap_data) {
       const { nodes: savedNodes, edges: savedEdges } = currentProject.sitemap_data;
       if (savedNodes?.length > 0) {
-        setNodes(savedNodes);
+        const nodesWithHandlers = savedNodes.map(node => ({
+          ...node,
+          data: {
+            ...node.data,
+            onSectionDragStart: () => setIsSectionDragging(true),
+            onSectionDragEnd: () => setIsSectionDragging(false),
+          }
+        }));
+        setNodes(nodesWithHandlers);
         setEdges(savedEdges || []);
       } else {
         // Initialize with a default home page if no nodes exist
@@ -89,7 +98,9 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
                 description: 'Main hero section introducing the product',
                 components: ['hero-centered']
               }
-            ]
+            ],
+            onSectionDragStart: () => setIsSectionDragging(true),
+            onSectionDragEnd: () => setIsSectionDragging(false),
           }
         };
         setNodes([defaultNode]);
@@ -159,7 +170,15 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
     setNodes((nds) =>
       nds.map((node) => {
         if (node.id === nodeId) {
-          return { ...node, data: { ...node.data, ...newData } };
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              ...newData,
+              onSectionDragStart: () => setIsSectionDragging(true),
+              onSectionDragEnd: () => setIsSectionDragging(false),
+            }
+          };
         }
         return node;
       })
@@ -204,7 +223,9 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
             ).join(' ')} section`,
             components: [componentId]
           }
-        ]
+        ],
+        onSectionDragStart: () => setIsSectionDragging(true),
+        onSectionDragEnd: () => setIsSectionDragging(false),
       }
     };
 
@@ -216,8 +237,18 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
   useEffect(() => {
     if (currentProject && nodes.length > 0) {
       const saveTimeout = setTimeout(() => {
+        // Remove handlers before saving
+        const nodesToSave = nodes.map(node => ({
+          ...node,
+          data: {
+            ...node.data,
+            onSectionDragStart: undefined,
+            onSectionDragEnd: undefined,
+          }
+        }));
+        
         updateProject(currentProject.id, {
-          sitemap_data: { nodes, edges }
+          sitemap_data: { nodes: nodesToSave, edges }
         });
       }, 1000);
 
@@ -244,6 +275,7 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
           nodeTypes={nodeTypes}
           onDragOver={onDragOver}
           onDrop={onDrop}
+          nodesDraggable={!isSectionDragging}
           connectionLineType={ConnectionLineType.SmoothStep}
           defaultEdgeOptions={{
             type: 'smoothstep',

@@ -277,6 +277,12 @@ export default function EditorCanvas({ projectId }: EditorCanvasProps) {
     }
   }, [setNodes, setEdges, handleShowNodeContextMenu, handleAddSection, handleGenerateContent]);
 
+  // Selection handlers
+  const onSelectionChange = useCallback(({ nodes, edges }: any) => {
+    setSelectedElements([...nodes, ...edges]);
+    setSelectedNode(nodes.length === 1 ? nodes[0] : null);
+  }, []);
+
   return (
     <div className="h-screen flex flex-col bg-gray-50">
       <EnhancedToolbar
@@ -327,6 +333,7 @@ export default function EditorCanvas({ projectId }: EditorCanvasProps) {
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            onSelectionChange={onSelectionChange}
             nodeTypes={nodeTypes}
             connectionLineType={ConnectionLineType.SmoothStep}
             snapToGrid

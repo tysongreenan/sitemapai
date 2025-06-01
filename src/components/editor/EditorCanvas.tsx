@@ -62,13 +62,30 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
   const reactFlowInstance = useReactFlow();
+  const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
   // Load initial data
   useEffect(() => {
     if (currentProject?.sitemap_data) {
       const { nodes: savedNodes, edges: savedEdges } = currentProject.sitemap_data;
-      setNodes(savedNodes || []);
-      setEdges(savedEdges || []);
+      if (savedNodes?.length > 0) {
+        setNodes(savedNodes);
+        setEdges(savedEdges || []);
+      } else {
+        // Initialize with a default home page if no nodes exist
+        const defaultNode = {
+          id: nanoid(),
+          type: 'page',
+          position: { x: 400, y: 200 },
+          data: {
+            label: 'Home',
+            url: '/',
+            description: 'Main landing page',
+            components: []
+          }
+        };
+        setNodes([defaultNode]);
+      }
     }
   }, [currentProject?.sitemap_data]);
 
@@ -80,6 +97,8 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
           ...connection,
           type: 'smoothstep',
           markerEnd: { type: MarkerType.ArrowClosed },
+          animated: true,
+          style: { stroke: '#3b82f6', strokeWidth: 2 }
         },
         eds
       )
@@ -105,25 +124,67 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
 
   // Handle adding components
   const onAddComponent = useCallback((componentId: string) => {
-    const nodeId = nanoid();
+    if (!reactFlowWrapper.current) return;
+
+    const reactFlowBounds = reactFlowWrapper.current.getBoundingClientRect();
     const position = reactFlowInstance.project({
-      x: window.innerWidth / 2 - 150,
-      y: window.innerHeight / 2 - 50,
+      x: (reactFlowBounds.width / 2) - 150,
+      y: (reactFlowBounds.height / 2) - 100
     });
 
-    // Create a new node
     const newNode: Node = {
-      id: nodeId,
+      id: nanoid(),
       type: 'page',
       position,
       data: {
         label: componentId.split('-').map(word => 
           word.charAt(0).toUpperCase() + word.slice(1)
         ).join(' '),
-        url: `/pages/${componentId}`,
-        description: `A new ${componentId.replace(/-/g, ' ')} component`,
-        components: [componentId],
-      },
+        url: `/${componentId}`,
+        description: `${componentId.split('-').map(word => 
+          word.charAt(0).toUpperCase() + word.slice(1)
+        ).join(' ')} section`,
+        components: [componentId]
+      }
+    };
+
+    setNodes((nds) => [...nds, newNode]);
+    toast.success(`Added ${componentId.replace(/-/g, ' ')} component`);
+  }, [reactFlowInstance]);
+
+  // Handle drag over
+  const onDragOver = useCallback((event: React.DragEvent) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  }, []);
+
+  // Handle drop
+  const onDrop = useCallback((event: React.DragEvent) => {
+    event.preventDefault();
+
+    const componentId = event.dataTransfer.getData('componentId');
+    if (!componentId || !reactFlowWrapper.current) return;
+
+    const reactFlowBounds = reactFlowWrapper.current.getBoundingClientRect();
+    const position = reactFlowInstance.project({
+      x: event.clientX - reactFlowBounds.left,
+      y: event.clientY - reactFlowBounds.top
+    });
+
+    const newNode: Node = {
+      id: nanoid(),
+      type: 'page',
+      position,
+      data: {
+        label: componentId.split('-').map(word => 
+          word.charAt(0).toUpperCase() + word.slice(1)
+        ).join(' '),
+        url: `/${componentId}`,
+        description: `${componentId.split('-').map(word => 
+          word.charAt(0).toUpperCase() + word.slice(1)
+        ).join(' ')} section`,
+        components: [componentId]
+      }
     };
 
     setNodes((nds) => [...nds, newNode]);
@@ -132,10 +193,10 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
 
   // Save changes
   useEffect(() => {
-    if (currentProject) {
+    if (currentProject && nodes.length > 0) {
       const saveTimeout = setTimeout(() => {
         updateProject(currentProject.id, {
-          sitemap_data: { nodes, edges },
+          sitemap_data: { nodes, edges }
         });
       }, 1000);
 
@@ -144,7 +205,7 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
   }, [nodes, edges, currentProject]);
 
   return (
-    <div className="h-full flex">
+    <div className="h-full flex" ref={reactFlowWrapper}>
       <ComponentLibrary
         isOpen={isComponentLibraryOpen}
         onClose={() => setIsComponentLibraryOpen(false)}
@@ -152,21 +213,6 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
       />
       
       <div className="flex-1 h-full">
-        <EnhancedToolbar
-          projectTitle={currentProject?.title || ''}
-          onSave={() => {
-            updateProject(currentProject?.id || '', {
-              sitemap_data: { nodes, edges },
-            });
-          }}
-          saveStatus={saveStatus}
-          viewMode="sitemap"
-          onViewModeChange={() => {}}
-          onFitView={() => reactFlowInstance.fitView()}
-          onExport={() => {}}
-          onDuplicate={() => {}}
-        />
-        
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -175,16 +221,27 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
           onConnect={onConnect}
           onNodeClick={onNodeClick}
           nodeTypes={nodeTypes}
+          onDragOver={onDragOver}
+          onDrop={onDrop}
           connectionLineType={ConnectionLineType.SmoothStep}
           defaultEdgeOptions={{
             type: 'smoothstep',
             markerEnd: { type: MarkerType.ArrowClosed },
+            animated: true,
+            style: { stroke: '#3b82f6', strokeWidth: 2 }
           }}
           fitView
+          minZoom={0.1}
+          maxZoom={1.5}
+          snapToGrid={true}
+          snapGrid={[20, 20]}
         >
-          <Background />
+          <Background color="#e5e7eb" gap={20} size={1} />
           <Controls />
-          <MiniMap />
+          <MiniMap 
+            nodeColor="#3b82f6"
+            maskColor="rgba(255, 255, 255, 0.8)"
+          />
         </ReactFlow>
       </div>
 
@@ -209,18 +266,3 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
 };
 
 export default EditorCanvas;
-
-// Export component categories for use in other parts of the application
-export const componentCategories = {
-  navigation: {
-    name: 'Navigation',
-    icon: 'Menu',
-    components: [
-      { id: 'navbar', name: 'Navigation Bar', icon: 'Menu', category: 'navigation', preview: 'navbar' },
-      { id: 'sidebar', name: 'Sidebar Menu', icon: 'PanelRight', category: 'navigation', preview: 'sidebar' },
-      { id: 'breadcrumb', name: 'Breadcrumb', icon: 'ChevronRight', category: 'navigation', preview: 'breadcrumb' },
-      { id: 'tabs', name: 'Tab Navigation', icon: 'Layout', category: 'navigation', preview: 'tabs' },
-    ],
-  },
-  // ... rest of the categories remain the same
-};

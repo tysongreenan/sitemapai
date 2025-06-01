@@ -1,3 +1,204 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles for the enhanced editor canvas */
+
+/* Animation for the floating add buttons */
+@keyframes pulse-glow {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 8px rgba(59, 130, 246, 0);
+  }
+}
+
+.add-node-button {
+  animation: pulse-glow 2s infinite;
+}
+
+/* COMPLETELY DISABLE REACTFLOW HANDLES AND CONNECTIONS */
+.react-flow__handle {
+  display: none !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
+
+.react-flow__connectionline {
+  display: none !important;
+}
+
+.react-flow__node .react-flow__handle {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Disable connection mode cursors */
+.react-flow__pane.connecting {
+  cursor: grab !important;
+}
+
+/* Debug: Uncomment to visualize hover zones during development */
+/*
+.hover-zone-debug {
+  background: rgba(255, 0, 0, 0.1) !important;
+  border: 1px dashed rgba(255, 0, 0, 0.3) !important;
+}
+*/
+
+/* Ensure section dragging works properly */
+.react-flow__node {
+  pointer-events: all;
+}
+
+/* When section is being dragged, reduce node interactivity */
+.section-dragging .react-flow__node {
+  pointer-events: none;
+}
+
+.section-dragging .react-flow__node .node-content {
+  pointer-events: all;
+}
+
+/* Custom ReactFlow styles */
+.react-flow__node {
+  pointer-events: all;
+  cursor: default;
+}
+
+.react-flow__node.selectable:hover {
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+/* Prevent any selection/dragging behavior on nodes */
+.react-flow__node.selected {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.react-flow__node:hover {
+  cursor: default !important;
+}
+
+.react-flow__edge-path {
+  stroke-width: 2;
+  stroke: #3b82f6;
+}
+
+.react-flow__edge.animated .react-flow__edge-path {
+  stroke-dasharray: 5;
+  animation: dashdraw 0.5s linear infinite;
+}
+
+@keyframes dashdraw {
+  to {
+    stroke-dashoffset: -10;
+  }
+}
+
+/* Smooth transitions for node movements */
+.react-flow__node {
+  transition: transform 0.5s ease;
+}
+
+/* Custom background pattern */
+.react-flow__background {
+  background-color: #f9fafb;
+}
+
+/* Auto-layout grid guidance */
+.react-flow__pane {
+  cursor: grab;
+}
+
+.react-flow__pane:active {
+  cursor: grabbing;
+}
+
+/* Zoom controls styling */
+.react-flow__controls {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.react-flow__controls-button {
+  background-color: white;
+  border-bottom: 1px solid #e5e7eb;
+  transition: background-color 0.2s ease;
+}
+
+.react-flow__controls-button:hover {
+  background-color: #f3f4f6;
+}
+
+/* Minimap styling */
+.react-flow__minimap {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Instructions overlay styling */
+.instructions-overlay {
+  backdrop-filter: blur(4px);
+  animation: fadeInUp 0.5s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 20px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* Context menu styling */
+.context-menu {
+  backdrop-filter: blur(8px);
+  animation: contextMenuAppear 0.15s ease-out;
+}
+
+@keyframes contextMenuAppear {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .react-flow__controls {
+    bottom: 20px;
+    right: 20px;
+  }
+  
+  .react-flow__minimap {
+    width: 150px;
+    height: 100px;
+  }
+  
+  .instructions-overlay {
+    left: 20px;
+    right: 20px;
+    transform: translateX(0);
+    max-width: none;
+  }
+}

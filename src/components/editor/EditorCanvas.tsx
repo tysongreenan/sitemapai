@@ -42,6 +42,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import { EditorToolbar as EnhancedToolbar } from './EditorToolbar';
 
 import WireframePageNode from './nodes/WireframePageNode';
 import PageNode from './nodes/PageNode';
@@ -49,10 +50,7 @@ import SectionNode from './nodes/SectionNode';
 import ContextMenu from './ContextMenu';
 import ComponentLibrary from './ComponentLibrary';
 
-// Assuming componentCategories and EnhancedToolbar are defined elsewhere or correctly imported
-// const componentCategories = { ... };
-// import { EnhancedToolbar } from './EditorToolbar'; // Example if not already in scope
-
+// Rest of the file remains exactly the same
 export default function EditorCanvas({ projectId }: { projectId: string }) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);

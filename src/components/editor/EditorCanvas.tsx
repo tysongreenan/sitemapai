@@ -90,6 +90,18 @@ export default function EditorCanvas({ projectId }: EditorCanvasProps) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { fitView, getNodes, getNode } = useReactFlow();
 
+  // Handle adding a section to a page
+  const handleAddSection = useCallback((pageId: string) => {
+    setIsComponentLibraryOpen(true);
+    setSelectedNode(getNode(pageId));
+    toast.info('Select a component from the library');
+  }, [getNode]);
+
+  // Handle generating content for a page
+  const handleGenerateContent = useCallback((pageId: string) => {
+    toast.info('AI content generation coming soon!');
+  }, []);
+
   // Node types configuration
   const nodeTypes = {
     page: PageNode,
@@ -204,6 +216,8 @@ export default function EditorCanvas({ projectId }: EditorCanvasProps) {
             description: 'Welcome page',
             components: ['navbar', 'hero-centered', 'footer-simple'],
             onShowNodeContextMenu: handleShowNodeContextMenu,
+            onAddSection: handleAddSection,
+            onGenerateContent: handleGenerateContent,
             isHomePage: true,
           },
         },
@@ -217,6 +231,8 @@ export default function EditorCanvas({ projectId }: EditorCanvasProps) {
             description: 'About us',
             components: ['navbar', 'text-block', 'footer-simple'],
             onShowNodeContextMenu: handleShowNodeContextMenu,
+            onAddSection: handleAddSection,
+            onGenerateContent: handleGenerateContent,
           },
         },
         {
@@ -229,6 +245,8 @@ export default function EditorCanvas({ projectId }: EditorCanvasProps) {
             description: 'Our services',
             components: ['navbar', 'feature-grid', 'footer-simple'],
             onShowNodeContextMenu: handleShowNodeContextMenu,
+            onAddSection: handleAddSection,
+            onGenerateContent: handleGenerateContent,
           },
         },
       ];
@@ -257,7 +275,7 @@ export default function EditorCanvas({ projectId }: EditorCanvasProps) {
       setNodes(initialNodes);
       setEdges(initialEdges);
     }
-  }, [setNodes, setEdges, handleShowNodeContextMenu]);
+  }, [setNodes, setEdges, handleShowNodeContextMenu, handleAddSection, handleGenerateContent]);
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">

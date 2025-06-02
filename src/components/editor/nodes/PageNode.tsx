@@ -1,4 +1,3 @@
-// Enhanced PageNode.tsx with fixed add button functionality
 import React, { memo, useState, useCallback } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { FileText, Eye, EyeOff, Package, ChevronDown, ChevronUp, Plus, Sparkles, GripVertical, Menu, PanelRight, Layout, Grid, MessageCircle, Mail, Users, Zap } from 'lucide-react';
@@ -160,35 +159,28 @@ const AddNodeButton = ({ direction, onAdd, visible }: AddNodeButtonProps) => {
   const getPositionClasses = () => {
     switch (direction) {
       case 'bottom':
-        return 'bottom-[-35px] left-1/2 transform -translate-x-1/2';
+        return 'bottom-[-40px] left-1/2 transform -translate-x-1/2';
       case 'left':
-        return 'left-[-35px] top-1/2 transform -translate-y-1/2';
+        return 'left-[-40px] top-1/2 transform -translate-y-1/2';
       case 'right':
-        return 'right-[-35px] top-1/2 transform -translate-y-1/2';
+        return 'right-[-40px] top-1/2 transform -translate-y-1/2';
     }
   };
 
-  const handleClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    console.log(`Add button clicked for direction: ${direction}`);
-    onAdd();
-  };
-
   return (
-    <div
-      className={`absolute ${getPositionClasses()} transition-all duration-200 z-10 ${
+    <button
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onAdd();
+      }}
+      className={`absolute ${getPositionClasses()} w-8 h-8 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center group border-2 border-white ${
         visible ? 'opacity-100 scale-100' : 'opacity-0 scale-50 pointer-events-none'
       }`}
+      title={`Add page ${direction}`}
     >
-      <button
-        onClick={handleClick}
-        className="add-node-button w-10 h-10 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center group border-2 border-white"
-        title={`Add page ${direction}`}
-      >
-        <Plus size={16} className="transition-transform group-hover:scale-110" />
-      </button>
-    </div>
+      <Plus size={16} className="transition-transform group-hover:scale-110" />
+    </button>
   );
 };
 
@@ -209,11 +201,8 @@ const PageNode = ({ data, selected, id }: NodeProps<PageData>) => {
   };
 
   const handleAddNode = useCallback((direction: 'bottom' | 'left' | 'right') => {
-    console.log('PageNode handleAddNode called:', { direction, id, hasCallback: !!data.onAddNode });
     if (data.onAddNode) {
       data.onAddNode(direction, id);
-    } else {
-      console.error('onAddNode callback not found in data');
     }
   }, [data.onAddNode, id]);
 
@@ -230,7 +219,6 @@ const PageNode = ({ data, selected, id }: NodeProps<PageData>) => {
     const [reorderedItem] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, reorderedItem);
 
-    // Call the reorder function if provided
     if (data.onSectionsReorder) {
       data.onSectionsReorder(items);
     }
@@ -246,36 +234,25 @@ const PageNode = ({ data, selected, id }: NodeProps<PageData>) => {
         setIsHovering(false);
         setHoveredDirection(null);
       }}
-      style={{ pointerEvents: 'all' }}
     >
-      {/* Hover zones for add buttons - positioned further outside the main node */}
-      <div className="absolute inset-0 pointer-events-none">
-        {/* Bottom hover zone - moved further down */}
-        <div
-          className="absolute bottom-[-40px] left-1/4 right-1/4 h-20 pointer-events-auto z-10"
-          onMouseEnter={() => setHoveredDirection('bottom')}
-          onMouseLeave={() => setHoveredDirection(null)}
-          style={{ cursor: 'pointer' }}
-        />
-        
-        {/* Left hover zone - moved further left */}
-        <div
-          className="absolute left-[-40px] top-1/4 bottom-1/4 w-20 pointer-events-auto z-10"
-          onMouseEnter={() => setHoveredDirection('left')}
-          onMouseLeave={() => setHoveredDirection(null)}
-          style={{ cursor: 'pointer' }}
-        />
-        
-        {/* Right hover zone - moved further right */}
-        <div
-          className="absolute right-[-40px] top-1/4 bottom-1/4 w-20 pointer-events-auto z-10"
-          onMouseEnter={() => setHoveredDirection('right')}
-          onMouseLeave={() => setHoveredDirection(null)}
-          style={{ cursor: 'pointer' }}
-        />
-      </div>
+      {/* Hover zones */}
+      <div 
+        className="absolute -bottom-12 left-0 right-0 h-24 cursor-pointer"
+        onMouseEnter={() => setHoveredDirection('bottom')}
+        onMouseLeave={() => setHoveredDirection(null)}
+      />
+      <div 
+        className="absolute -left-12 top-0 bottom-0 w-24 cursor-pointer"
+        onMouseEnter={() => setHoveredDirection('left')}
+        onMouseLeave={() => setHoveredDirection(null)}
+      />
+      <div 
+        className="absolute -right-12 top-0 bottom-0 w-24 cursor-pointer"
+        onMouseEnter={() => setHoveredDirection('right')}
+        onMouseLeave={() => setHoveredDirection(null)}
+      />
 
-      {/* Add node buttons */}
+      {/* Add buttons */}
       <AddNodeButton
         direction="bottom"
         onAdd={() => handleAddNode('bottom')}
@@ -295,7 +272,7 @@ const PageNode = ({ data, selected, id }: NodeProps<PageData>) => {
       {/* Main node content */}
       <div
         className={`node-content min-w-[280px] max-w-[320px] bg-white border-2 rounded-lg shadow-lg overflow-hidden transition-all duration-200 ${
-          selected ? 'border-blue-500 ring-2 ring-blue-200 scale-105' : 'border-gray-200 hover:border-gray-300 hover:shadow-xl'
+          selected ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200 hover:border-gray-300'
         }`}
       >
         <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-3 py-2 flex items-center justify-between">
@@ -430,7 +407,7 @@ const PageNode = ({ data, selected, id }: NodeProps<PageData>) => {
           </div>
         </div>
         
-        {/* Connection handles - completely hidden */}
+        {/* Connection handles */}
         <Handle
           type="target"
           position={Position.Top}

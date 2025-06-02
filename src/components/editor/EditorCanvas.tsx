@@ -1,11 +1,4 @@
-// Enhanced EditorCanvas.tsx with fixed node creation
-import React, {
-  useState,
-  useEffect,
-  useCallback,
-  useRef,
-  memo,
-} from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReactFlow, {
   Background,
@@ -327,6 +320,15 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
 
       setNodes(nodesWithCallbacks);
       setEdges(newEdges);
+
+      // Add fitView call to ensure the new node is visible
+      setTimeout(() => {
+        reactFlowInstance.fitView({ 
+          padding: 0.2,
+          duration: 800,
+          includeHiddenNodes: true
+        });
+      }, 50);
       
       const directionText = direction === 'bottom' ? 'child page' : 'sibling page';
       toast.success(`Added new ${directionText}`);
@@ -335,7 +337,7 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
       console.error('Error adding node:', error);
       toast.error('Failed to add new page');
     }
-  }, [nodes, edges, handleSectionsReorder, setNodes, setEdges]);
+  }, [nodes, edges, handleSectionsReorder, setNodes, setEdges, reactFlowInstance]);
 
   // Load initial data and set up structured layout
   useEffect(() => {

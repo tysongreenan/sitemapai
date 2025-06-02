@@ -1,3 +1,4 @@
+// Enhanced PageNode.tsx with hover controls and auto-layout
 import React, { memo, useState, useCallback } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { FileText, Eye, EyeOff, Package, ChevronDown, ChevronUp, Plus, Sparkles, GripVertical, Menu, PanelRight, Layout, Grid, MessageCircle, Mail, Users, Zap } from 'lucide-react';
@@ -78,11 +79,11 @@ const AddNodeButton = ({ direction, onAdd, visible }: AddNodeButtonProps) => {
   const getPositionClasses = () => {
     switch (direction) {
       case 'bottom':
-        return 'bottom-[-55px] left-1/2 transform -translate-x-1/2';
+        return 'bottom-[-35px] left-1/2 transform -translate-x-1/2';
       case 'left':
-        return 'left-[-55px] top-1/2 transform -translate-y-1/2';
+        return 'left-[-35px] top-1/2 transform -translate-y-1/2';
       case 'right':
-        return 'right-[-55px] top-1/2 transform -translate-y-1/2';
+        return 'right-[-35px] top-1/2 transform -translate-y-1/2';
     }
   };
 
@@ -165,6 +166,7 @@ const PageNode = ({ data, selected, id }: NodeProps<PageData>) => {
         setIsHovering(false);
         setHoveredDirection(null);
       }}
+      style={{ pointerEvents: 'all' }}
     >
       {/* Hover zones for add buttons - positioned further outside the main node */}
       <div className="absolute inset-0 pointer-events-none">

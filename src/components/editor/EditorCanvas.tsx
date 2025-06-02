@@ -32,40 +32,28 @@ const LAYOUT_CONFIG = {
   HORIZONTAL_SPACING: 80,
   VERTICAL_SPACING: 120,
   GRID_SIZE: 20,
-  START_X: 400, // Fixed starting X position
-  START_Y: 150, // Fixed starting Y position
+  START_X: 400,
+  START_Y: 150,
 };
 
-// Node types registration
 const nodeTypes = {
   page: PageNode,
   section: SectionNode,
   wireframePage: WireframePageNode,
 };
 
-interface LayoutNode extends Node {
-  level: number;
-  column: number;
-  parentId?: string;
-}
-
 class StructuredSitemapLayout {
   private config = LAYOUT_CONFIG;
 
-  // Calculate structured layout positions for all nodes
   calculateStructuredLayout(nodes: Node[], edges: Edge[]): { nodes: Node[], edges: Edge[] } {
     if (nodes.length === 0) return { nodes, edges };
 
-    // Build hierarchy map
     const hierarchy = this.buildHierarchy(nodes, edges);
-    
-    // Find root node (home page or first node)
     const rootNode = nodes.find(node => 
       node.data.isHomePage || 
       !edges.some(edge => edge.target === node.id)
     ) || nodes[0];
 
-    // Calculate positions starting from root
     const positionedNodes = this.positionNodesInStructure(nodes, edges, rootNode.id);
 
     return {
@@ -77,12 +65,10 @@ class StructuredSitemapLayout {
   private buildHierarchy(nodes: Node[], edges: Edge[]): Map<string, string[]> {
     const hierarchy = new Map<string, string[]>();
     
-    // Initialize all nodes in hierarchy
     nodes.forEach(node => {
       hierarchy.set(node.id, []);
     });
 
-    // Build parent-child relationships
     edges.forEach(edge => {
       const children = hierarchy.get(edge.source) || [];
       children.push(edge.target);
@@ -98,27 +84,18 @@ class StructuredSitemapLayout {
     const levelMap = new Map<number, string[]>();
     const nodeMap = new Map<string, Node>();
     
-    // Create node lookup map
     nodes.forEach(node => nodeMap.set(node.id, node));
-
-    // Calculate levels for each node using BFS
     this.calculateLevelsStructured(rootId, hierarchy, levelMap, nodeMap);
 
-    // Position nodes level by level
     levelMap.forEach((nodeIds, level) => {
       const y = this.config.START_Y + level * (this.config.NODE_HEIGHT + this.config.VERTICAL_SPACING);
-      
-      // Calculate total width needed for this level
       const totalWidth = nodeIds.length * this.config.NODE_WIDTH + (nodeIds.length - 1) * this.config.HORIZONTAL_SPACING;
-      
-      // Start X position to center the level
       let startX = this.config.START_X - totalWidth / 2 + this.config.NODE_WIDTH / 2;
 
       nodeIds.forEach((nodeId, index) => {
         const node = nodeMap.get(nodeId);
         if (node) {
           const x = startX + index * (this.config.NODE_WIDTH + this.config.HORIZONTAL_SPACING);
-          
           positioned.push({
             ...node,
             position: { 
@@ -148,13 +125,11 @@ class StructuredSitemapLayout {
       if (visited.has(nodeId) || !nodeMap.has(nodeId)) continue;
       visited.add(nodeId);
 
-      // Add to level map
       if (!levelMap.has(level)) {
         levelMap.set(level, []);
       }
       levelMap.get(level)!.push(nodeId);
 
-      // Add children to queue
       const children = hierarchy.get(nodeId) || [];
       children.forEach(childId => {
         if (!visited.has(childId)) {
@@ -174,7 +149,6 @@ class StructuredSitemapLayout {
     }));
   }
 
-  // Add a new node in a specific direction with structured positioning
   addNodeInDirection(
     nodes: Node[], 
     edges: Edge[], 
@@ -189,11 +163,10 @@ class StructuredSitemapLayout {
       throw new Error('Parent node not found');
     }
 
-    // Create the new node
     const newNode: Node = {
       id: newNodeId,
       type: 'page',
-      position: { x: 0, y: 0 }, // Will be calculated by layout
+      position: { x: 0, y: 0 },
       data: {
         label: 'New Page',
         url: '/new-page',
@@ -210,42 +183,22 @@ class StructuredSitemapLayout {
       }
     };
 
-    let newEdge: Edge | null = null;
-    let updatedNodes = [...nodes, newNode];
+    const updatedNodes = [...nodes, newNode];
     let updatedEdges = [...edges];
 
-    if (direction === 'bottom') {
-      // Add as child (new row below)
-      newEdge = {
-        id: `${parentId}-${newNodeId}`,
-        source: parentId,
-        target: newNodeId,
-        type: 'smoothstep',
-        animated: true,
-        style: { stroke: '#3b82f6', strokeWidth: 2 },
-        markerEnd: { type: MarkerType.ArrowClosed, color: '#3b82f6' }
-      };
-      updatedEdges.push(newEdge);
-    } else {
-      // Add as sibling (same row)
-      const parentEdge = edges.find(edge => edge.target === parentId);
-      if (parentEdge) {
-        // Connect to same parent
-        newEdge = {
-          id: `${parentEdge.source}-${newNodeId}`,
-          source: parentEdge.source,
-          target: newNodeId,
-          type: 'smoothstep',
-          animated: true,
-          style: { stroke: '#3b82f6', strokeWidth: 2 },
-          markerEnd: { type: MarkerType.ArrowClosed, color: '#3b82f6' }
-        };
-        updatedEdges.push(newEdge);
-      }
-      // If no parent edge, it becomes a root node (sibling to root)
-    }
+    // Create edge from parent to new node
+    const newEdge: Edge = {
+      id: `${parentId}-${newNodeId}`,
+      source: parentId,
+      target: newNodeId,
+      type: 'smoothstep',
+      animated: true,
+      style: { stroke: '#3b82f6', strokeWidth: 2 },
+      markerEnd: { type: MarkerType.ArrowClosed, color: '#3b82f6' }
+    };
+    updatedEdges.push(newEdge);
 
-    // Recalculate structured layout
+    // Recalculate layout
     const { nodes: layoutNodes, edges: layoutEdges } = this.calculateStructuredLayout(updatedNodes, updatedEdges);
 
     return {
@@ -268,7 +221,6 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
   const reactFlowInstance = useReactFlow();
   const layoutSystem = useRef(new StructuredSitemapLayout());
 
-  // Handle section reordering
   const handleSectionsReorder = useCallback((nodeId: string, newSections: any[]) => {
     setNodes((nds) =>
       nds.map((node) => {
@@ -286,10 +238,7 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
     );
   }, [setNodes]);
 
-  // Handle adding nodes in specific directions - FIXED VERSION
   const handleAddNode = useCallback((direction: 'bottom' | 'left' | 'right', parentNodeId: string) => {
-    console.log('handleAddNode called:', { direction, parentNodeId });
-    
     try {
       const { nodes: newNodes, edges: newEdges, newNodeId } = layoutSystem.current.addNodeInDirection(
         nodes,
@@ -304,9 +253,6 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
         }
       );
 
-      console.log('New nodes and edges calculated:', { newNodes: newNodes.length, newEdges: newEdges.length });
-
-      // Update the nodes and edges with the callback functions properly attached
       const nodesWithCallbacks = newNodes.map(node => ({
         ...node,
         data: {
@@ -339,12 +285,10 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
     }
   }, [nodes, edges, handleSectionsReorder, setNodes, setEdges, reactFlowInstance]);
 
-  // Load initial data and set up structured layout
   useEffect(() => {
     if (currentProject?.sitemap_data) {
       const { nodes: savedNodes, edges: savedEdges } = currentProject.sitemap_data;
       if (savedNodes?.length > 0) {
-        // Apply structured layout to saved nodes
         const { nodes: layoutNodes, edges: layoutEdges } = layoutSystem.current.calculateStructuredLayout(
           savedNodes.map(node => ({
             ...node,
@@ -362,7 +306,6 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
         setNodes(layoutNodes);
         setEdges(layoutEdges);
       } else {
-        // Create initial home page at fixed position
         const homeNodeId = nanoid();
         const homeNode = {
           id: homeNodeId,
@@ -397,21 +340,17 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
     }
   }, [currentProject?.sitemap_data, handleAddNode, handleSectionsReorder, setNodes, setEdges]);
 
-  // Handle node selection
   const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
     setSelectedNode(node);
   }, []);
 
-  // Handle connections (disabled for structured layout)
   const onConnect = useCallback((connection: Connection) => {
     console.log('Manual connections disabled in structured layout mode');
   }, []);
 
-  // Auto-save changes
   useEffect(() => {
     if (currentProject && nodes.length > 0) {
       const saveTimeout = setTimeout(() => {
-        // Remove handlers before saving
         const nodesToSave = nodes.map(node => ({
           ...node,
           data: {
@@ -432,7 +371,6 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
     }
   }, [nodes, edges, currentProject, updateProject]);
 
-  // Handle adding components to sections
   const onAddComponent = useCallback((componentId: string) => {
     if (!selectedNode) {
       toast.info('Please select a page first');
@@ -468,9 +406,7 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
     toast.success(`Added ${componentId.replace(/-/g, ' ')} section`);
   }, [selectedNode, setNodes]);
 
-  // Handle node deletion
   const handleDeleteNode = useCallback((nodeId: string) => {
-    // Don't allow deleting the home page
     const nodeToDelete = nodes.find(n => n.id === nodeId);
     if (nodeToDelete?.data.isHomePage) {
       toast.error('Cannot delete the home page');
@@ -480,13 +416,11 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
     const updatedNodes = nodes.filter(n => n.id !== nodeId);
     const updatedEdges = edges.filter(e => e.source !== nodeId && e.target !== nodeId);
     
-    // Recalculate structured layout after deletion
     const { nodes: layoutNodes, edges: layoutEdges } = layoutSystem.current.calculateStructuredLayout(
       updatedNodes,
       updatedEdges
     );
     
-    // Re-attach callbacks to the remaining nodes
     const nodesWithCallbacks = layoutNodes.map(node => ({
       ...node,
       data: {
@@ -509,7 +443,6 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
     toast.success('Page deleted');
   }, [nodes, edges, selectedNode, handleAddNode, handleSectionsReorder, setNodes, setEdges]);
 
-  // Handle context menu
   const onNodeContextMenu = useCallback((event: React.MouseEvent, node: Node) => {
     event.preventDefault();
     setContextMenu({
@@ -519,7 +452,6 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
     });
   }, []);
 
-  // Fit view to show all nodes with padding
   const handleFitView = useCallback(() => {
     reactFlowInstance.fitView({ padding: 0.1, duration: 800 });
   }, [reactFlowInstance]);
@@ -533,7 +465,6 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
       />
       
       <div className="flex-1 h-full">
-        {/* Toolbar */}
         <div className="h-12 bg-white border-b border-gray-200 px-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <h2 className="font-semibold text-gray-900">
@@ -566,7 +497,6 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
           </div>
         </div>
 
-        {/* ReactFlow Canvas */}
         <div className="flex-1" style={{ height: 'calc(100% - 48px)' }}>
           <ReactFlow
             nodes={nodes}
@@ -625,7 +555,6 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
         </div>
       </div>
 
-      {/* Context Menu */}
       {contextMenu && (
         <ContextMenu
           x={contextMenu.x}
@@ -641,7 +570,6 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
         />
       )}
 
-      {/* Instructions Overlay */}
       {nodes.length === 1 && (
         <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-blue-50 border border-blue-200 rounded-lg p-4 shadow-lg max-w-md">
           <div className="text-sm text-blue-800">

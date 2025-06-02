@@ -1,3 +1,4 @@
+// Enhanced EditorCanvas.tsx with structured auto-layout system
 import React, {
   useState,
   useEffect,
@@ -540,11 +541,11 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
             onNodeClick={onNodeClick}
             onNodeContextMenu={onNodeContextMenu}
             nodeTypes={nodeTypes}
-            nodesDraggable={false} // Completely disable dragging
+            nodesDraggable={false} // Completely disable node dragging
             nodesConnectable={false} // Disable manual connections
             elementsSelectable={true}
             selectNodesOnDrag={false}
-            nodesFocusable={!isSectionDragging} // Disable node focus when dragging sections
+            nodesFocusable={true} // Keep nodes focusable for interactions
             connectionLineType={ConnectionLineType.SmoothStep}
             connectionMode="loose"
             connectOnClick={false}
@@ -566,6 +567,7 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
             zoomOnPinch={true}
             onConnectStart={() => false}
             onConnectEnd={() => false}
+            preventScrolling={false} // Allow scrolling during drag
           >
             <Background 
               color="#e5e7eb" 

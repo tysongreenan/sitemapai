@@ -1,4 +1,4 @@
-// Enhanced EditorCanvas.tsx with structured auto-layout system
+// Enhanced EditorCanvas.tsx with fixed node creation
 import React, {
   useState,
   useEffect,
@@ -205,11 +205,15 @@ class StructuredSitemapLayout {
         label: 'New Page',
         url: '/new-page',
         description: 'A new page',
-        sections: [],
-        onAddNode: newNodeData.onAddNode,
-        onSectionsReorder: newNodeData.onSectionsReorder,
-        onSectionDragStart: newNodeData.onSectionDragStart,
-        onSectionDragEnd: newNodeData.onSectionDragEnd,
+        sections: [
+          {
+            id: nanoid(),
+            label: 'Hero Section',
+            description: 'Main hero section for the page',
+            components: ['hero-centered']
+          }
+        ],
+        ...newNodeData
       }
     };
 
@@ -287,10 +291,12 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
         return node;
       })
     );
-  }, []);
+  }, [setNodes]);
 
-  // Handle adding nodes in specific directions
+  // Handle adding nodes in specific directions - FIXED VERSION
   const handleAddNode = useCallback((direction: 'bottom' | 'left' | 'right', parentNodeId: string) => {
+    console.log('handleAddNode called:', { direction, parentNodeId });
+    
     try {
       const { nodes: newNodes, edges: newEdges, newNodeId } = layoutSystem.current.addNodeInDirection(
         nodes,
@@ -305,7 +311,21 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
         }
       );
 
-      setNodes(newNodes);
+      console.log('New nodes and edges calculated:', { newNodes: newNodes.length, newEdges: newEdges.length });
+
+      // Update the nodes and edges with the callback functions properly attached
+      const nodesWithCallbacks = newNodes.map(node => ({
+        ...node,
+        data: {
+          ...node.data,
+          onAddNode: handleAddNode,
+          onSectionsReorder: (sections: any[]) => handleSectionsReorder(node.id, sections),
+          onSectionDragStart: () => setIsSectionDragging(true),
+          onSectionDragEnd: () => setIsSectionDragging(false),
+        }
+      }));
+
+      setNodes(nodesWithCallbacks);
       setEdges(newEdges);
       
       const directionText = direction === 'bottom' ? 'child page' : 'sibling page';
@@ -315,7 +335,7 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
       console.error('Error adding node:', error);
       toast.error('Failed to add new page');
     }
-  }, [nodes, edges, handleSectionsReorder]);
+  }, [nodes, edges, handleSectionsReorder, setNodes, setEdges]);
 
   // Load initial data and set up structured layout
   useEffect(() => {
@@ -373,7 +393,7 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
         setEdges([]);
       }
     }
-  }, [currentProject?.sitemap_data, handleAddNode, handleSectionsReorder]);
+  }, [currentProject?.sitemap_data, handleAddNode, handleSectionsReorder, setNodes, setEdges]);
 
   // Handle node selection
   const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
@@ -444,7 +464,7 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
     );
 
     toast.success(`Added ${componentId.replace(/-/g, ' ')} section`);
-  }, [selectedNode]);
+  }, [selectedNode, setNodes]);
 
   // Handle node deletion
   const handleDeleteNode = useCallback((nodeId: string) => {
@@ -464,7 +484,19 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
       updatedEdges
     );
     
-    setNodes(layoutNodes);
+    // Re-attach callbacks to the remaining nodes
+    const nodesWithCallbacks = layoutNodes.map(node => ({
+      ...node,
+      data: {
+        ...node.data,
+        onAddNode: handleAddNode,
+        onSectionsReorder: (sections: any[]) => handleSectionsReorder(node.id, sections),
+        onSectionDragStart: () => setIsSectionDragging(true),
+        onSectionDragEnd: () => setIsSectionDragging(false),
+      }
+    }));
+    
+    setNodes(nodesWithCallbacks);
     setEdges(layoutEdges);
     setContextMenu(null);
     
@@ -473,7 +505,7 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
     }
     
     toast.success('Page deleted');
-  }, [nodes, edges, selectedNode]);
+  }, [nodes, edges, selectedNode, handleAddNode, handleSectionsReorder, setNodes, setEdges]);
 
   // Handle context menu
   const onNodeContextMenu = useCallback((event: React.MouseEvent, node: Node) => {

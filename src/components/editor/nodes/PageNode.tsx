@@ -1,4 +1,4 @@
-// Enhanced PageNode.tsx with hover controls and auto-layout
+// Enhanced PageNode.tsx with fixed add button functionality
 import React, { memo, useState, useCallback } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { FileText, Eye, EyeOff, Package, ChevronDown, ChevronUp, Plus, Sparkles, GripVertical, Menu, PanelRight, Layout, Grid, MessageCircle, Mail, Users, Zap } from 'lucide-react';
@@ -58,7 +58,88 @@ export const ComponentPreview = ({ type }: { type: string }) => {
         <div className="w-12 h-4 bg-white rounded mt-1" />
       </div>
     ),
-    // ... other previews remain the same
+    'hero-split': (
+      <div className="w-full h-24 bg-gradient-to-r from-indigo-500 to-blue-600 rounded p-3 flex gap-3">
+        <div className="flex-1 flex flex-col justify-center gap-1">
+          <div className="w-16 h-2 bg-white/20 rounded" />
+          <div className="w-12 h-2 bg-white/20 rounded" />
+          <div className="w-8 h-3 bg-white rounded mt-1" />
+        </div>
+        <div className="w-12 h-full bg-white/20 rounded" />
+      </div>
+    ),
+    'feature-grid': (
+      <div className="w-full h-24 bg-gray-50 rounded p-2">
+        <div className="grid grid-cols-2 gap-2 h-full">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="bg-white rounded border flex flex-col items-center justify-center">
+              <div className="w-4 h-4 bg-blue-500 rounded mb-1" />
+              <div className="w-6 h-1 bg-gray-300 rounded" />
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+    'testimonials': (
+      <div className="w-full h-24 bg-gray-50 rounded p-2 flex gap-2">
+        {[1, 2].map(i => (
+          <div key={i} className="flex-1 bg-white rounded border p-2">
+            <div className="w-full h-2 bg-gray-200 rounded mb-1" />
+            <div className="w-3/4 h-1 bg-gray-200 rounded mb-2" />
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 bg-gray-300 rounded-full" />
+              <div className="w-8 h-1 bg-gray-300 rounded" />
+            </div>
+          </div>
+        ))}
+      </div>
+    ),
+    'footer-simple': (
+      <div className="w-full h-8 bg-gray-800 rounded-b flex items-center justify-between px-2">
+        <div className="w-12 h-3 bg-gray-600 rounded" />
+        <div className="flex gap-1">
+          <div className="w-2 h-2 bg-gray-600 rounded" />
+          <div className="w-2 h-2 bg-gray-600 rounded" />
+          <div className="w-2 h-2 bg-gray-600 rounded" />
+        </div>
+      </div>
+    ),
+    'footer-columns': (
+      <div className="w-full h-8 bg-gray-800 rounded-b flex gap-1 px-2 py-1">
+        {[1, 2, 3, 4].map(i => (
+          <div key={i} className="flex-1 space-y-1">
+            <div className="w-full h-1 bg-gray-600 rounded" />
+            <div className="w-3/4 h-0.5 bg-gray-700 rounded" />
+          </div>
+        ))}
+      </div>
+    ),
+    'contact-form': (
+      <div className="w-full h-24 bg-white border rounded p-2 space-y-1">
+        <div className="w-full h-2 bg-gray-200 rounded" />
+        <div className="w-full h-2 bg-gray-200 rounded" />
+        <div className="w-full h-6 bg-gray-200 rounded" />
+        <div className="w-16 h-3 bg-blue-500 rounded ml-auto" />
+      </div>
+    ),
+    'team-section': (
+      <div className="w-full h-24 bg-gray-50 rounded p-2">
+        <div className="grid grid-cols-3 gap-1 h-full">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="bg-white rounded border flex flex-col items-center p-1">
+              <div className="w-6 h-6 bg-gray-300 rounded-full mb-1" />
+              <div className="w-8 h-1 bg-gray-300 rounded" />
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+    'cta-simple': (
+      <div className="w-full h-24 bg-gradient-to-r from-green-500 to-blue-600 rounded p-3 flex flex-col items-center justify-center gap-1">
+        <div className="w-16 h-2 bg-white/20 rounded" />
+        <div className="w-12 h-3 bg-white rounded" />
+      </div>
+    ),
     'default': (
       <div className="w-full h-full bg-gray-100 rounded flex items-center justify-center">
         <Package size={20} className="text-gray-400" />
@@ -87,15 +168,11 @@ const AddNodeButton = ({ direction, onAdd, visible }: AddNodeButtonProps) => {
     }
   };
 
-  const getArrowClasses = () => {
-    switch (direction) {
-      case 'bottom':
-        return 'rotate-90';
-      case 'left':
-        return 'rotate-180';
-      case 'right':
-        return '';
-    }
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log(`Add button clicked for direction: ${direction}`);
+    onAdd();
   };
 
   return (
@@ -105,7 +182,7 @@ const AddNodeButton = ({ direction, onAdd, visible }: AddNodeButtonProps) => {
       }`}
     >
       <button
-        onClick={onAdd}
+        onClick={handleClick}
         className="add-node-button w-10 h-10 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center group border-2 border-white"
         title={`Add page ${direction}`}
       >
@@ -132,8 +209,11 @@ const PageNode = ({ data, selected, id }: NodeProps<PageData>) => {
   };
 
   const handleAddNode = useCallback((direction: 'bottom' | 'left' | 'right') => {
+    console.log('PageNode handleAddNode called:', { direction, id, hasCallback: !!data.onAddNode });
     if (data.onAddNode) {
       data.onAddNode(direction, id);
+    } else {
+      console.error('onAddNode callback not found in data');
     }
   }, [data.onAddNode, id]);
 
@@ -238,7 +318,7 @@ const PageNode = ({ data, selected, id }: NodeProps<PageData>) => {
             <div className="text-xs text-gray-600 mb-3 line-clamp-2">{data.description}</div>
           )}
           
-          <DragDropContext onDragEnd={handleDragEnd}>
+          <DragDropContext onDragEnd={handleDragEnd} onDragStart={handleDragStart}>
             <Droppable droppableId="sections">
               {(provided) => (
                 <div

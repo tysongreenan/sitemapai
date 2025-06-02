@@ -25,7 +25,6 @@ import SectionNode from './nodes/SectionNode';
 import WireframePageNode from './nodes/WireframePageNode';
 import ContextMenu from './ContextMenu';
 
-// Structured layout configuration
 const LAYOUT_CONFIG = {
   NODE_WIDTH: 320,
   NODE_HEIGHT: 400,
@@ -186,19 +185,34 @@ class StructuredSitemapLayout {
     const updatedNodes = [...nodes, newNode];
     let updatedEdges = [...edges];
 
-    // Create edge from parent to new node
-    const newEdge: Edge = {
-      id: `${parentId}-${newNodeId}`,
-      source: parentId,
-      target: newNodeId,
-      type: 'smoothstep',
-      animated: true,
-      style: { stroke: '#3b82f6', strokeWidth: 2 },
-      markerEnd: { type: MarkerType.ArrowClosed, color: '#3b82f6' }
-    };
-    updatedEdges.push(newEdge);
+    if (direction === 'bottom') {
+      // Add as child
+      updatedEdges.push({
+        id: `${parentId}-${newNodeId}`,
+        source: parentId,
+        target: newNodeId,
+        type: 'smoothstep',
+        animated: true,
+        style: { stroke: '#3b82f6', strokeWidth: 2 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: '#3b82f6' }
+      });
+    } else {
+      // Add as sibling
+      const parentEdge = edges.find(edge => edge.target === parentId);
+      if (parentEdge) {
+        // Connect to the same parent as the clicked node
+        updatedEdges.push({
+          id: `${parentEdge.source}-${newNodeId}`,
+          source: parentEdge.source,
+          target: newNodeId,
+          type: 'smoothstep',
+          animated: true,
+          style: { stroke: '#3b82f6', strokeWidth: 2 },
+          markerEnd: { type: MarkerType.ArrowClosed, color: '#3b82f6' }
+        });
+      }
+    }
 
-    // Recalculate layout
     const { nodes: layoutNodes, edges: layoutEdges } = this.calculateStructuredLayout(updatedNodes, updatedEdges);
 
     return {
@@ -267,18 +281,17 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
       setNodes(nodesWithCallbacks);
       setEdges(newEdges);
 
-      // Add fitView call to ensure the new node is visible
+      // Ensure the new node is visible
       setTimeout(() => {
-        reactFlowInstance.fitView({ 
+        reactFlowInstance.fitView({
           padding: 0.2,
           duration: 800,
           includeHiddenNodes: true
         });
       }, 50);
-      
+
       const directionText = direction === 'bottom' ? 'child page' : 'sibling page';
       toast.success(`Added new ${directionText}`);
-      
     } catch (error) {
       console.error('Error adding node:', error);
       toast.error('Failed to add new page');

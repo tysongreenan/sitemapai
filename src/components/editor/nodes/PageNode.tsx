@@ -169,17 +169,21 @@ const AddNodeButton = ({ direction, onAdd, visible }: AddNodeButtonProps) => {
 
   return (
     <button
+      type="button"
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        console.log(`Add node button clicked: ${direction}`); // Debug log
+        console.log('Add button clicked:', direction);
         onAdd();
       }}
-      className={`absolute ${getPositionClasses()} w-8 h-8 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center group border-2 border-white z-50 ${
-        visible ? 'opacity-100 scale-100' : 'opacity-0 scale-50 pointer-events-none'
+      className={`absolute ${getPositionClasses()} w-8 h-8 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center group border-2 border-white z-[100] ${
+        visible ? 'opacity-100 scale-100' : 'opacity-0 scale-50'
       }`}
+      style={{
+        pointerEvents: visible ? 'auto' : 'none',
+        cursor: 'pointer'
+      }}
       title={`Add page ${direction}`}
-      style={{ pointerEvents: visible ? 'auto' : 'none' }} // Explicit pointer-events
     >
       <Plus size={16} className="transition-transform group-hover:scale-110" />
     </button>
@@ -203,7 +207,7 @@ const PageNode = ({ data, selected, id }: NodeProps<PageData>) => {
   };
 
   const handleAddNode = useCallback((direction: 'bottom' | 'left' | 'right') => {
-    console.log(`Attempting to add node: ${direction}`); // Debug log
+    console.log('handleAddNode called:', direction);
     if (data.onAddNode) {
       data.onAddNode(direction, id);
     }
@@ -233,46 +237,49 @@ const PageNode = ({ data, selected, id }: NodeProps<PageData>) => {
     <div
       className="relative"
       onMouseEnter={() => {
-        console.log('Node mouse enter'); // Debug log
+        console.log('Node mouse enter');
         setIsHovering(true);
       }}
       onMouseLeave={() => {
-        console.log('Node mouse leave'); // Debug log
+        console.log('Node mouse leave');
         setIsHovering(false);
         setHoveredDirection(null);
       }}
     >
-      {/* Hover zones with debug borders */}
+      {/* Hover zones */}
       <div 
-        className="absolute -bottom-12 left-0 right-0 h-24 cursor-pointer border border-red-200 bg-red-50/10"
+        className="absolute -bottom-12 left-0 right-0 h-24 z-[90]"
+        style={{ pointerEvents: 'all' }}
         onMouseEnter={() => {
-          console.log('Bottom zone entered'); // Debug log
+          console.log('Bottom zone entered');
           setHoveredDirection('bottom');
         }}
         onMouseLeave={() => {
-          console.log('Bottom zone left'); // Debug log
+          console.log('Bottom zone left');
           setHoveredDirection(null);
         }}
       />
       <div 
-        className="absolute -left-12 top-0 bottom-0 w-24 cursor-pointer border border-red-200 bg-red-50/10"
+        className="absolute -left-12 top-0 bottom-0 w-24 z-[90]"
+        style={{ pointerEvents: 'all' }}
         onMouseEnter={() => {
-          console.log('Left zone entered'); // Debug log
+          console.log('Left zone entered');
           setHoveredDirection('left');
         }}
         onMouseLeave={() => {
-          console.log('Left zone left'); // Debug log
+          console.log('Left zone left');
           setHoveredDirection(null);
         }}
       />
       <div 
-        className="absolute -right-12 top-0 bottom-0 w-24 cursor-pointer border border-red-200 bg-red-50/10"
+        className="absolute -right-12 top-0 bottom-0 w-24 z-[90]"
+        style={{ pointerEvents: 'all' }}
         onMouseEnter={() => {
-          console.log('Right zone entered'); // Debug log
+          console.log('Right zone entered');
           setHoveredDirection('right');
         }}
         onMouseLeave={() => {
-          console.log('Right zone left'); // Debug log
+          console.log('Right zone left');
           setHoveredDirection(null);
         }}
       />

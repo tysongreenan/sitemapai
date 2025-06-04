@@ -33,7 +33,7 @@ const LAYOUT_CONFIG = {
   GRID_SIZE: 20,
   START_X: 400,
   START_Y: 150,
-  ROOT_SPACING: 600, // Spacing between disconnected subgraphs
+  ROOT_SPACING: 600,
 };
 
 const nodeTypes = {
@@ -53,17 +53,14 @@ class StructuredSitemapLayout {
     const hierarchy = this.buildHierarchy(nodes, edges);
     let currentRootX = this.config.START_X;
 
-    // Find all root nodes (nodes with no incoming edges)
     const rootNodes = nodes.filter(node => 
       !edges.some(edge => edge.target === node.id)
     );
 
-    // If no root nodes found, use the first node as root
     if (rootNodes.length === 0 && nodes.length > 0) {
       rootNodes.push(nodes[0]);
     }
 
-    // Process each root node and its subgraph
     rootNodes.forEach((rootNode, rootIndex) => {
       if (visited.has(rootNode.id)) return;
 
@@ -75,7 +72,6 @@ class StructuredSitemapLayout {
         allPositionedNodes.push(node);
       });
 
-      // Update the x-coordinate for the next subgraph
       const subgraphWidth = Math.max(...positionedSubgraph.map(node => node.position.x)) - 
                            Math.min(...positionedSubgraph.map(node => node.position.x));
       currentRootX += subgraphWidth + this.config.ROOT_SPACING;
@@ -193,11 +189,12 @@ class StructuredSitemapLayout {
     const newNode: Node = {
       id: newNodeId,
       type: 'page',
-      position: { x: 0, y: 0 }, // Position will be calculated by layout algorithm
+      position: { x: 0, y: 0 },
       data: {
         label: 'New Page',
         url: '/new-page',
         description: 'A new page',
+        isEditing: true,
         sections: [
           {
             id: nanoid(),
@@ -213,7 +210,6 @@ class StructuredSitemapLayout {
     const updatedNodes = [...nodes, newNode];
     let updatedEdges = [...edges];
 
-    // Only create an edge for bottom direction (child) or if parent has a parent (sibling)
     if (direction === 'bottom' || edges.some(e => e.target === parentId)) {
       const sourceId = direction === 'bottom' ? parentId : edges.find(e => e.target === parentId)?.source;
       if (sourceId) {
@@ -268,6 +264,25 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
     );
   }, [setNodes]);
 
+  const handleNodeTitleChange = useCallback((nodeId: string, newTitle: string) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              label: newTitle,
+              isEditing: false,
+              url: '/' + newTitle.toLowerCase().replace(/\s+/g, '-')
+            }
+          };
+        }
+        return node;
+      })
+    );
+  }, [setNodes]);
+
   const handleAddNode = useCallback((direction: 'bottom' | 'left' | 'right', parentNodeId: string) => {
     try {
       const { nodes: newNodes, edges: newEdges, newNodeId } = layoutSystem.current.addNodeInDirection(
@@ -280,6 +295,7 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
           onSectionsReorder: (sections: any[]) => handleSectionsReorder(newNodeId, sections),
           onSectionDragStart: () => setIsSectionDragging(true),
           onSectionDragEnd: () => setIsSectionDragging(false),
+          onTitleChange: (title: string) => handleNodeTitleChange(newNodeId, title),
         }
       );
 
@@ -291,13 +307,13 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
           onSectionsReorder: (sections: any[]) => handleSectionsReorder(node.id, sections),
           onSectionDragStart: () => setIsSectionDragging(true),
           onSectionDragEnd: () => setIsSectionDragging(false),
+          onTitleChange: (title: string) => handleNodeTitleChange(node.id, title),
         }
       }));
 
       setNodes(nodesWithCallbacks);
       setEdges(newEdges);
 
-      // Ensure the new node is visible
       setTimeout(() => {
         reactFlowInstance.fitView({
           padding: 0.2,
@@ -312,7 +328,7 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
       console.error('Error adding node:', error);
       toast.error('Failed to add new page');
     }
-  }, [nodes, edges, handleSectionsReorder, setNodes, setEdges, reactFlowInstance]);
+  }, [nodes, edges, handleSectionsReorder, handleNodeTitleChange, setNodes, setEdges, reactFlowInstance]);
 
   useEffect(() => {
     if (currentProject?.sitemap_data) {
@@ -327,6 +343,7 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
               onSectionsReorder: (sections: any[]) => handleSectionsReorder(node.id, sections),
               onSectionDragStart: () => setIsSectionDragging(true),
               onSectionDragEnd: () => setIsSectionDragging(false),
+              onTitleChange: (title: string) => handleNodeTitleChange(node.id, title),
             }
           })),
           savedEdges || []
@@ -360,6 +377,7 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
             onSectionsReorder: (sections: any[]) => handleSectionsReorder(homeNodeId, sections),
             onSectionDragStart: () => setIsSectionDragging(true),
             onSectionDragEnd: () => setIsSectionDragging(false),
+            onTitleChange: (title: string) => handleNodeTitleChange(homeNodeId, title),
           }
         };
         
@@ -367,7 +385,7 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
         setEdges([]);
       }
     }
-  }, [currentProject?.sitemap_data, handleAddNode, handleSectionsReorder, setNodes, setEdges]);
+  }, [currentProject?.sitemap_data, handleAddNode, handleSectionsReorder, handleNodeTitleChange, setNodes, setEdges]);
 
   const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
     setSelectedNode(node);
@@ -388,6 +406,7 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
             onSectionsReorder: undefined,
             onSectionDragStart: undefined,
             onSectionDragEnd: undefined,
+            onTitleChange: undefined,
           }
         }));
         
@@ -458,6 +477,7 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
         onSectionsReorder: (sections: any[]) => handleSectionsReorder(node.id, sections),
         onSectionDragStart: () => setIsSectionDragging(true),
         onSectionDragEnd: () => setIsSectionDragging(false),
+        onTitleChange: (title: string) => handleNodeTitleChange(node.id, title),
       }
     }));
     
@@ -470,7 +490,7 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
     }
     
     toast.success('Page deleted');
-  }, [nodes, edges, selectedNode, handleAddNode, handleSectionsReorder, setNodes, setEdges]);
+  }, [nodes, edges, selectedNode, handleAddNode, handleSectionsReorder, handleNodeTitleChange, setNodes, setEdges]);
 
   const onNodeContextMenu = useCallback((event: React.MouseEvent, node: Node) => {
     event.preventDefault();

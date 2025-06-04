@@ -1,8 +1,9 @@
-import React, { memo, useState, useCallback } from 'react';
+import React, { memo, useState, useCallback, useEffect, useRef } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { FileText, Eye, EyeOff, Package, ChevronDown, ChevronUp, Plus, Sparkles, GripVertical, Menu, PanelRight, Layout, Grid, MessageCircle, Mail, Users, Zap } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Button } from '../../ui/Button';
+import { Input } from '../../ui/Input';
 
 const componentIcons: Record<string, React.ReactNode> = {
   'navbar': <Menu size={12} />,
@@ -30,11 +31,13 @@ interface PageData {
   url: string;
   description?: string;
   isHomePage?: boolean;
+  isEditing?: boolean;
   sections: Section[];
   onAddNode?: (direction: 'bottom' | 'left' | 'right', nodeId: string) => void;
   onSectionsReorder?: (sections: Section[]) => void;
   onSectionDragStart?: () => void;
   onSectionDragEnd?: () => void;
+  onTitleChange?: (title: string) => void;
 }
 
 export const ComponentPreview = ({ type }: { type: string }) => {
@@ -195,6 +198,15 @@ const PageNode = ({ data, selected, id }: NodeProps<PageData>) => {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [hoveredDirection, setHoveredDirection] = useState<'bottom' | 'left' | 'right' | null>(null);
   const [isHovering, setIsHovering] = useState(false);
+  const [title, setTitle] = useState(data.label);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (data.isEditing && titleInputRef.current) {
+      titleInputRef.current.focus();
+      titleInputRef.current.select();
+    }
+  }, [data.isEditing]);
 
   const toggleSection = (sectionId: string) => {
     const newExpanded = new Set(expandedSections);
@@ -212,6 +224,18 @@ const PageNode = ({ data, selected, id }: NodeProps<PageData>) => {
       data.onAddNode(direction, id);
     }
   }, [data.onAddNode, id]);
+
+  const handleTitleChange = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && data.onTitleChange) {
+      data.onTitleChange(title);
+    }
+  }, [title, data.onTitleChange]);
+
+  const handleTitleBlur = useCallback(() => {
+    if (data.onTitleChange) {
+      data.onTitleChange(title);
+    }
+  }, [title, data.onTitleChange]);
 
   const handleDragStart = () => {
     data.onSectionDragStart?.();
@@ -310,7 +334,19 @@ const PageNode = ({ data, selected, id }: NodeProps<PageData>) => {
         <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-3 py-2 flex items-center justify-between">
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <FileText size={16} className="text-white flex-shrink-0" />
-            <div className="font-medium text-white truncate">{data.label}</div>
+            {data.isEditing ? (
+              <Input
+                ref={titleInputRef}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                onKeyDown={handleTitleChange}
+                onBlur={handleTitleBlur}
+                className="text-white bg-white/10 border-white/20 focus:border-white/40 focus:ring-white/20 placeholder-white/60"
+                placeholder="Enter page title..."
+              />
+            ) : (
+              <div className="font-medium text-white truncate">{data.label}</div>
+            )}
           </div>
           <button
             onClick={() => setShowPreview(!showPreview)}

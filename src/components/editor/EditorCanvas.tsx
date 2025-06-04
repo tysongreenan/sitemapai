@@ -33,6 +33,7 @@ const LAYOUT_CONFIG = {
   GRID_SIZE: 20,
   START_X: 400,
   START_Y: 150,
+  ROOT_SPACING: 600, // Spacing between disconnected subgraphs
 };
 
 const nodeTypes = {
@@ -47,18 +48,106 @@ class StructuredSitemapLayout {
   calculateStructuredLayout(nodes: Node[], edges: Edge[]): { nodes: Node[], edges: Edge[] } {
     if (nodes.length === 0) return { nodes, edges };
 
+    const allPositionedNodes: Node[] = [];
+    const visited = new Set<string>();
     const hierarchy = this.buildHierarchy(nodes, edges);
-    const rootNode = nodes.find(node => 
-      node.data.isHomePage || 
-      !edges.some(edge => edge.target === node.id)
-    ) || nodes[0];
+    let currentRootX = this.config.START_X;
 
-    const positionedNodes = this.positionNodesInStructure(nodes, edges, rootNode.id);
+    // Find all root nodes (nodes with no incoming edges)
+    const rootNodes = nodes.filter(node => 
+      !edges.some(edge => edge.target === node.id)
+    );
+
+    // If no root nodes found, use the first node as root
+    if (rootNodes.length === 0 && nodes.length > 0) {
+      rootNodes.push(nodes[0]);
+    }
+
+    // Process each root node and its subgraph
+    rootNodes.forEach((rootNode, rootIndex) => {
+      if (visited.has(rootNode.id)) return;
+
+      const { subgraphNodes, levels } = this.buildSubgraphLevels(rootNode.id, hierarchy, nodes);
+      const positionedSubgraph = this.positionSubgraph(subgraphNodes, levels, currentRootX);
+
+      positionedSubgraph.forEach(node => {
+        visited.add(node.id);
+        allPositionedNodes.push(node);
+      });
+
+      // Update the x-coordinate for the next subgraph
+      const subgraphWidth = Math.max(...positionedSubgraph.map(node => node.position.x)) - 
+                           Math.min(...positionedSubgraph.map(node => node.position.x));
+      currentRootX += subgraphWidth + this.config.ROOT_SPACING;
+    });
 
     return {
-      nodes: positionedNodes,
+      nodes: allPositionedNodes,
       edges: this.updateEdgePositions(edges)
     };
+  }
+
+  private buildSubgraphLevels(rootId: string, hierarchy: Map<string, string[]>, nodes: Node[]): {
+    subgraphNodes: Node[],
+    levels: Map<number, string[]>
+  } {
+    const levels = new Map<number, string[]>();
+    const subgraphNodes: Node[] = [];
+    const queue: { nodeId: string; level: number }[] = [{ nodeId: rootId, level: 0 }];
+    const visited = new Set<string>();
+
+    while (queue.length > 0) {
+      const { nodeId, level } = queue.shift()!;
+      if (visited.has(nodeId)) continue;
+
+      visited.add(nodeId);
+      const node = nodes.find(n => n.id === nodeId);
+      if (!node) continue;
+
+      subgraphNodes.push(node);
+
+      if (!levels.has(level)) {
+        levels.set(level, []);
+      }
+      levels.get(level)!.push(nodeId);
+
+      const children = hierarchy.get(nodeId) || [];
+      children.forEach(childId => {
+        if (!visited.has(childId)) {
+          queue.push({ nodeId: childId, level: level + 1 });
+        }
+      });
+    }
+
+    return { subgraphNodes, levels };
+  }
+
+  private positionSubgraph(nodes: Node[], levels: Map<number, string[]>, startX: number): Node[] {
+    const positionedNodes: Node[] = [];
+    const nodeMap = new Map(nodes.map(node => [node.id, node]));
+
+    levels.forEach((nodeIds, level) => {
+      const y = this.config.START_Y + level * (this.config.NODE_HEIGHT + this.config.VERTICAL_SPACING);
+      const totalWidth = nodeIds.length * this.config.NODE_WIDTH + 
+                        (nodeIds.length - 1) * this.config.HORIZONTAL_SPACING;
+      let x = startX - totalWidth / 2 + this.config.NODE_WIDTH / 2;
+
+      nodeIds.forEach(nodeId => {
+        const node = nodeMap.get(nodeId);
+        if (node) {
+          positionedNodes.push({
+            ...node,
+            position: {
+              x: Math.round(x / this.config.GRID_SIZE) * this.config.GRID_SIZE,
+              y: Math.round(y / this.config.GRID_SIZE) * this.config.GRID_SIZE
+            }
+          });
+          x += this.config.NODE_WIDTH + this.config.HORIZONTAL_SPACING;
+        }
+      });
+    });
+
+    return positionedNodes;
   }
 
   private buildHierarchy(nodes: Node[], edges: Edge[]): Map<string, string[]> {
@@ -75,67 +164,6 @@ class StructuredSitemapLayout {
     });
 
     return hierarchy;
-  }
-
-  private positionNodesInStructure(nodes: Node[], edges: Edge[], rootId: string): Node[] {
-    const positioned: Node[] = [];
-    const hierarchy = this.buildHierarchy(nodes, edges);
-    const levelMap = new Map<number, string[]>();
-    const nodeMap = new Map<string, Node>();
-    
-    nodes.forEach(node => nodeMap.set(node.id, node));
-    this.calculateLevelsStructured(rootId, hierarchy, levelMap, nodeMap);
-
-    levelMap.forEach((nodeIds, level) => {
-      const y = this.config.START_Y + level * (this.config.NODE_HEIGHT + this.config.VERTICAL_SPACING);
-      const totalWidth = nodeIds.length * this.config.NODE_WIDTH + (nodeIds.length - 1) * this.config.HORIZONTAL_SPACING;
-      let startX = this.config.START_X - totalWidth / 2 + this.config.NODE_WIDTH / 2;
-
-      nodeIds.forEach((nodeId, index) => {
-        const node = nodeMap.get(nodeId);
-        if (node) {
-          const x = startX + index * (this.config.NODE_WIDTH + this.config.HORIZONTAL_SPACING);
-          positioned.push({
-            ...node,
-            position: { 
-              x: Math.round(x / this.config.GRID_SIZE) * this.config.GRID_SIZE,
-              y: Math.round(y / this.config.GRID_SIZE) * this.config.GRID_SIZE
-            }
-          });
-        }
-      });
-    });
-
-    return positioned;
-  }
-
-  private calculateLevelsStructured(
-    rootId: string, 
-    hierarchy: Map<string, string[]>, 
-    levelMap: Map<number, string[]>,
-    nodeMap: Map<string, Node>
-  ) {
-    const visited = new Set<string>();
-    const queue: { nodeId: string, level: number }[] = [{ nodeId: rootId, level: 0 }];
-
-    while (queue.length > 0) {
-      const { nodeId, level } = queue.shift()!;
-      
-      if (visited.has(nodeId) || !nodeMap.has(nodeId)) continue;
-      visited.add(nodeId);
-
-      if (!levelMap.has(level)) {
-        levelMap.set(level, []);
-      }
-      levelMap.get(level)!.push(nodeId);
-
-      const children = hierarchy.get(nodeId) || [];
-      children.forEach(childId => {
-        if (!visited.has(childId)) {
-          queue.push({ nodeId: childId, level: level + 1 });
-        }
-      });
-    }
   }
 
   private updateEdgePositions(edges: Edge[]): Edge[] {
@@ -165,7 +193,7 @@ class StructuredSitemapLayout {
     const newNode: Node = {
       id: newNodeId,
       type: 'page',
-      position: { x: 0, y: 0 },
+      position: { x: 0, y: 0 }, // Position will be calculated by layout algorithm
       data: {
         label: 'New Page',
         url: '/new-page',
@@ -185,25 +213,13 @@ class StructuredSitemapLayout {
     const updatedNodes = [...nodes, newNode];
     let updatedEdges = [...edges];
 
-    if (direction === 'bottom') {
-      // Add as child
-      updatedEdges.push({
-        id: `${parentId}-${newNodeId}`,
-        source: parentId,
-        target: newNodeId,
-        type: 'smoothstep',
-        animated: true,
-        style: { stroke: '#3b82f6', strokeWidth: 2 },
-        markerEnd: { type: MarkerType.ArrowClosed, color: '#3b82f6' }
-      });
-    } else {
-      // Add as sibling
-      const parentEdge = edges.find(edge => edge.target === parentId);
-      if (parentEdge) {
-        // Connect to the same parent as the clicked node
+    // Only create an edge for bottom direction (child) or if parent has a parent (sibling)
+    if (direction === 'bottom' || edges.some(e => e.target === parentId)) {
+      const sourceId = direction === 'bottom' ? parentId : edges.find(e => e.target === parentId)?.source;
+      if (sourceId) {
         updatedEdges.push({
-          id: `${parentEdge.source}-${newNodeId}`,
-          source: parentEdge.source,
+          id: `${sourceId}-${newNodeId}`,
+          source: sourceId,
           target: newNodeId,
           type: 'smoothstep',
           animated: true,

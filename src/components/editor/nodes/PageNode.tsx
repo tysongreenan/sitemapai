@@ -172,12 +172,14 @@ const AddNodeButton = ({ direction, onAdd, visible }: AddNodeButtonProps) => {
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
+        console.log(`Add node button clicked: ${direction}`); // Debug log
         onAdd();
       }}
-      className={`absolute ${getPositionClasses()} w-8 h-8 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center group border-2 border-white ${
+      className={`absolute ${getPositionClasses()} w-8 h-8 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center group border-2 border-white z-50 ${
         visible ? 'opacity-100 scale-100' : 'opacity-0 scale-50 pointer-events-none'
       }`}
       title={`Add page ${direction}`}
+      style={{ pointerEvents: visible ? 'auto' : 'none' }} // Explicit pointer-events
     >
       <Plus size={16} className="transition-transform group-hover:scale-110" />
     </button>
@@ -201,6 +203,7 @@ const PageNode = ({ data, selected, id }: NodeProps<PageData>) => {
   };
 
   const handleAddNode = useCallback((direction: 'bottom' | 'left' | 'right') => {
+    console.log(`Attempting to add node: ${direction}`); // Debug log
     if (data.onAddNode) {
       data.onAddNode(direction, id);
     }
@@ -229,27 +232,49 @@ const PageNode = ({ data, selected, id }: NodeProps<PageData>) => {
   return (
     <div
       className="relative"
-      onMouseEnter={() => setIsHovering(true)}
+      onMouseEnter={() => {
+        console.log('Node mouse enter'); // Debug log
+        setIsHovering(true);
+      }}
       onMouseLeave={() => {
+        console.log('Node mouse leave'); // Debug log
         setIsHovering(false);
         setHoveredDirection(null);
       }}
     >
-      {/* Hover zones */}
+      {/* Hover zones with debug borders */}
       <div 
-        className="absolute -bottom-12 left-0 right-0 h-24 cursor-pointer"
-        onMouseEnter={() => setHoveredDirection('bottom')}
-        onMouseLeave={() => setHoveredDirection(null)}
+        className="absolute -bottom-12 left-0 right-0 h-24 cursor-pointer border border-red-200 bg-red-50/10"
+        onMouseEnter={() => {
+          console.log('Bottom zone entered'); // Debug log
+          setHoveredDirection('bottom');
+        }}
+        onMouseLeave={() => {
+          console.log('Bottom zone left'); // Debug log
+          setHoveredDirection(null);
+        }}
       />
       <div 
-        className="absolute -left-12 top-0 bottom-0 w-24 cursor-pointer"
-        onMouseEnter={() => setHoveredDirection('left')}
-        onMouseLeave={() => setHoveredDirection(null)}
+        className="absolute -left-12 top-0 bottom-0 w-24 cursor-pointer border border-red-200 bg-red-50/10"
+        onMouseEnter={() => {
+          console.log('Left zone entered'); // Debug log
+          setHoveredDirection('left');
+        }}
+        onMouseLeave={() => {
+          console.log('Left zone left'); // Debug log
+          setHoveredDirection(null);
+        }}
       />
       <div 
-        className="absolute -right-12 top-0 bottom-0 w-24 cursor-pointer"
-        onMouseEnter={() => setHoveredDirection('right')}
-        onMouseLeave={() => setHoveredDirection(null)}
+        className="absolute -right-12 top-0 bottom-0 w-24 cursor-pointer border border-red-200 bg-red-50/10"
+        onMouseEnter={() => {
+          console.log('Right zone entered'); // Debug log
+          setHoveredDirection('right');
+        }}
+        onMouseLeave={() => {
+          console.log('Right zone left'); // Debug log
+          setHoveredDirection(null);
+        }}
       />
 
       {/* Add buttons */}

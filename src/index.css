@@ -24,19 +24,10 @@
   animation: pulse-glow 2s infinite;
 }
 
-
 /* Disable connection mode cursors */
 .react-flow__pane.connecting {
   cursor: grab !important;
 }
-
-/* Debug: Uncomment to visualize hover zones during development */
-/*
-.hover-zone-debug {
-  background: rgba(255, 0, 0, 0.1) !important;
-  border: 1px dashed rgba(255, 0, 0, 0.3) !important;
-}
-*/
 
 /* Ensure section dragging works properly */
 .react-flow__node {
@@ -183,4 +174,10 @@
     transform: translateX(0);
     max-width: none;
   }
+}
+
+/* Hover zone debugging (only in development) */
+.hover-zone-debug {
+  background: rgba(255, 0, 0, 0.1) !important;
+  border: 1px dashed rgba(255, 0, 0, 0.3) !important;
 }

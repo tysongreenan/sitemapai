@@ -26,6 +26,12 @@ interface Section {
   components: string[];
 }
 
+interface NodeActions {
+  addNode: (direction: 'bottom' | 'left' | 'right', nodeId: string) => void;
+  deleteNode: (nodeId: string) => void;
+  updateNode: (nodeId: string, data: Partial<any>) => void;
+}
+
 interface PageData {
   label: string;
   url: string;
@@ -33,11 +39,10 @@ interface PageData {
   isHomePage?: boolean;
   isEditing?: boolean;
   sections: Section[];
-  onAddNode?: (direction: 'bottom' | 'left' | 'right', nodeId: string) => void;
-  onSectionsReorder?: (sections: Section[]) => void;
-  onSectionDragStart?: () => void;
-  onSectionDragEnd?: () => void;
-  onTitleChange?: (title: string) => void;
+  children?: string[];
+  actions?: NodeActions;
+  hoveredNode?: { id: string; direction: 'bottom' | 'left' | 'right' } | null;
+  setHoveredNode?: (value: { id: string; direction: 'bottom' | 'left' | 'right' } | null) => void;
 }
 
 export const ComponentPreview = ({ type }: { type: string }) => {
@@ -170,15 +175,17 @@ const AddNodeButton = ({ direction, onAdd, visible }: AddNodeButtonProps) => {
     }
   };
 
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('Add button clicked:', { direction, visible });
+    onAdd();
+  };
+
   return (
     <button
       type="button"
-      onClick={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        console.log('Add button clicked:', direction);
-        onAdd();
-      }}
+      onClick={handleClick}
       className={`absolute ${getPositionClasses()} w-8 h-8 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center group border-2 border-white z-[100] ${
         visible ? 'opacity-100 scale-100' : 'opacity-0 scale-50'
       }`}
@@ -196,10 +203,12 @@ const AddNodeButton = ({ direction, onAdd, visible }: AddNodeButtonProps) => {
 const PageNode = ({ data, selected, id }: NodeProps<PageData>) => {
   const [showPreview, setShowPreview] = useState(true);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
-  const [hoveredDirection, setHoveredDirection] = useState<'bottom' | 'left' | 'right' | null>(null);
-  const [isHovering, setIsHovering] = useState(false);
   const [title, setTitle] = useState(data.label);
   const titleInputRef = useRef<HTMLInputElement>(null);
+
+  // Simplified hover handling
+  const isHovered = data.hoveredNode?.id === id;
+  const hoveredDirection = data.hoveredNode?.direction;
 
   useEffect(() => {
     if (data.isEditing && titleInputRef.current) {
@@ -219,110 +228,79 @@ const PageNode = ({ data, selected, id }: NodeProps<PageData>) => {
   };
 
   const handleAddNode = useCallback((direction: 'bottom' | 'left' | 'right') => {
-    console.log('handleAddNode called:', direction);
-    if (data.onAddNode) {
-      data.onAddNode(direction, id);
+    console.log('handleAddNode called:', { direction, nodeId: id });
+    if (data.actions) {
+      data.actions.addNode(direction, id);
     }
-  }, [data.onAddNode, id]);
+  }, [data.actions, id]);
 
   const handleTitleChange = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && data.onTitleChange) {
-      data.onTitleChange(title);
+    if (e.key === 'Enter' && data.actions) {
+      data.actions.updateNode(id, { label: title, isEditing: false });
     }
-  }, [title, data.onTitleChange]);
+  }, [title, data.actions, id]);
 
   const handleTitleBlur = useCallback(() => {
-    if (data.onTitleChange) {
-      data.onTitleChange(title);
+    if (data.actions) {
+      data.actions.updateNode(id, { label: title, isEditing: false });
     }
-  }, [title, data.onTitleChange]);
-
-  const handleDragStart = () => {
-    data.onSectionDragStart?.();
-  };
+  }, [title, data.actions, id]);
 
   const handleDragEnd = (result: any) => {
-    data.onSectionDragEnd?.();
-    
     if (!result.destination || !data.sections) return;
 
     const items = Array.from(data.sections);
     const [reorderedItem] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, reorderedItem);
 
-    if (data.onSectionsReorder) {
-      data.onSectionsReorder(items);
+    if (data.actions) {
+      data.actions.updateNode(id, { sections: items });
+    }
+  };
+
+  // Simplified hover zone handlers
+  const handleHoverZone = (direction: 'bottom' | 'left' | 'right', isEntering: boolean) => {
+    if (data.setHoveredNode) {
+      data.setHoveredNode(isEntering ? { id, direction } : null);
     }
   };
 
   const sections = data.sections || [];
 
   return (
-    <div
-      className="relative"
-      onMouseEnter={() => {
-        console.log('Node mouse enter');
-        setIsHovering(true);
-      }}
-      onMouseLeave={() => {
-        console.log('Node mouse leave');
-        setIsHovering(false);
-        setHoveredDirection(null);
-      }}
-    >
-      {/* Hover zones */}
+    <div className="relative">
+      {/* Simplified hover zones */}
       <div 
         className="absolute -bottom-12 left-0 right-0 h-24 z-[90]"
-        style={{ pointerEvents: 'all' }}
-        onMouseEnter={() => {
-          console.log('Bottom zone entered');
-          setHoveredDirection('bottom');
-        }}
-        onMouseLeave={() => {
-          console.log('Bottom zone left');
-          setHoveredDirection(null);
-        }}
+        onMouseEnter={() => handleHoverZone('bottom', true)}
+        onMouseLeave={() => handleHoverZone('bottom', false)}
       />
       <div 
         className="absolute -left-12 top-0 bottom-0 w-24 z-[90]"
-        style={{ pointerEvents: 'all' }}
-        onMouseEnter={() => {
-          console.log('Left zone entered');
-          setHoveredDirection('left');
-        }}
-        onMouseLeave={() => {
-          console.log('Left zone left');
-          setHoveredDirection(null);
-        }}
+        onMouseEnter={() => handleHoverZone('left', true)}
+        onMouseLeave={() => handleHoverZone('left', false)}
       />
       <div 
         className="absolute -right-12 top-0 bottom-0 w-24 z-[90]"
-        style={{ pointerEvents: 'all' }}
-        onMouseEnter={() => {
-          console.log('Right zone entered');
-          setHoveredDirection('right');
-        }}
-        onMouseLeave={() => {
-          console.log('Right zone left');
-          setHoveredDirection(null);
-        }}
+        onMouseEnter={() => handleHoverZone('right', true)}
+        onMouseLeave={() => handleHoverZone('right', false)}
       />
 
       {/* Add buttons */}
       <AddNodeButton
         direction="bottom"
         onAdd={() => handleAddNode('bottom')}
-        visible={isHovering && hoveredDirection === 'bottom'}
+        visible={isHovered && hoveredDirection === 'bottom'}
       />
       <AddNodeButton
         direction="left"
         onAdd={() => handleAddNode('left')}
-        visible={isHovering && hoveredDirection === 'left'}
+        visible={isHovered && hoveredDirection === 'left'}
       />
       <AddNodeButton
         direction="right"
         onAdd={() => handleAddNode('right')}
-        visible={isHovering && hoveredDirection === 'right'}
+        visible={isHovered && hoveredDirection === 'right'}
       />
 
       {/* Main node content */}
@@ -363,7 +341,7 @@ const PageNode = ({ data, selected, id }: NodeProps<PageData>) => {
             <div className="text-xs text-gray-600 mb-3 line-clamp-2">{data.description}</div>
           )}
           
-          <DragDropContext onDragEnd={handleDragEnd} onDragStart={handleDragStart}>
+          <DragDropContext onDragEnd={handleDragEnd}>
             <Droppable droppableId="sections">
               {(provided) => (
                 <div
@@ -475,29 +453,17 @@ const PageNode = ({ data, selected, id }: NodeProps<PageData>) => {
           </div>
         </div>
         
-        {/* Connection handles */}
+        {/* Hidden handles for React Flow */}
         <Handle
           type="target"
           position={Position.Top}
-          className="!opacity-0 !pointer-events-none !w-0 !h-0"
+          className="!opacity-0 !w-0 !h-0"
           style={{ visibility: 'hidden' }}
         />
         <Handle
           type="source"
           position={Position.Bottom}
-          className="!opacity-0 !pointer-events-none !w-0 !h-0"
-          style={{ visibility: 'hidden' }}
-        />
-        <Handle
-          type="target"
-          position={Position.Left}
-          className="!opacity-0 !pointer-events-none !w-0 !h-0"
-          style={{ visibility: 'hidden' }}
-        />
-        <Handle
-          type="source"
-          position={Position.Right}
-          className="!opacity-0 !pointer-events-none !w-0 !h-0"
+          className="!opacity-0 !w-0 !h-0"
           style={{ visibility: 'hidden' }}
         />
       </div>

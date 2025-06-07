@@ -4,15 +4,11 @@ import ReactFlow, {
   Background,
   Controls,
   MiniMap,
-  addEdge,
-  Connection,
-  MarkerType,
   useNodesState,
   useEdgesState,
   Node,
   Edge,
   NodeProps,
-  ConnectionLineType,
   useReactFlow,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
@@ -30,10 +26,8 @@ const LAYOUT_CONFIG = {
   NODE_HEIGHT: 400,
   HORIZONTAL_SPACING: 80,
   VERTICAL_SPACING: 120,
-  GRID_SIZE: 20,
   START_X: 400,
   START_Y: 150,
-  ROOT_SPACING: 600,
 };
 
 const nodeTypes = {
@@ -42,197 +36,61 @@ const nodeTypes = {
   wireframePage: WireframePageNode,
 };
 
-class StructuredSitemapLayout {
-  private config = LAYOUT_CONFIG;
-
-  calculateStructuredLayout(nodes: Node[], edges: Edge[]): { nodes: Node[], edges: Edge[] } {
-    if (nodes.length === 0) return { nodes, edges };
-
-    const allPositionedNodes: Node[] = [];
-    const visited = new Set<string>();
-    const hierarchy = this.buildHierarchy(nodes, edges);
-    let currentRootX = this.config.START_X;
+// Simplified layout system
+class SimpleLayoutSystem {
+  calculateLayout(nodes: Node[]): Node[] {
+    if (nodes.length === 0) return nodes;
 
     const rootNodes = nodes.filter(node => 
-      !edges.some(edge => edge.target === node.id)
+      node.data.isHomePage || !nodes.some(n => n.data.children?.includes(node.id))
     );
 
-    if (rootNodes.length === 0 && nodes.length > 0) {
-      rootNodes.push(nodes[0]);
-    }
-
-    rootNodes.forEach((rootNode, rootIndex) => {
-      if (visited.has(rootNode.id)) return;
-
-      const { subgraphNodes, levels } = this.buildSubgraphLevels(rootNode.id, hierarchy, nodes);
-      const positionedSubgraph = this.positionSubgraph(subgraphNodes, levels, currentRootX);
-
-      positionedSubgraph.forEach(node => {
-        visited.add(node.id);
-        allPositionedNodes.push(node);
-      });
-
-      const subgraphWidth = Math.max(...positionedSubgraph.map(node => node.position.x)) - 
-                           Math.min(...positionedSubgraph.map(node => node.position.x));
-      currentRootX += subgraphWidth + this.config.ROOT_SPACING;
-    });
-
-    return {
-      nodes: allPositionedNodes,
-      edges: this.updateEdgePositions(edges)
-    };
-  }
-
-  private buildSubgraphLevels(rootId: string, hierarchy: Map<string, string[]>, nodes: Node[]): {
-    subgraphNodes: Node[],
-    levels: Map<number, string[]>
-  } {
-    const levels = new Map<number, string[]>();
-    const subgraphNodes: Node[] = [];
-    const queue: { nodeId: string; level: number }[] = [{ nodeId: rootId, level: 0 }];
-    const visited = new Set<string>();
-
-    while (queue.length > 0) {
-      const { nodeId, level } = queue.shift()!;
-      if (visited.has(nodeId)) continue;
-
-      visited.add(nodeId);
-      const node = nodes.find(n => n.id === nodeId);
-      if (!node) continue;
-
-      subgraphNodes.push(node);
-
-      if (!levels.has(level)) {
-        levels.set(level, []);
-      }
-      levels.get(level)!.push(nodeId);
-
-      const children = hierarchy.get(nodeId) || [];
-      children.forEach(childId => {
-        if (!visited.has(childId)) {
-          queue.push({ nodeId: childId, level: level + 1 });
-        }
-      });
-    }
-
-    return { subgraphNodes, levels };
-  }
-
-  private positionSubgraph(nodes: Node[], levels: Map<number, string[]>, startX: number): Node[] {
+    let currentX = LAYOUT_CONFIG.START_X;
     const positionedNodes: Node[] = [];
-    const nodeMap = new Map(nodes.map(node => [node.id, node]));
 
-    levels.forEach((nodeIds, level) => {
-      const y = this.config.START_Y + level * (this.config.NODE_HEIGHT + this.config.VERTICAL_SPACING);
-      const totalWidth = nodeIds.length * this.config.NODE_WIDTH + 
-                        (nodeIds.length - 1) * this.config.HORIZONTAL_SPACING;
-      let x = startX - totalWidth / 2 + this.config.NODE_WIDTH / 2;
-
-      nodeIds.forEach(nodeId => {
-        const node = nodeMap.get(nodeId);
-        if (node) {
-          positionedNodes.push({
-            ...node,
-            position: {
-              x: Math.round(x / this.config.GRID_SIZE) * this.config.GRID_SIZE,
-              y: Math.round(y / this.config.GRID_SIZE) * this.config.GRID_SIZE
-            }
-          });
-          x += this.config.NODE_WIDTH + this.config.HORIZONTAL_SPACING;
-        }
-      });
+    rootNodes.forEach(rootNode => {
+      const positioned = this.positionNodeTree(rootNode, nodes, currentX, LAYOUT_CONFIG.START_Y);
+      positionedNodes.push(...positioned);
+      
+      const maxX = Math.max(...positioned.map(n => n.position.x));
+      currentX = maxX + LAYOUT_CONFIG.NODE_WIDTH + LAYOUT_CONFIG.HORIZONTAL_SPACING * 2;
     });
 
     return positionedNodes;
   }
 
-  private buildHierarchy(nodes: Node[], edges: Edge[]): Map<string, string[]> {
-    const hierarchy = new Map<string, string[]>();
-    
-    nodes.forEach(node => {
-      hierarchy.set(node.id, []);
-    });
+  private positionNodeTree(rootNode: Node, allNodes: Node[], startX: number, startY: number): Node[] {
+    const positioned: Node[] = [];
+    const queue: { node: Node; x: number; y: number; level: number }[] = [
+      { node: rootNode, x: startX, y: startY, level: 0 }
+    ];
 
-    edges.forEach(edge => {
-      const children = hierarchy.get(edge.source) || [];
-      children.push(edge.target);
-      hierarchy.set(edge.source, children);
-    });
+    while (queue.length > 0) {
+      const { node, x, y, level } = queue.shift()!;
+      
+      positioned.push({
+        ...node,
+        position: { x, y }
+      });
 
-    return hierarchy;
-  }
-
-  private updateEdgePositions(edges: Edge[]): Edge[] {
-    return edges.map(edge => ({
-      ...edge,
-      type: 'smoothstep',
-      animated: true,
-      style: { stroke: '#3b82f6', strokeWidth: 2 },
-      markerEnd: { type: MarkerType.ArrowClosed, color: '#3b82f6' }
-    }));
-  }
-
-  addNodeInDirection(
-    nodes: Node[], 
-    edges: Edge[], 
-    parentId: string, 
-    direction: 'bottom' | 'left' | 'right',
-    newNodeData: any
-  ): { nodes: Node[], edges: Edge[], newNodeId: string } {
-    const newNodeId = nanoid();
-    const parentNode = nodes.find(n => n.id === parentId);
-    
-    if (!parentNode) {
-      throw new Error('Parent node not found');
+      const children = allNodes.filter(n => node.data.children?.includes(n.id));
+      children.forEach((child, index) => {
+        const childX = x + (index - (children.length - 1) / 2) * (LAYOUT_CONFIG.NODE_WIDTH + LAYOUT_CONFIG.HORIZONTAL_SPACING);
+        const childY = y + LAYOUT_CONFIG.NODE_HEIGHT + LAYOUT_CONFIG.VERTICAL_SPACING;
+        
+        queue.push({ node: child, x: childX, y: childY, level: level + 1 });
+      });
     }
 
-    const newNode: Node = {
-      id: newNodeId,
-      type: 'page',
-      position: { x: 0, y: 0 },
-      data: {
-        label: 'New Page',
-        url: '/new-page',
-        description: 'A new page',
-        isEditing: true,
-        sections: [
-          {
-            id: nanoid(),
-            label: 'Hero Section',
-            description: 'Main hero section for the page',
-            components: ['hero-centered']
-          }
-        ],
-        ...newNodeData
-      }
-    };
-
-    const updatedNodes = [...nodes, newNode];
-    let updatedEdges = [...edges];
-
-    if (direction === 'bottom' || edges.some(e => e.target === parentId)) {
-      const sourceId = direction === 'bottom' ? parentId : edges.find(e => e.target === parentId)?.source;
-      if (sourceId) {
-        updatedEdges.push({
-          id: `${sourceId}-${newNodeId}`,
-          source: sourceId,
-          target: newNodeId,
-          type: 'smoothstep',
-          animated: true,
-          style: { stroke: '#3b82f6', strokeWidth: 2 },
-          markerEnd: { type: MarkerType.ArrowClosed, color: '#3b82f6' }
-        });
-      }
-    }
-
-    const { nodes: layoutNodes, edges: layoutEdges } = this.calculateStructuredLayout(updatedNodes, updatedEdges);
-
-    return {
-      nodes: layoutNodes,
-      edges: layoutEdges,
-      newNodeId
-    };
+    return positioned;
   }
+}
+
+// Node actions context
+interface NodeActions {
+  addNode: (direction: 'bottom' | 'left' | 'right', parentId: string) => void;
+  deleteNode: (nodeId: string) => void;
+  updateNode: (nodeId: string, data: Partial<any>) => void;
 }
 
 const EditorCanvas = ({ projectId }: { projectId: string }) => {
@@ -243,123 +101,135 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
   const [isComponentLibraryOpen, setIsComponentLibraryOpen] = useState(true);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
-  const [isSectionDragging, setIsSectionDragging] = useState(false);
+  const [hoveredNode, setHoveredNode] = useState<{ id: string; direction: 'bottom' | 'left' | 'right' } | null>(null);
+  
   const reactFlowInstance = useReactFlow();
-  const layoutSystem = useRef(new StructuredSitemapLayout());
+  const layoutSystem = useRef(new SimpleLayoutSystem());
+  const saveTimeoutRef = useRef<NodeJS.Timeout>();
 
-  const handleSectionsReorder = useCallback((nodeId: string, newSections: any[]) => {
-    setNodes((nds) =>
-      nds.map((node) => {
-        if (node.id === nodeId) {
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              sections: newSections
-            }
-          };
-        }
-        return node;
-      })
-    );
-  }, [setNodes]);
+  // Simplified node actions
+  const nodeActions: NodeActions = {
+    addNode: useCallback((direction: 'bottom' | 'left' | 'right', parentId: string) => {
+      console.log('Adding node:', { direction, parentId });
+      
+      const newNodeId = nanoid();
+      const parentNode = nodes.find(n => n.id === parentId);
+      
+      if (!parentNode) {
+        console.error('Parent node not found:', parentId);
+        return;
+      }
 
-  const handleNodeTitleChange = useCallback((nodeId: string, newTitle: string) => {
-    setNodes((nds) =>
-      nds.map((node) => {
-        if (node.id === nodeId) {
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              label: newTitle,
-              isEditing: false,
-              url: '/' + newTitle.toLowerCase().replace(/\s+/g, '-')
-            }
-          };
-        }
-        return node;
-      })
-    );
-  }, [setNodes]);
-
-  const handleAddNode = useCallback((direction: 'bottom' | 'left' | 'right', parentNodeId: string) => {
-    try {
-      const { nodes: newNodes, edges: newEdges, newNodeId } = layoutSystem.current.addNodeInDirection(
-        nodes,
-        edges,
-        parentNodeId,
-        direction,
-        {
-          onAddNode: handleAddNode,
-          onSectionsReorder: (sections: any[]) => handleSectionsReorder(newNodeId, sections),
-          onSectionDragStart: () => setIsSectionDragging(true),
-          onSectionDragEnd: () => setIsSectionDragging(false),
-          onTitleChange: (title: string) => handleNodeTitleChange(newNodeId, title),
-        }
-      );
-
-      const nodesWithCallbacks = newNodes.map(node => ({
-        ...node,
+      const newNode: Node = {
+        id: newNodeId,
+        type: 'page',
+        position: { x: 0, y: 0 }, // Will be calculated by layout
         data: {
-          ...node.data,
-          onAddNode: handleAddNode,
-          onSectionsReorder: (sections: any[]) => handleSectionsReorder(node.id, sections),
-          onSectionDragStart: () => setIsSectionDragging(true),
-          onSectionDragEnd: () => setIsSectionDragging(false),
-          onTitleChange: (title: string) => handleNodeTitleChange(node.id, title),
+          label: 'New Page',
+          url: '/new-page',
+          description: 'A new page',
+          isEditing: true,
+          sections: [
+            {
+              id: nanoid(),
+              label: 'Hero Section',
+              description: 'Main hero section for the page',
+              components: ['hero-centered']
+            }
+          ],
+          children: []
         }
-      }));
+      };
 
-      setNodes(nodesWithCallbacks);
-      setEdges(newEdges);
+      // Update parent's children
+      const updatedNodes = nodes.map(node => {
+        if (node.id === parentId) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              children: [...(node.data.children || []), newNodeId]
+            }
+          };
+        }
+        return node;
+      });
 
+      // Add new node and recalculate layout
+      const allNodes = [...updatedNodes, newNode];
+      const layoutedNodes = layoutSystem.current.calculateLayout(allNodes);
+      
+      setNodes(layoutedNodes);
+      
+      // Auto-fit view
       setTimeout(() => {
-        reactFlowInstance.fitView({
-          padding: 0.2,
-          duration: 800,
-          includeHiddenNodes: true
-        });
-      }, 50);
+        reactFlowInstance.fitView({ padding: 0.2, duration: 800 });
+      }, 100);
 
-      const directionText = direction === 'bottom' ? 'child page' : 'sibling page';
-      toast.success(`Added new ${directionText}`);
-    } catch (error) {
-      console.error('Error adding node:', error);
-      toast.error('Failed to add new page');
-    }
-  }, [nodes, edges, handleSectionsReorder, handleNodeTitleChange, setNodes, setEdges, reactFlowInstance]);
+      toast.success(`Added new ${direction === 'bottom' ? 'child' : 'sibling'} page`);
+    }, [nodes, setNodes, reactFlowInstance]),
 
+    deleteNode: useCallback((nodeId: string) => {
+      const nodeToDelete = nodes.find(n => n.id === nodeId);
+      if (nodeToDelete?.data.isHomePage) {
+        toast.error('Cannot delete the home page');
+        return;
+      }
+
+      // Remove node and update parent references
+      const updatedNodes = nodes
+        .filter(n => n.id !== nodeId)
+        .map(node => ({
+          ...node,
+          data: {
+            ...node.data,
+            children: (node.data.children || []).filter((childId: string) => childId !== nodeId)
+          }
+        }));
+
+      const layoutedNodes = layoutSystem.current.calculateLayout(updatedNodes);
+      setNodes(layoutedNodes);
+      
+      if (selectedNode?.id === nodeId) {
+        setSelectedNode(null);
+      }
+      
+      setContextMenu(null);
+      toast.success('Page deleted');
+    }, [nodes, selectedNode, setNodes]),
+
+    updateNode: useCallback((nodeId: string, data: Partial<any>) => {
+      setNodes(nds =>
+        nds.map(node => {
+          if (node.id === nodeId) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                ...data
+              }
+            };
+          }
+          return node;
+        })
+      );
+    }, [setNodes])
+  };
+
+  // Initialize with home page
   useEffect(() => {
     if (currentProject?.sitemap_data) {
       const { nodes: savedNodes, edges: savedEdges } = currentProject.sitemap_data;
       if (savedNodes?.length > 0) {
-        const { nodes: layoutNodes, edges: layoutEdges } = layoutSystem.current.calculateStructuredLayout(
-          savedNodes.map(node => ({
-            ...node,
-            data: {
-              ...node.data,
-              onAddNode: handleAddNode,
-              onSectionsReorder: (sections: any[]) => handleSectionsReorder(node.id, sections),
-              onSectionDragStart: () => setIsSectionDragging(true),
-              onSectionDragEnd: () => setIsSectionDragging(false),
-              onTitleChange: (title: string) => handleNodeTitleChange(node.id, title),
-            }
-          })),
-          savedEdges || []
-        );
-        
-        setNodes(layoutNodes);
-        setEdges(layoutEdges);
+        const layoutedNodes = layoutSystem.current.calculateLayout(savedNodes);
+        setNodes(layoutedNodes);
+        setEdges(savedEdges || []);
       } else {
-        const homeNodeId = nanoid();
-        const homeNode = {
-          id: homeNodeId,
+        // Create initial home page
+        const homeNode: Node = {
+          id: nanoid(),
           type: 'page',
-          position: { 
-            x: LAYOUT_CONFIG.START_X - LAYOUT_CONFIG.NODE_WIDTH / 2, 
-            y: LAYOUT_CONFIG.START_Y 
-          },
+          position: { x: LAYOUT_CONFIG.START_X, y: LAYOUT_CONFIG.START_Y },
           data: {
             label: 'Home',
             url: '/',
@@ -373,11 +243,7 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
                 components: ['hero-centered']
               }
             ],
-            onAddNode: handleAddNode,
-            onSectionsReorder: (sections: any[]) => handleSectionsReorder(homeNodeId, sections),
-            onSectionDragStart: () => setIsSectionDragging(true),
-            onSectionDragEnd: () => setIsSectionDragging(false),
-            onTitleChange: (title: string) => handleNodeTitleChange(homeNodeId, title),
+            children: []
           }
         };
         
@@ -385,112 +251,34 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
         setEdges([]);
       }
     }
-  }, [currentProject?.sitemap_data, handleAddNode, handleSectionsReorder, handleNodeTitleChange, setNodes, setEdges]);
+  }, [currentProject?.sitemap_data, setNodes, setEdges]);
 
+  // Auto-save with debouncing
+  useEffect(() => {
+    if (currentProject && nodes.length > 0) {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+      
+      saveTimeoutRef.current = setTimeout(() => {
+        console.log('Auto-saving project...');
+        updateProject(currentProject.id, {
+          sitemap_data: { nodes, edges }
+        });
+      }, 1000);
+    }
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [nodes, edges, currentProject, updateProject]);
+
+  // Event handlers
   const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
     setSelectedNode(node);
   }, []);
-
-  const onConnect = useCallback((connection: Connection) => {
-    console.log('Manual connections disabled in structured layout mode');
-  }, []);
-
-  useEffect(() => {
-    if (currentProject && nodes.length > 0) {
-      const saveTimeout = setTimeout(() => {
-        const nodesToSave = nodes.map(node => ({
-          ...node,
-          data: {
-            ...node.data,
-            onAddNode: undefined,
-            onSectionsReorder: undefined,
-            onSectionDragStart: undefined,
-            onSectionDragEnd: undefined,
-            onTitleChange: undefined,
-          }
-        }));
-        
-        updateProject(currentProject.id, {
-          sitemap_data: { nodes: nodesToSave, edges }
-        });
-      }, 1000);
-
-      return () => clearTimeout(saveTimeout);
-    }
-  }, [nodes, edges, currentProject, updateProject]);
-
-  const onAddComponent = useCallback((componentId: string) => {
-    if (!selectedNode) {
-      toast.info('Please select a page first');
-      return;
-    }
-
-    setNodes((nds) =>
-      nds.map((node) => {
-        if (node.id === selectedNode.id) {
-          const newSection = {
-            id: nanoid(),
-            label: componentId.split('-').map(word => 
-              word.charAt(0).toUpperCase() + word.slice(1)
-            ).join(' '),
-            description: `${componentId.split('-').map(word => 
-              word.charAt(0).toUpperCase() + word.slice(1)
-            ).join(' ')} section`,
-            components: [componentId]
-          };
-
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              sections: [...(node.data.sections || []), newSection]
-            }
-          };
-        }
-        return node;
-      })
-    );
-
-    toast.success(`Added ${componentId.replace(/-/g, ' ')} section`);
-  }, [selectedNode, setNodes]);
-
-  const handleDeleteNode = useCallback((nodeId: string) => {
-    const nodeToDelete = nodes.find(n => n.id === nodeId);
-    if (nodeToDelete?.data.isHomePage) {
-      toast.error('Cannot delete the home page');
-      return;
-    }
-
-    const updatedNodes = nodes.filter(n => n.id !== nodeId);
-    const updatedEdges = edges.filter(e => e.source !== nodeId && e.target !== nodeId);
-    
-    const { nodes: layoutNodes, edges: layoutEdges } = layoutSystem.current.calculateStructuredLayout(
-      updatedNodes,
-      updatedEdges
-    );
-    
-    const nodesWithCallbacks = layoutNodes.map(node => ({
-      ...node,
-      data: {
-        ...node.data,
-        onAddNode: handleAddNode,
-        onSectionsReorder: (sections: any[]) => handleSectionsReorder(node.id, sections),
-        onSectionDragStart: () => setIsSectionDragging(true),
-        onSectionDragEnd: () => setIsSectionDragging(false),
-        onTitleChange: (title: string) => handleNodeTitleChange(node.id, title),
-      }
-    }));
-    
-    setNodes(nodesWithCallbacks);
-    setEdges(layoutEdges);
-    setContextMenu(null);
-    
-    if (selectedNode?.id === nodeId) {
-      setSelectedNode(null);
-    }
-    
-    toast.success('Page deleted');
-  }, [nodes, edges, selectedNode, handleAddNode, handleSectionsReorder, handleNodeTitleChange, setNodes, setEdges]);
 
   const onNodeContextMenu = useCallback((event: React.MouseEvent, node: Node) => {
     event.preventDefault();
@@ -501,9 +289,44 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
     });
   }, []);
 
+  const onAddComponent = useCallback((componentId: string) => {
+    if (!selectedNode) {
+      toast.info('Please select a page first');
+      return;
+    }
+
+    const newSection = {
+      id: nanoid(),
+      label: componentId.split('-').map(word => 
+        word.charAt(0).toUpperCase() + word.slice(1)
+      ).join(' '),
+      description: `${componentId.split('-').map(word => 
+        word.charAt(0).toUpperCase() + word.slice(1)
+      ).join(' ')} section`,
+      components: [componentId]
+    };
+
+    nodeActions.updateNode(selectedNode.id, {
+      sections: [...(selectedNode.data.sections || []), newSection]
+    });
+
+    toast.success(`Added ${componentId.replace(/-/g, ' ')} section`);
+  }, [selectedNode, nodeActions]);
+
   const handleFitView = useCallback(() => {
     reactFlowInstance.fitView({ padding: 0.1, duration: 800 });
   }, [reactFlowInstance]);
+
+  // Enhanced nodes with actions
+  const enhancedNodes = nodes.map(node => ({
+    ...node,
+    data: {
+      ...node.data,
+      actions: nodeActions,
+      hoveredNode,
+      setHoveredNode
+    }
+  }));
 
   return (
     <div className="h-full flex">
@@ -520,7 +343,7 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
               {currentProject?.title || 'Sitemap Editor'}
             </h2>
             <span className="text-sm text-gray-500">
-              {nodes.length} page{nodes.length !== 1 ? 's' : ''} • Structured Layout
+              {nodes.length} page{nodes.length !== 1 ? 's' : ''}
             </span>
           </div>
           
@@ -548,11 +371,10 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
 
         <div className="flex-1" style={{ height: 'calc(100% - 48px)' }}>
           <ReactFlow
-            nodes={nodes}
+            nodes={enhancedNodes}
             edges={edges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
             onNodeClick={onNodeClick}
             onNodeContextMenu={onNodeContextMenu}
             nodeTypes={nodeTypes}
@@ -561,16 +383,8 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
             elementsSelectable={true}
             selectNodesOnDrag={false}
             nodesFocusable={true}
-            connectionLineType={ConnectionLineType.SmoothStep}
-            connectionMode="loose"
             connectOnClick={false}
             nodeOrigin={[0.5, 0.5]}
-            defaultEdgeOptions={{
-              type: 'smoothstep',
-              markerEnd: { type: MarkerType.ArrowClosed },
-              animated: true,
-              style: { stroke: '#3b82f6', strokeWidth: 2 }
-            }}
             fitView
             fitViewOptions={{ padding: 0.1 }}
             minZoom={0.1}
@@ -580,8 +394,6 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
             panOnDrag={true}
             zoomOnScroll={true}
             zoomOnPinch={true}
-            onConnectStart={() => false}
-            onConnectEnd={() => false}
             preventScrolling={false}
           >
             <Background 
@@ -611,7 +423,7 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
           items={[
             {
               label: 'Delete Page',
-              action: () => handleDeleteNode(contextMenu.nodeId),
+              action: () => nodeActions.deleteNode(contextMenu.nodeId),
               icon: <span className="text-red-500">×</span>
             },
           ]}
@@ -622,12 +434,8 @@ const EditorCanvas = ({ projectId }: { projectId: string }) => {
       {nodes.length === 1 && (
         <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-blue-50 border border-blue-200 rounded-lg p-4 shadow-lg max-w-md">
           <div className="text-sm text-blue-800">
-            <p className="font-medium mb-2">🏗️ Structured Sitemap</p>
-            <p>Hover around your Home page to add connected pages:</p>
-            <div className="mt-2 text-xs text-blue-600">
-              • <strong>Bottom (+):</strong> Add child page (new row)<br/>
-              • <strong>Left/Right (+):</strong> Add sibling page (same row)
-            </div>
+            <p className="font-medium mb-2">🏗️ Simple Sitemap</p>
+            <p>Hover over your Home page to add connected pages</p>
           </div>
         </div>
       )}

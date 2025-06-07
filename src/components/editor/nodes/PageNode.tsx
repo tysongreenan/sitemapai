@@ -1,188 +1,161 @@
-import React, { memo, useState, useCallback, useRef } from 'react';
+import React, { memo, useCallback } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { FileText, Plus } from 'lucide-react';
+
+interface Section {
+  id: string;
+  label: string;
+  description: string;
+  components: string[];
+}
 
 interface PageData {
   label: string;
   url: string;
   description?: string;
   isHomePage?: boolean;
-  sections: any[];
+  isEditing?: boolean;
+  sections: Section[];
   onAddNode?: (direction: 'bottom' | 'left' | 'right', nodeId: string) => void;
+  onSectionsReorder?: (sections: Section[]) => void;
+  onSectionDragStart?: () => void;
+  onSectionDragEnd?: () => void;
+  onTitleChange?: (title: string) => void;
 }
 
-// Simplified debug version - let's get the basics working first
-const DebugPageNode = ({ data, selected, id }: NodeProps<PageData>) => {
-  const [hoveredZone, setHoveredZone] = useState<'bottom' | 'left' | 'right' | null>(null);
-  const nodeRef = useRef<HTMLDivElement>(null);
-
-  // Debug: Let's add console logs to see what's happening
+// Ultra simple - no hover states, buttons always visible
+const PageNode = ({ data, selected, id }: NodeProps<PageData>) => {
   const handleAddNode = useCallback((direction: 'bottom' | 'left' | 'right') => {
-    console.log('🎯 ADD NODE CLICKED:', { direction, nodeId: id, hasCallback: !!data.onAddNode });
+    console.log('🎯 PageNode: Adding node:', { direction, nodeId: id });
+    console.log('🎯 PageNode: Has callback:', !!data.onAddNode);
     
     if (data.onAddNode) {
-      console.log('📞 Calling onAddNode callback');
+      console.log('📞 PageNode: Calling onAddNode callback');
       data.onAddNode(direction, id);
     } else {
-      console.log('❌ No onAddNode callback available');
+      console.error('❌ PageNode: No onAddNode callback available');
+      console.log('📋 PageNode: Available data keys:', Object.keys(data));
     }
-  }, [data.onAddNode, id]);
+  }, [data.onAddNode, id, data]);
 
-  // Simplified hover handlers with debug logs
-  const handleZoneEnter = useCallback((direction: 'bottom' | 'left' | 'right') => {
-    console.log('🎮 Zone entered:', direction);
-    setHoveredZone(direction);
-  }, []);
+  console.log('🔍 PageNode rendered:', { 
+    id, 
+    label: data.label, 
+    hasCallback: !!data.onAddNode,
+    dataKeys: Object.keys(data)
+  });
 
-  const handleZoneLeave = useCallback(() => {
-    console.log('🎮 Zone left');
-    setHoveredZone(null);
-  }, []);
-
-  // Debug button component
-  const DebugAddButton = ({ direction, visible }: { direction: 'bottom' | 'left' | 'right', visible: boolean }) => {
-    const getPosition = () => {
-      switch (direction) {
-        case 'bottom': return 'bottom-[-50px] left-1/2 transform -translate-x-1/2';
-        case 'left': return 'left-[-50px] top-1/2 transform -translate-y-1/2';
-        case 'right': return 'right-[-50px] top-1/2 transform -translate-y-1/2';
-      }
-    };
-
-    return (
+  return (
+    <div className="relative" style={{ padding: '40px' }}>
+      {/* Always visible add buttons */}
       <button
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          console.log('🔵 Button clicked:', direction);
-          handleAddNode(direction);
-        }}
-        className={`absolute ${getPosition()} w-10 h-10 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center z-[200] transition-all duration-200 ${
-          visible ? 'opacity-100 scale-100' : 'opacity-0 scale-50 pointer-events-none'
-        }`}
-        style={{
-          pointerEvents: visible ? 'auto' : 'none'
-        }}
-      >
-        <Plus size={20} />
-        <span className="sr-only">Add {direction}</span>
-      </button>
-    );
-  };
-
-  return (
-    <div
-      ref={nodeRef}
-      className="relative"
-      style={{ minWidth: '300px', minHeight: '200px' }}
-    >
-      {/* DEBUG: Visible hover zones with bright colors */}
-      <div 
-        className={`absolute -bottom-16 left-4 right-4 h-20 z-[100] cursor-pointer transition-all duration-200 ${
-          hoveredZone === 'bottom' ? 'bg-green-200 opacity-50' : 'bg-red-200 opacity-30'
-        }`}
-        onMouseEnter={() => handleZoneEnter('bottom')}
-        onMouseLeave={handleZoneLeave}
-        onClick={() => {
-          console.log('🟢 Bottom zone clicked directly');
+          console.log('🟢 Bottom button clicked');
           handleAddNode('bottom');
         }}
+        className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 w-10 h-10 bg-green-500 hover:bg-green-600 text-white rounded-full shadow-lg flex items-center justify-center z-20"
+        title="Add child page"
       >
-        <div className="flex items-center justify-center h-full text-xs font-bold">
-          BOTTOM ZONE {hoveredZone === 'bottom' ? '(ACTIVE)' : ''}
-        </div>
-      </div>
+        <Plus size={18} />
+      </button>
 
-      <div 
-        className={`absolute -left-16 top-4 bottom-4 w-20 z-[100] cursor-pointer transition-all duration-200 ${
-          hoveredZone === 'left' ? 'bg-green-200 opacity-50' : 'bg-red-200 opacity-30'
-        }`}
-        onMouseEnter={() => handleZoneEnter('left')}
-        onMouseLeave={handleZoneLeave}
-        onClick={() => {
-          console.log('🟢 Left zone clicked directly');
+      <button
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log('🔵 Left button clicked');
           handleAddNode('left');
         }}
+        className="absolute left-0 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-10 h-10 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center z-20"
+        title="Add sibling (left)"
       >
-        <div className="flex items-center justify-center h-full text-xs font-bold transform -rotate-90">
-          LEFT
-        </div>
-      </div>
+        <Plus size={18} />
+      </button>
 
-      <div 
-        className={`absolute -right-16 top-4 bottom-4 w-20 z-[100] cursor-pointer transition-all duration-200 ${
-          hoveredZone === 'right' ? 'bg-green-200 opacity-50' : 'bg-red-200 opacity-30'
-        }`}
-        onMouseEnter={() => handleZoneEnter('right')}
-        onMouseLeave={handleZoneLeave}
-        onClick={() => {
-          console.log('🟢 Right zone clicked directly');
+      <button
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log('🟣 Right button clicked');
           handleAddNode('right');
         }}
+        className="absolute right-0 top-1/2 transform translate-x-1/2 -translate-y-1/2 w-10 h-10 bg-purple-500 hover:bg-purple-600 text-white rounded-full shadow-lg flex items-center justify-center z-20"
+        title="Add sibling (right)"
       >
-        <div className="flex items-center justify-center h-full text-xs font-bold transform rotate-90">
-          RIGHT
-        </div>
-      </div>
+        <Plus size={18} />
+      </button>
 
-      {/* Add buttons */}
-      <DebugAddButton direction="bottom" visible={hoveredZone === 'bottom'} />
-      <DebugAddButton direction="left" visible={hoveredZone === 'left'} />
-      <DebugAddButton direction="right" visible={hoveredZone === 'right'} />
-
-      {/* Main node content */}
+      {/* Main node */}
       <div
         className={`bg-white border-2 rounded-lg shadow-lg overflow-hidden transition-all duration-200 ${
-          selected ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200'
+          selected ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200 hover:border-gray-300'
         }`}
-        style={{ width: '300px', minHeight: '200px' }}
+        style={{ width: '280px', minHeight: '180px' }}
       >
-        <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <FileText size={18} className="text-white" />
+        <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-3 py-2">
+          <div className="flex items-center gap-2">
+            <FileText size={16} className="text-white" />
             <div className="font-medium text-white">{data.label}</div>
           </div>
         </div>
         
-        <div className="p-4">
-          <div className="text-sm text-gray-500 mb-2">{data.url}</div>
+        <div className="p-3">
+          <div className="text-xs text-gray-500 mb-2 font-mono">{data.url}</div>
+          
           {data.description && (
-            <div className="text-sm text-gray-600 mb-3">{data.description}</div>
+            <div className="text-xs text-gray-600 mb-3">{data.description}</div>
           )}
           
-          {/* Debug info */}
-          <div className="mt-4 p-2 bg-gray-100 rounded text-xs">
-            <div><strong>Node ID:</strong> {id}</div>
-            <div><strong>Has onAddNode:</strong> {data.onAddNode ? '✅ Yes' : '❌ No'}</div>
-            <div><strong>Hovered Zone:</strong> {hoveredZone || 'None'}</div>
-            <div><strong>Sections:</strong> {data.sections?.length || 0}</div>
+          <div className="text-xs text-gray-400 mb-3">
+            {data.sections?.length || 0} sections
           </div>
 
-          {/* Direct test buttons */}
-          <div className="mt-3 space-y-2">
+          {/* Debug info */}
+          <div className="mb-3 p-2 bg-gray-50 rounded text-xs">
+            <div><strong>ID:</strong> {id}</div>
+            <div><strong>Callback:</strong> {data.onAddNode ? '✅ Available' : '❌ Missing'}</div>
+            <div><strong>Type:</strong> Page Node</div>
+          </div>
+
+          {/* Backup test buttons inside the node */}
+          <div className="grid grid-cols-3 gap-1">
             <button
-              onClick={() => handleAddNode('bottom')}
-              className="w-full px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 text-sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                console.log('🧪 Internal left button clicked');
+                handleAddNode('left');
+              }}
+              className="px-2 py-1 bg-blue-50 text-blue-600 rounded text-xs hover:bg-blue-100 border border-blue-200"
             >
-              🧪 Test Add Bottom (Direct)
+              ← Left
             </button>
             <button
-              onClick={() => handleAddNode('left')}
-              className="w-full px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                console.log('🧪 Internal bottom button clicked');
+                handleAddNode('bottom');
+              }}
+              className="px-2 py-1 bg-green-50 text-green-600 rounded text-xs hover:bg-green-100 border border-green-200"
             >
-              🧪 Test Add Left (Direct)
+              ↓ Child
             </button>
             <button
-              onClick={() => handleAddNode('right')}
-              className="w-full px-3 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 text-sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                console.log('🧪 Internal right button clicked');
+                handleAddNode('right');
+              }}
+              className="px-2 py-1 bg-purple-50 text-purple-600 rounded text-xs hover:bg-purple-100 border border-purple-200"
             >
-              🧪 Test Add Right (Direct)
+              Right →
             </button>
           </div>
         </div>
       </div>
 
-      {/* React Flow handles - completely transparent but functional */}
+      {/* React Flow handles - transparent but functional */}
       <Handle
         type="target"
         position={Position.Top}
@@ -193,8 +166,18 @@ const DebugPageNode = ({ data, selected, id }: NodeProps<PageData>) => {
         position={Position.Bottom}
         style={{ opacity: 0, pointerEvents: 'none' }}
       />
+      <Handle
+        type="target"
+        position={Position.Left}
+        style={{ opacity: 0, pointerEvents: 'none' }}
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        style={{ opacity: 0, pointerEvents: 'none' }}
+      />
     </div>
   );
 };
 
-export default memo(DebugPageNode);
+export default memo(PageNode);

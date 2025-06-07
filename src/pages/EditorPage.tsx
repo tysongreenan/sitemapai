@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ReactFlowProvider } from 'reactflow';
 import EditorCanvas from '../components/editor/EditorCanvas';
 import { useProject } from '../context/ProjectContext';
 import { supabase } from '../lib/supabase';
@@ -21,7 +20,7 @@ export default function EditorPage() {
     
     if (project) {
       setCurrentProject(project);
-    } else {
+    } else if (!loading) {
       // Try to fetch the project directly if not in the loaded projects
       const fetchProject = async () => {
         const { data, error } = await supabase
@@ -41,7 +40,7 @@ export default function EditorPage() {
 
       fetchProject();
     }
-  }, [projectId, projects, navigate, setCurrentProject]);
+  }, [projectId, projects, navigate, setCurrentProject, loading]);
 
   if (loading || !currentProject) {
     return (
@@ -53,9 +52,7 @@ export default function EditorPage() {
 
   return (
     <div className="h-screen flex flex-col">
-      <ReactFlowProvider>
-        {projectId && <EditorCanvas projectId={projectId} />}
-      </ReactFlowProvider>
+      {projectId && <EditorCanvas projectId={projectId} />}
     </div>
   );
 }

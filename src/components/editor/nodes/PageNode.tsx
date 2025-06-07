@@ -1,474 +1,200 @@
-import React, { memo, useState, useCallback, useEffect, useRef } from 'react';
+import React, { memo, useState, useCallback, useRef } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
-import { FileText, Eye, EyeOff, Package, ChevronDown, ChevronUp, Plus, Sparkles, GripVertical, Menu, PanelRight, Layout, Grid, MessageCircle, Mail, Users, Zap } from 'lucide-react';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { Button } from '../../ui/Button';
-import { Input } from '../../ui/Input';
-
-const componentIcons: Record<string, React.ReactNode> = {
-  'navbar': <Menu size={12} />,
-  'sidebar': <PanelRight size={12} />,
-  'hero-centered': <Layout size={12} />,
-  'hero-split': <Grid size={12} />,
-  'feature-grid': <Grid size={12} />,
-  'testimonials': <MessageCircle size={12} />,
-  'footer-simple': <Layout size={12} />,
-  'footer-columns': <Grid size={12} />,
-  'contact-form': <Mail size={12} />,
-  'team-section': <Users size={12} />,
-  'cta-simple': <Zap size={12} />,
-};
-
-interface Section {
-  id: string;
-  label: string;
-  description: string;
-  components: string[];
-}
-
-interface NodeActions {
-  addNode: (direction: 'bottom' | 'left' | 'right', nodeId: string) => void;
-  deleteNode: (nodeId: string) => void;
-  updateNode: (nodeId: string, data: Partial<any>) => void;
-}
+import { FileText, Plus } from 'lucide-react';
 
 interface PageData {
   label: string;
   url: string;
   description?: string;
   isHomePage?: boolean;
-  isEditing?: boolean;
-  sections: Section[];
-  children?: string[];
-  actions?: NodeActions;
-  hoveredNode?: { id: string; direction: 'bottom' | 'left' | 'right' } | null;
-  setHoveredNode?: (value: { id: string; direction: 'bottom' | 'left' | 'right' } | null) => void;
+  sections: any[];
+  onAddNode?: (direction: 'bottom' | 'left' | 'right', nodeId: string) => void;
 }
 
-export const ComponentPreview = ({ type }: { type: string }) => {
-  const previews: Record<string, JSX.Element> = {
-    'navbar': (
-      <div className="w-full h-8 bg-gray-800 rounded-t flex items-center px-2 gap-2">
-        <div className="w-6 h-4 bg-blue-500 rounded" />
-        <div className="flex-1 flex gap-2">
-          <div className="w-10 h-3 bg-gray-600 rounded" />
-          <div className="w-10 h-3 bg-gray-600 rounded" />
-          <div className="w-10 h-3 bg-gray-600 rounded" />
-        </div>
-        <div className="w-12 h-4 bg-blue-500 rounded text-xs" />
-      </div>
-    ),
-    'hero-centered': (
-      <div className="w-full h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded p-3 flex flex-col items-center justify-center gap-1">
-        <div className="w-20 h-3 bg-white/20 rounded" />
-        <div className="w-16 h-2 bg-white/20 rounded" />
-        <div className="w-12 h-4 bg-white rounded mt-1" />
-      </div>
-    ),
-    'hero-split': (
-      <div className="w-full h-24 bg-gradient-to-r from-indigo-500 to-blue-600 rounded p-3 flex gap-3">
-        <div className="flex-1 flex flex-col justify-center gap-1">
-          <div className="w-16 h-2 bg-white/20 rounded" />
-          <div className="w-12 h-2 bg-white/20 rounded" />
-          <div className="w-8 h-3 bg-white rounded mt-1" />
-        </div>
-        <div className="w-12 h-full bg-white/20 rounded" />
-      </div>
-    ),
-    'feature-grid': (
-      <div className="w-full h-24 bg-gray-50 rounded p-2">
-        <div className="grid grid-cols-2 gap-2 h-full">
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="bg-white rounded border flex flex-col items-center justify-center">
-              <div className="w-4 h-4 bg-blue-500 rounded mb-1" />
-              <div className="w-6 h-1 bg-gray-300 rounded" />
-            </div>
-          ))}
-        </div>
-      </div>
-    ),
-    'testimonials': (
-      <div className="w-full h-24 bg-gray-50 rounded p-2 flex gap-2">
-        {[1, 2].map(i => (
-          <div key={i} className="flex-1 bg-white rounded border p-2">
-            <div className="w-full h-2 bg-gray-200 rounded mb-1" />
-            <div className="w-3/4 h-1 bg-gray-200 rounded mb-2" />
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 bg-gray-300 rounded-full" />
-              <div className="w-8 h-1 bg-gray-300 rounded" />
-            </div>
-          </div>
-        ))}
-      </div>
-    ),
-    'footer-simple': (
-      <div className="w-full h-8 bg-gray-800 rounded-b flex items-center justify-between px-2">
-        <div className="w-12 h-3 bg-gray-600 rounded" />
-        <div className="flex gap-1">
-          <div className="w-2 h-2 bg-gray-600 rounded" />
-          <div className="w-2 h-2 bg-gray-600 rounded" />
-          <div className="w-2 h-2 bg-gray-600 rounded" />
-        </div>
-      </div>
-    ),
-    'footer-columns': (
-      <div className="w-full h-8 bg-gray-800 rounded-b flex gap-1 px-2 py-1">
-        {[1, 2, 3, 4].map(i => (
-          <div key={i} className="flex-1 space-y-1">
-            <div className="w-full h-1 bg-gray-600 rounded" />
-            <div className="w-3/4 h-0.5 bg-gray-700 rounded" />
-          </div>
-        ))}
-      </div>
-    ),
-    'contact-form': (
-      <div className="w-full h-24 bg-white border rounded p-2 space-y-1">
-        <div className="w-full h-2 bg-gray-200 rounded" />
-        <div className="w-full h-2 bg-gray-200 rounded" />
-        <div className="w-full h-6 bg-gray-200 rounded" />
-        <div className="w-16 h-3 bg-blue-500 rounded ml-auto" />
-      </div>
-    ),
-    'team-section': (
-      <div className="w-full h-24 bg-gray-50 rounded p-2">
-        <div className="grid grid-cols-3 gap-1 h-full">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="bg-white rounded border flex flex-col items-center p-1">
-              <div className="w-6 h-6 bg-gray-300 rounded-full mb-1" />
-              <div className="w-8 h-1 bg-gray-300 rounded" />
-            </div>
-          ))}
-        </div>
-      </div>
-    ),
-    'cta-simple': (
-      <div className="w-full h-24 bg-gradient-to-r from-green-500 to-blue-600 rounded p-3 flex flex-col items-center justify-center gap-1">
-        <div className="w-16 h-2 bg-white/20 rounded" />
-        <div className="w-12 h-3 bg-white rounded" />
-      </div>
-    ),
-    'default': (
-      <div className="w-full h-full bg-gray-100 rounded flex items-center justify-center">
-        <Package size={20} className="text-gray-400" />
-      </div>
-    )
-  };
+// Simplified debug version - let's get the basics working first
+const DebugPageNode = ({ data, selected, id }: NodeProps<PageData>) => {
+  const [hoveredZone, setHoveredZone] = useState<'bottom' | 'left' | 'right' | null>(null);
+  const nodeRef = useRef<HTMLDivElement>(null);
 
-  return previews[type] || previews.default;
-};
-
-interface AddNodeButtonProps {
-  direction: 'bottom' | 'left' | 'right';
-  onAdd: () => void;
-  visible: boolean;
-}
-
-const AddNodeButton = ({ direction, onAdd, visible }: AddNodeButtonProps) => {
-  const getPositionClasses = () => {
-    switch (direction) {
-      case 'bottom':
-        return 'bottom-[-40px] left-1/2 transform -translate-x-1/2';
-      case 'left':
-        return 'left-[-40px] top-1/2 transform -translate-y-1/2';
-      case 'right':
-        return 'right-[-40px] top-1/2 transform -translate-y-1/2';
-    }
-  };
-
-  const handleClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    console.log('Add button clicked:', { direction, visible });
-    onAdd();
-  };
-
-  return (
-    <button
-      type="button"
-      onClick={handleClick}
-      className={`absolute ${getPositionClasses()} w-8 h-8 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center group border-2 border-white z-[100] ${
-        visible ? 'opacity-100 scale-100' : 'opacity-0 scale-50'
-      }`}
-      style={{
-        pointerEvents: visible ? 'auto' : 'none',
-        cursor: 'pointer'
-      }}
-      title={`Add page ${direction}`}
-    >
-      <Plus size={16} className="transition-transform group-hover:scale-110" />
-    </button>
-  );
-};
-
-const PageNode = ({ data, selected, id }: NodeProps<PageData>) => {
-  const [showPreview, setShowPreview] = useState(true);
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
-  const [title, setTitle] = useState(data.label);
-  const titleInputRef = useRef<HTMLInputElement>(null);
-
-  // Simplified hover handling
-  const isHovered = data.hoveredNode?.id === id;
-  const hoveredDirection = data.hoveredNode?.direction;
-
-  useEffect(() => {
-    if (data.isEditing && titleInputRef.current) {
-      titleInputRef.current.focus();
-      titleInputRef.current.select();
-    }
-  }, [data.isEditing]);
-
-  const toggleSection = (sectionId: string) => {
-    const newExpanded = new Set(expandedSections);
-    if (newExpanded.has(sectionId)) {
-      newExpanded.delete(sectionId);
-    } else {
-      newExpanded.add(sectionId);
-    }
-    setExpandedSections(newExpanded);
-  };
-
+  // Debug: Let's add console logs to see what's happening
   const handleAddNode = useCallback((direction: 'bottom' | 'left' | 'right') => {
-    console.log('handleAddNode called:', { direction, nodeId: id });
-    if (data.actions) {
-      data.actions.addNode(direction, id);
+    console.log('🎯 ADD NODE CLICKED:', { direction, nodeId: id, hasCallback: !!data.onAddNode });
+    
+    if (data.onAddNode) {
+      console.log('📞 Calling onAddNode callback');
+      data.onAddNode(direction, id);
+    } else {
+      console.log('❌ No onAddNode callback available');
     }
-  }, [data.actions, id]);
+  }, [data.onAddNode, id]);
 
-  const handleTitleChange = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && data.actions) {
-      data.actions.updateNode(id, { label: title, isEditing: false });
-    }
-  }, [title, data.actions, id]);
+  // Simplified hover handlers with debug logs
+  const handleZoneEnter = useCallback((direction: 'bottom' | 'left' | 'right') => {
+    console.log('🎮 Zone entered:', direction);
+    setHoveredZone(direction);
+  }, []);
 
-  const handleTitleBlur = useCallback(() => {
-    if (data.actions) {
-      data.actions.updateNode(id, { label: title, isEditing: false });
-    }
-  }, [title, data.actions, id]);
+  const handleZoneLeave = useCallback(() => {
+    console.log('🎮 Zone left');
+    setHoveredZone(null);
+  }, []);
 
-  const handleDragEnd = (result: any) => {
-    if (!result.destination || !data.sections) return;
+  // Debug button component
+  const DebugAddButton = ({ direction, visible }: { direction: 'bottom' | 'left' | 'right', visible: boolean }) => {
+    const getPosition = () => {
+      switch (direction) {
+        case 'bottom': return 'bottom-[-50px] left-1/2 transform -translate-x-1/2';
+        case 'left': return 'left-[-50px] top-1/2 transform -translate-y-1/2';
+        case 'right': return 'right-[-50px] top-1/2 transform -translate-y-1/2';
+      }
+    };
 
-    const items = Array.from(data.sections);
-    const [reorderedItem] = items.splice(result.source.index, 1);
-    items.splice(result.destination.index, 0, reorderedItem);
-
-    if (data.actions) {
-      data.actions.updateNode(id, { sections: items });
-    }
+    return (
+      <button
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log('🔵 Button clicked:', direction);
+          handleAddNode(direction);
+        }}
+        className={`absolute ${getPosition()} w-10 h-10 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center z-[200] transition-all duration-200 ${
+          visible ? 'opacity-100 scale-100' : 'opacity-0 scale-50 pointer-events-none'
+        }`}
+        style={{
+          pointerEvents: visible ? 'auto' : 'none'
+        }}
+      >
+        <Plus size={20} />
+        <span className="sr-only">Add {direction}</span>
+      </button>
+    );
   };
-
-  // Simplified hover zone handlers
-  const handleHoverZone = (direction: 'bottom' | 'left' | 'right', isEntering: boolean) => {
-    if (data.setHoveredNode) {
-      data.setHoveredNode(isEntering ? { id, direction } : null);
-    }
-  };
-
-  const sections = data.sections || [];
 
   return (
-    <div className="relative">
-      {/* Simplified hover zones */}
+    <div
+      ref={nodeRef}
+      className="relative"
+      style={{ minWidth: '300px', minHeight: '200px' }}
+    >
+      {/* DEBUG: Visible hover zones with bright colors */}
       <div 
-        className="absolute -bottom-12 left-0 right-0 h-24 z-[90]"
-        onMouseEnter={() => handleHoverZone('bottom', true)}
-        onMouseLeave={() => handleHoverZone('bottom', false)}
-      />
+        className={`absolute -bottom-16 left-4 right-4 h-20 z-[100] cursor-pointer transition-all duration-200 ${
+          hoveredZone === 'bottom' ? 'bg-green-200 opacity-50' : 'bg-red-200 opacity-30'
+        }`}
+        onMouseEnter={() => handleZoneEnter('bottom')}
+        onMouseLeave={handleZoneLeave}
+        onClick={() => {
+          console.log('🟢 Bottom zone clicked directly');
+          handleAddNode('bottom');
+        }}
+      >
+        <div className="flex items-center justify-center h-full text-xs font-bold">
+          BOTTOM ZONE {hoveredZone === 'bottom' ? '(ACTIVE)' : ''}
+        </div>
+      </div>
+
       <div 
-        className="absolute -left-12 top-0 bottom-0 w-24 z-[90]"
-        onMouseEnter={() => handleHoverZone('left', true)}
-        onMouseLeave={() => handleHoverZone('left', false)}
-      />
+        className={`absolute -left-16 top-4 bottom-4 w-20 z-[100] cursor-pointer transition-all duration-200 ${
+          hoveredZone === 'left' ? 'bg-green-200 opacity-50' : 'bg-red-200 opacity-30'
+        }`}
+        onMouseEnter={() => handleZoneEnter('left')}
+        onMouseLeave={handleZoneLeave}
+        onClick={() => {
+          console.log('🟢 Left zone clicked directly');
+          handleAddNode('left');
+        }}
+      >
+        <div className="flex items-center justify-center h-full text-xs font-bold transform -rotate-90">
+          LEFT
+        </div>
+      </div>
+
       <div 
-        className="absolute -right-12 top-0 bottom-0 w-24 z-[90]"
-        onMouseEnter={() => handleHoverZone('right', true)}
-        onMouseLeave={() => handleHoverZone('right', false)}
-      />
+        className={`absolute -right-16 top-4 bottom-4 w-20 z-[100] cursor-pointer transition-all duration-200 ${
+          hoveredZone === 'right' ? 'bg-green-200 opacity-50' : 'bg-red-200 opacity-30'
+        }`}
+        onMouseEnter={() => handleZoneEnter('right')}
+        onMouseLeave={handleZoneLeave}
+        onClick={() => {
+          console.log('🟢 Right zone clicked directly');
+          handleAddNode('right');
+        }}
+      >
+        <div className="flex items-center justify-center h-full text-xs font-bold transform rotate-90">
+          RIGHT
+        </div>
+      </div>
 
       {/* Add buttons */}
-      <AddNodeButton
-        direction="bottom"
-        onAdd={() => handleAddNode('bottom')}
-        visible={isHovered && hoveredDirection === 'bottom'}
-      />
-      <AddNodeButton
-        direction="left"
-        onAdd={() => handleAddNode('left')}
-        visible={isHovered && hoveredDirection === 'left'}
-      />
-      <AddNodeButton
-        direction="right"
-        onAdd={() => handleAddNode('right')}
-        visible={isHovered && hoveredDirection === 'right'}
-      />
+      <DebugAddButton direction="bottom" visible={hoveredZone === 'bottom'} />
+      <DebugAddButton direction="left" visible={hoveredZone === 'left'} />
+      <DebugAddButton direction="right" visible={hoveredZone === 'right'} />
 
       {/* Main node content */}
       <div
-        className={`node-content min-w-[280px] max-w-[320px] bg-white border-2 rounded-lg shadow-lg overflow-hidden transition-all duration-200 ${
-          selected ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200 hover:border-gray-300'
+        className={`bg-white border-2 rounded-lg shadow-lg overflow-hidden transition-all duration-200 ${
+          selected ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200'
         }`}
+        style={{ width: '300px', minHeight: '200px' }}
       >
-        <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-3 py-2 flex items-center justify-between">
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <FileText size={16} className="text-white flex-shrink-0" />
-            {data.isEditing ? (
-              <Input
-                ref={titleInputRef}
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                onKeyDown={handleTitleChange}
-                onBlur={handleTitleBlur}
-                className="text-white bg-white/10 border-white/20 focus:border-white/40 focus:ring-white/20 placeholder-white/60"
-                placeholder="Enter page title..."
-              />
-            ) : (
-              <div className="font-medium text-white truncate">{data.label}</div>
-            )}
+        <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <FileText size={18} className="text-white" />
+            <div className="font-medium text-white">{data.label}</div>
           </div>
-          <button
-            onClick={() => setShowPreview(!showPreview)}
-            className="text-white/80 hover:text-white transition-colors p-1"
-          >
-            {showPreview ? <EyeOff size={14} /> : <Eye size={14} />}
-          </button>
         </div>
         
-        <div className="p-3">
-          <div className="text-xs text-gray-500 mb-2 font-mono">{data.url}</div>
-          
+        <div className="p-4">
+          <div className="text-sm text-gray-500 mb-2">{data.url}</div>
           {data.description && (
-            <div className="text-xs text-gray-600 mb-3 line-clamp-2">{data.description}</div>
+            <div className="text-sm text-gray-600 mb-3">{data.description}</div>
           )}
           
-          <DragDropContext onDragEnd={handleDragEnd}>
-            <Droppable droppableId="sections">
-              {(provided) => (
-                <div
-                  ref={provided.innerRef}
-                  {...provided.droppableProps}
-                  className="space-y-2"
-                >
-                  {sections.map((section, index) => (
-                    <Draggable
-                      key={section.id}
-                      draggableId={section.id}
-                      index={index}
-                    >
-                      {(provided, snapshot) => (
-                        <div
-                          ref={provided.innerRef}
-                          {...provided.draggableProps}
-                          className={`border rounded-lg overflow-hidden transition-all ${
-                            snapshot.isDragging 
-                              ? 'shadow-lg ring-2 ring-blue-200 bg-white' 
-                              : 'hover:shadow'
-                          }`}
-                        >
-                          <div className={`flex items-center bg-gray-50 ${
-                            snapshot.isDragging ? 'bg-blue-50' : ''
-                          }`}>
-                            <div
-                              {...provided.dragHandleProps}
-                              onClick={(e) => e.stopPropagation()}
-                              className="p-1.5 rounded-md hover:bg-gray-100 cursor-grab active:cursor-grabbing"
-                            >
-                              <GripVertical size={14} className="text-gray-400" />
-                            </div>
-                            
-                            <button
-                              className="flex-1 flex items-center justify-between p-2 hover:bg-gray-100 transition-colors"
-                              onClick={() => toggleSection(section.id)}
-                            >
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium">{section.label}</span>
-                                <span className="text-xs text-gray-500">
-                                  ({section.components?.length || 0})
-                                </span>
-                              </div>
-                              {expandedSections.has(section.id) ? (
-                                <ChevronUp size={14} />
-                              ) : (
-                                <ChevronDown size={14} />
-                              )}
-                            </button>
-                          </div>
-                          
-                          {expandedSections.has(section.id) && (
-                            <div className="p-2 space-y-2 bg-white">
-                              <div className="text-xs text-gray-600">{section.description}</div>
-                              
-                              {showPreview && (section.components || []).map((componentId, index) => (
-                                <div
-                                  key={index}
-                                  className="bg-gray-50 rounded p-2"
-                                >
-                                  <div className="flex items-center gap-2 mb-1">
-                                    {componentIcons[componentId] || <Package size={12} />}
-                                    <span className="text-xs font-medium capitalize">
-                                      {componentId.replace(/-/g, ' ')}
-                                    </span>
-                                  </div>
-                                  <div className="h-12 overflow-hidden rounded border border-gray-200">
-                                    <ComponentPreview type={componentId} />
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </Draggable>
-                  ))}
-                  {provided.placeholder}
-                </div>
-              )}
-            </Droppable>
-          </DragDropContext>
+          {/* Debug info */}
+          <div className="mt-4 p-2 bg-gray-100 rounded text-xs">
+            <div><strong>Node ID:</strong> {id}</div>
+            <div><strong>Has onAddNode:</strong> {data.onAddNode ? '✅ Yes' : '❌ No'}</div>
+            <div><strong>Hovered Zone:</strong> {hoveredZone || 'None'}</div>
+            <div><strong>Sections:</strong> {data.sections?.length || 0}</div>
+          </div>
 
-          <div className="mt-4 space-y-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              className="w-full"
-              leftIcon={<Plus size={14} />}
-              onClick={() => {
-                // Handle adding new section
-              }}
+          {/* Direct test buttons */}
+          <div className="mt-3 space-y-2">
+            <button
+              onClick={() => handleAddNode('bottom')}
+              className="w-full px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 text-sm"
             >
-              Add Section
-            </Button>
-            
-            <Button
-              variant="secondary"
-              size="sm"
-              className="w-full"
-              leftIcon={<Sparkles size={14} />}
-              onClick={() => {
-                // Handle generating content
-              }}
+              🧪 Test Add Bottom (Direct)
+            </button>
+            <button
+              onClick={() => handleAddNode('left')}
+              className="w-full px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
             >
-              Generate Content
-            </Button>
+              🧪 Test Add Left (Direct)
+            </button>
+            <button
+              onClick={() => handleAddNode('right')}
+              className="w-full px-3 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 text-sm"
+            >
+              🧪 Test Add Right (Direct)
+            </button>
           </div>
         </div>
-        
-        {/* Hidden handles for React Flow */}
-        <Handle
-          type="target"
-          position={Position.Top}
-          className="!opacity-0 !w-0 !h-0"
-          style={{ visibility: 'hidden' }}
-        />
-        <Handle
-          type="source"
-          position={Position.Bottom}
-          className="!opacity-0 !w-0 !h-0"
-          style={{ visibility: 'hidden' }}
-        />
       </div>
+
+      {/* React Flow handles - completely transparent but functional */}
+      <Handle
+        type="target"
+        position={Position.Top}
+        style={{ opacity: 0, pointerEvents: 'none' }}
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        style={{ opacity: 0, pointerEvents: 'none' }}
+      />
     </div>
   );
 };
 
-export default memo(PageNode);
+export default memo(DebugPageNode);

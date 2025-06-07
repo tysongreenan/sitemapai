@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import EditorCanvas from '../components/editor/EditorCanvas';
+import NewSitemapEditor from '../components/editor/NewSitemapEditor';
 import { useProject } from '../context/ProjectContext';
 import { supabase } from '../lib/supabase';
 
@@ -52,7 +52,7 @@ export default function EditorPage() {
 
   return (
     <div className="h-screen flex flex-col">
-      {projectId && <EditorCanvas projectId={projectId} />}
+      <NewSitemapEditor />
     </div>
   );
 }

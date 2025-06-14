@@ -2,292 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom styles for the enhanced editor canvas */
-
-/* Animation for the floating add buttons */
-@keyframes pulse-glow {
-  0%, 100% {
-    transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
-  }
-  50% {
-    transform: scale(1.05);
-    box-shadow: 0 0 0 8px rgba(59, 130, 246, 0);
-  }
-}
-
-.add-node-button {
-  animation: pulse-glow 2s infinite;
-}
-
-/* Disable connection mode cursors */
-.react-flow__pane.connecting {
-  cursor: grab !important;
-}
-
-/* Ensure section dragging works properly */
-.react-flow__node {
-  pointer-events: all;
-}
-
-/* When section is being dragged, reduce node interactivity */
-.section-dragging .react-flow__node {
-  pointer-events: none;
-}
-
-.section-dragging .react-flow__node .node-content {
-  pointer-events: all;
-}
-
-/* Custom ReactFlow styles */
-.react-flow__node {
-  pointer-events: all;
-  cursor: default;
-}
-
-.react-flow__node.selectable:hover {
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-}
-
-/* Prevent any selection/dragging behavior on nodes */
-.react-flow__node.selected {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
-}
-
-.react-flow__node:hover {
-  cursor: default !important;
-}
-
-.react-flow__edge-path {
-  stroke-width: 2;
-  stroke: #3b82f6;
-}
-
-.react-flow__edge.animated .react-flow__edge-path {
-  stroke-dasharray: 5;
-  animation: dashdraw 0.5s linear infinite;
-}
-
-@keyframes dashdraw {
-  to {
-    stroke-dashoffset: -10;
-  }
-}
-
-/* Smooth transitions for node movements */
-.react-flow__node {
-  transition: transform 0.5s ease;
-}
-
-/* Custom background pattern */
-.react-flow__background {
-  background-color: #f9fafb;
-}
-
-/* Auto-layout grid guidance */
-.react-flow__pane {
-  cursor: grab;
-}
-
-.react-flow__pane:active {
-  cursor: grabbing;
-}
-
-/* Zoom controls styling */
-.react-flow__controls {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.react-flow__controls-button {
-  background-color: white;
-  border-bottom: 1px solid #e5e7eb;
-  transition: background-color 0.2s ease;
-}
-
-.react-flow__controls-button:hover {
-  background-color: #f3f4f6;
-}
-
-/* Minimap styling */
-.react-flow__minimap {
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-/* Instructions overlay styling */
-.instructions-overlay {
-  backdrop-filter: blur(4px);
-  animation: fadeInUp 0.5s ease-out;
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translate(-50%, 20px);
-  }
-  to {
-    opacity: 1;
-    transform: translate(-50%, 0);
-  }
-}
-
-/* Context menu styling */
-.context-menu {
-  backdrop-filter: blur(8px);
-  animation: contextMenuAppear 0.15s ease-out;
-}
-
-@keyframes contextMenuAppear {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-/* Mobile responsiveness */
-@media (max-width: 768px) {
-  .react-flow__controls {
-    bottom: 20px;
-    right: 20px;
-  }
-  
-  .react-flow__minimap {
-    width: 150px;
-    height: 100px;
-  }
-  
-  .instructions-overlay {
-    left: 20px;
-    right: 20px;
-    transform: translateX(0);
-    max-width: none;
-  }
-}
-
-/* Slickplan-Style Editor Styles */
-.sitemap-card {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.sitemap-card:hover {
-  transform: translateY(-2px);
-}
-
-.sitemap-card.selected {
-  transform: scale(1.05);
-}
-
-/* Beautiful connection lines */
-.connection-line {
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
-}
-
-/* Smooth zoom and pan */
-.canvas-container {
-  transition: transform 0.2s ease-out;
-}
-
-/* Page type indicators */
-.page-type-home {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-.page-type-category {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-}
-
-.page-type-product {
-  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-}
-
-/* Status indicators */
-.status-draft {
-  background-color: #f3f4f6;
-  color: #6b7280;
-}
-
-.status-review {
-  background-color: #fef3c7;
-  color: #d97706;
-}
-
-.status-approved {
-  background-color: #dbeafe;
-  color: #2563eb;
-}
-
-.status-live {
-  background-color: #d1fae5;
-  color: #059669;
-}
-
-/* Priority dots */
-.priority-high {
-  background-color: #ef4444;
-  box-shadow: 0 0 0 2px white, 0 0 0 4px #ef4444;
-}
-
-.priority-medium {
-  background-color: #f59e0b;
-  box-shadow: 0 0 0 2px white, 0 0 0 4px #f59e0b;
-}
-
-.priority-low {
-  background-color: #10b981;
-  box-shadow: 0 0 0 2px white, 0 0 0 4px #10b981;
-}
-
-/* Section type colors */
-.section-header { @apply bg-blue-100 text-blue-800; }
-.section-hero { @apply bg-purple-100 text-purple-800; }
-.section-content { @apply bg-gray-100 text-gray-800; }
-.section-feature { @apply bg-green-100 text-green-800; }
-.section-cta { @apply bg-orange-100 text-orange-800; }
-.section-footer { @apply bg-slate-100 text-slate-800; }
-.section-form { @apply bg-yellow-100 text-yellow-800; }
-.section-gallery { @apply bg-pink-100 text-pink-800; }
-.section-testimonial { @apply bg-indigo-100 text-indigo-800; }
-.section-pricing { @apply bg-emerald-100 text-emerald-800; }
-
-/* Quick start template cards */
-.template-card {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.template-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-}
-
-/* Grid background animation */
-@keyframes gridMove {
-  0% { transform: translate(0, 0); }
-  100% { transform: translate(25px, 25px); }
-}
-
-.animated-grid {
-  animation: gridMove 20s linear infinite;
-}
-
-/* Toolbar enhancements */
-.toolbar-button {
-  transition: all 0.2s ease;
-}
-
-.toolbar-button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-/* Right panel scrollbar styling */
+/* Custom scrollbar styling */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }
@@ -316,12 +31,6 @@
   animation: fadeIn 0.3s ease-out;
 }
 
-/* Hover zone debugging (only in development) */
-.hover-zone-debug {
-  background: rgba(255, 0, 0, 0.1) !important;
-  border: 1px dashed rgba(255, 0, 0, 0.3) !important;
-}
-
 /* Text truncation utilities */
 .line-clamp-2 {
   display: -webkit-box;
@@ -335,4 +44,168 @@
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* Focus states for accessibility */
+.focus-visible:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Custom button hover effects */
+.btn-hover-lift:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Gradient backgrounds */
+.gradient-bg-1 {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.gradient-bg-2 {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.gradient-bg-3 {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+/* Smooth transitions for interactive elements */
+.transition-all {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Enhanced card hover effects */
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* Animated gradient backgrounds */
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.animated-gradient {
+  background: linear-gradient(-45deg, #667eea, #764ba2, #f093fb, #f5576c);
+  background-size: 400% 400%;
+  animation: gradient-shift 15s ease infinite;
+}
+
+/* Toast container z-index fix */
+.Toastify__toast-container {
+  z-index: 9999 !important;
+}
+
+/* Mobile responsive improvements */
+@media (max-width: 768px) {
+  .mobile-hidden {
+    display: none;
+  }
+  
+  .mobile-full-width {
+    width: 100% !important;
+  }
+}
+
+/* Sidebar animations */
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes slideOutLeft {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
+
+.slide-in-left {
+  animation: slideInLeft 0.3s ease-out;
+}
+
+.slide-out-left {
+  animation: slideOutLeft 0.3s ease-out;
+}
+
+/* Enhanced loading states */
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.pulse-glow {
+  animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Modern glass morphism effects */
+.glass-morphism {
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+/* Enhanced focus rings */
+.focus-ring:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  border-color: #6366f1;
+}
+
+/* Smooth page transitions */
+.page-transition {
+  transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+}
+
+.page-enter {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.page-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Enhanced button styles */
+.btn-primary-gradient {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  transition: all 0.3s ease;
+}
+
+.btn-primary-gradient:hover {
+  background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* Status indicators */
+.status-indicator {
+  position: relative;
+}
+
+.status-indicator::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 2px solid white;
+}
+
+.status-online::before {
+  background-color: #10b981;
+}
+
+.status-busy::before {
+  background-color: #f59e0b;
+}
+
+.status-offline::before {
+  background-color: #6b7280;
 }

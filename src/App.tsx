@@ -10,10 +10,14 @@ import { ProjectProvider } from './context/ProjectContext';
 // Pages
 import LandingPage from './pages/LandingPage';
 import DashboardPage from './pages/DashboardPage';
-import EditorPage from './pages/EditorPage';
+import ProjectsPage from './pages/ProjectsPage';
+import AppsPage from './pages/AppsPage';
+import JasperIQPage from './pages/JasperIQPage';
+import ProjectEditorPage from './pages/ProjectEditorPage';
 import NotFoundPage from './pages/NotFoundPage';
 
 // Layout components
+import { DashboardLayout } from './components/layout/DashboardLayout';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
@@ -24,23 +28,65 @@ function App() {
         <ProjectProvider>
           <Router>
             <Routes>
+              {/* Public routes */}
               <Route path="/" element={<LandingPage />} />
+              
+              {/* Protected routes with dashboard layout */}
               <Route 
                 path="/dashboard" 
                 element={
                   <ProtectedRoute>
-                    <DashboardPage />
+                    <DashboardLayout />
                   </ProtectedRoute>
-                } 
-              />
+                }
+              >
+                <Route index element={<DashboardPage />} />
+              </Route>
+
+              <Route 
+                path="/projects" 
+                element={
+                  <ProtectedRoute>
+                    <DashboardLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<ProjectsPage />} />
+              </Route>
+
+              <Route 
+                path="/apps" 
+                element={
+                  <ProtectedRoute>
+                    <DashboardLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<AppsPage />} />
+              </Route>
+
+              <Route 
+                path="/jasper-iq" 
+                element={
+                  <ProtectedRoute>
+                    <DashboardLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<JasperIQPage />} />
+              </Route>
+
+              {/* Project editor - full screen without sidebar */}
               <Route 
                 path="/editor/:projectId" 
                 element={
                   <ProtectedRoute>
-                    <EditorPage />
+                    <ProjectEditorPage />
                   </ProtectedRoute>
                 } 
               />
+
+              {/* 404 page */}
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Router>
@@ -54,6 +100,8 @@ function App() {
             pauseOnFocusLoss
             draggable
             pauseOnHover
+            theme="light"
+            className="!z-[9999]"
           />
         </ProjectProvider>
       </AuthProvider>

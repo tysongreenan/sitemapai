@@ -1,228 +1,274 @@
-import React, { useEffect, useCallback } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Clock, Search, Filter, Trash2, ExternalLink, FileEdit } from 'lucide-react';
-import { Navbar } from '../components/layout/Navbar';
+import { Plus, TrendingUp, Users, Target, BarChart3, Clock, ArrowRight, Sparkles, Zap, Brain, FileText } from 'lucide-react';
 import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
 import { useProject } from '../context/ProjectContext';
-import { formatDate, truncateText } from '../lib/utils';
-import { AuthModal } from '../components/auth/AuthModal';
+import { useAuth } from '../context/AuthContext';
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const { projects, loading, loadProjects, createProject, deleteProject } = useProject();
-  const [searchTerm, setSearchTerm] = React.useState('');
-  const [isAuthModalOpen, setIsAuthModalOpen] = React.useState(false);
-  const [isCreatingProject, setIsCreatingProject] = React.useState(false);
-  const [projectToDelete, setProjectToDelete] = React.useState<string | null>(null);
+  const { projects, createProject } = useProject();
+  const { user } = useAuth();
 
-  // Memoize the filtered projects to prevent unnecessary recalculations
-  const filteredProjects = React.useMemo(() => 
-    projects.filter(project => 
-      project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (project.description && project.description.toLowerCase().includes(searchTerm.toLowerCase()))
-    ),
-    [projects, searchTerm]
-  );
-
-  const handleCreateProject = useCallback(async () => {
-    setIsCreatingProject(true);
-    try {
-      const newProject = await createProject(
-        `New Sitemap ${new Date().toLocaleDateString()}`,
-        'A new sitemap project'
-      );
-      
-      if (newProject) {
-        navigate(`/editor/${newProject.id}`);
-      }
-    } catch (error) {
-      console.error('Error creating project:', error);
-    } finally {
-      setIsCreatingProject(false);
+  const handleCreateProject = async () => {
+    const newProject = await createProject(
+      `New Project ${new Date().toLocaleDateString()}`,
+      'A new AI-powered marketing project'
+    );
+    
+    if (newProject) {
+      navigate(`/editor/${newProject.id}`);
     }
-  }, [createProject, navigate]);
+  };
 
-  const confirmDelete = useCallback((projectId: string) => {
-    setProjectToDelete(projectId);
-  }, []);
+  const recentProjects = projects.slice(0, 3);
 
-  const handleDeleteProject = useCallback(async () => {
-    if (projectToDelete) {
-      await deleteProject(projectToDelete);
-      setProjectToDelete(null);
+  const stats = [
+    { name: 'Total Projects', value: projects.length, icon: BarChart3, change: '+12%', color: 'text-blue-600' },
+    { name: 'AI Generations', value: '247', icon: Sparkles, change: '+23%', color: 'text-purple-600' },
+    { name: 'Active Campaigns', value: '8', icon: Target, change: '+5%', color: 'text-green-600' },
+    { name: 'Conversion Rate', value: '24.5%', icon: TrendingUp, change: '+3.2%', color: 'text-orange-600' },
+  ];
+
+  const quickActions = [
+    {
+      title: 'Create New Project',
+      description: 'Start a new AI-powered marketing project with intelligent assistance',
+      icon: Plus,
+      action: handleCreateProject,
+      color: 'bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700',
+      iconBg: 'bg-blue-100 text-blue-600'
+    },
+    {
+      title: 'Browse AI Apps',
+      description: 'Explore pre-built AI tools for specific marketing tasks',
+      icon: Zap,
+      action: () => navigate('/apps'),
+      color: 'bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700',
+      iconBg: 'bg-green-100 text-green-600'
+    },
+    {
+      title: 'Setup Brand Voice',
+      description: 'Configure your brand voice and knowledge base in Jasper IQ',
+      icon: Brain,
+      action: () => navigate('/jasper-iq'),
+      color: 'bg-gradient-to-br from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700',
+      iconBg: 'bg-purple-100 text-purple-600'
     }
-  }, [projectToDelete, deleteProject]);
+  ];
 
-  // Load projects only once when the component mounts
-  useEffect(() => {
-    loadProjects();
-  }, [loadProjects]);
+  const aiInsights = [
+    {
+      title: 'Content Performance',
+      description: 'Your blog posts are performing 23% better this month',
+      icon: FileText,
+      trend: 'up'
+    },
+    {
+      title: 'Audience Engagement',
+      description: 'Social media engagement increased by 18%',
+      icon: Users,
+      trend: 'up'
+    },
+    {
+      title: 'Campaign Optimization',
+      description: 'AI suggests optimizing your email campaigns',
+      icon: Target,
+      trend: 'neutral'
+    }
+  ];
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Navbar />
-      
-      <main className="flex-grow container mx-auto px-4 sm:px-6 py-8 mt-16">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+    <div className="p-6 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
+            <Sparkles className="w-6 h-6 text-white" />
+          </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">My Sitemaps</h1>
-            <p className="text-gray-600 mt-1">Manage and edit your sitemap projects</p>
-          </div>
-          
-          <Button
-            variant="primary"
-            onClick={handleCreateProject}
-            leftIcon={<Plus size={16} />}
-            isLoading={isCreatingProject}
-            className="mt-4 md:mt-0"
-          >
-            New Sitemap
-          </Button>
-        </div>
-        
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-            <div className="relative w-full md:w-80">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-              <Input
-                placeholder="Search projects..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                leftIcon={<Filter size={16} />}
-              >
-                Filter
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                leftIcon={<Clock size={16} />}
-              >
-                Recent
-              </Button>
-            </div>
-          </div>
-          
-          {loading ? (
-            <div className="flex justify-center items-center py-16">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-            </div>
-          ) : filteredProjects.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Project</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700 hidden md:table-cell">Created</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700 hidden md:table-cell">Last Modified</th>
-                    <th className="text-right py-3 px-4 font-semibold text-gray-700">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredProjects.map((project) => (
-                    <tr key={project.id} className="border-b border-gray-200 hover:bg-gray-50">
-                      <td className="py-4 px-4">
-                        <div>
-                          <h3 className="font-medium text-gray-900">{project.title}</h3>
-                          <p className="text-sm text-gray-500 mt-1">
-                            {project.description ? truncateText(project.description, 60) : 'No description'}
-                          </p>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4 text-sm text-gray-600 hidden md:table-cell">
-                        {formatDate(project.created_at)}
-                      </td>
-                      <td className="py-4 px-4 text-sm text-gray-600 hidden md:table-cell">
-                        {formatDate(project.updated_at)}
-                      </td>
-                      <td className="py-4 px-4 text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => confirmDelete(project.id)}
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                            leftIcon={<Trash2 size={16} />}
-                          >
-                            <span className="sr-only md:not-sr-only">Delete</span>
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            leftIcon={<FileEdit size={16} />}
-                            onClick={() => navigate(`/editor/${project.id}`)}
-                          >
-                            <span className="sr-only md:not-sr-only">Edit</span>
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            leftIcon={<ExternalLink size={16} />}
-                            onClick={() => navigate(`/editor/${project.id}`)}
-                          >
-                            <span className="sr-only md:not-sr-only">Open</span>
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="py-16 text-center">
-              <p className="text-gray-500 mb-4">No projects found</p>
-              <Button
-                variant="secondary"
-                onClick={handleCreateProject}
-                leftIcon={<Plus size={16} />}
-              >
-                Create your first sitemap
-              </Button>
-            </div>
-          )}
-        </div>
-      </main>
-      
-      {/* Delete Confirmation Modal */}
-      {projectToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Confirm Deletion</h3>
-            <p className="text-gray-700 mb-6">
-              Are you sure you want to delete this project? This action cannot be undone.
+            <h1 className="text-3xl font-bold text-gray-900">
+              Welcome back, {user?.email?.split('@')[0] || 'there'}! 👋
+            </h1>
+            <p className="text-gray-600">
+              Your AI-powered marketing command center is ready
             </p>
-            <div className="flex justify-end space-x-3">
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {stats.map((stat) => {
+          const Icon = stat.icon;
+          return (
+            <div key={stat.name} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">{stat.name}</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
+                </div>
+                <div className={`w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center ${stat.color}`}>
+                  <Icon size={24} />
+                </div>
+              </div>
+              <div className="mt-4 flex items-center">
+                <span className="text-sm font-medium text-green-600">{stat.change}</span>
+                <span className="text-sm text-gray-500 ml-1">from last month</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-8">
+        {/* Quick Actions */}
+        <div className="lg:col-span-2">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">Quick Actions</h2>
+            <div className="grid md:grid-cols-3 gap-4">
+              {quickActions.map((action, index) => {
+                const Icon = action.icon;
+                return (
+                  <button
+                    key={index}
+                    onClick={action.action}
+                    className="p-6 rounded-xl border border-gray-200 hover:border-gray-300 transition-all duration-200 text-left group hover:shadow-lg bg-gradient-to-br from-gray-50 to-white"
+                  >
+                    <div className={`w-12 h-12 rounded-xl ${action.iconBg} flex items-center justify-center mb-4 transition-transform group-hover:scale-110`}>
+                      <Icon size={24} />
+                    </div>
+                    <h3 className="font-semibold text-gray-900 mb-2">{action.title}</h3>
+                    <p className="text-sm text-gray-600 leading-relaxed">{action.description}</p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Recent Projects */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-gray-900">Recent Projects</h2>
               <Button
                 variant="ghost"
-                onClick={() => setProjectToDelete(null)}
+                onClick={() => navigate('/projects')}
+                rightIcon={<ArrowRight size={16} />}
               >
-                Cancel
+                View all
               </Button>
-              <Button
-                variant="primary"
-                className="bg-red-600 hover:bg-red-700 focus:ring-red-500"
-                onClick={handleDeleteProject}
-              >
-                Delete
-              </Button>
+            </div>
+            
+            {recentProjects.length > 0 ? (
+              <div className="space-y-4">
+                {recentProjects.map((project) => (
+                  <div
+                    key={project.id}
+                    className="flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:border-gray-300 transition-colors cursor-pointer hover:bg-gray-50"
+                    onClick={() => navigate(`/editor/${project.id}`)}
+                  >
+                    <div className="flex-1">
+                      <h3 className="font-medium text-gray-900">{project.title}</h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {project.description || 'No description'}
+                      </p>
+                      <div className="flex items-center mt-2 text-xs text-gray-500">
+                        <Clock size={12} className="mr-1" />
+                        Updated {new Date(project.updated_at).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <ArrowRight size={16} className="text-gray-400" />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Plus size={24} className="text-indigo-600" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No projects yet</h3>
+                <p className="text-gray-600 mb-4">Create your first AI-powered project to get started</p>
+                <Button onClick={handleCreateProject} className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700">
+                  Create Project
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Sidebar */}
+        <div className="space-y-6">
+          {/* AI Insights */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <Brain size={20} className="mr-2 text-purple-600" />
+              AI Insights
+            </h3>
+            <div className="space-y-4">
+              {aiInsights.map((insight, index) => {
+                const Icon = insight.icon;
+                return (
+                  <div key={index} className="flex items-start space-x-3">
+                    <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Icon size={16} className="text-purple-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-sm font-medium text-gray-900">{insight.title}</h4>
+                      <p className="text-xs text-gray-600 mt-1">{insight.description}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Onboarding Progress */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h3 className="font-semibold text-gray-900 mb-4">Getting Started</h3>
+            <div className="space-y-3">
+              <div className="flex items-center">
+                <div className="w-4 h-4 bg-green-500 rounded-full mr-3"></div>
+                <span className="text-sm text-gray-600">Account created</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-4 h-4 bg-green-500 rounded-full mr-3"></div>
+                <span className="text-sm text-gray-600">First project created</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-4 h-4 bg-gray-300 rounded-full mr-3"></div>
+                <span className="text-sm text-gray-400">Setup brand voice</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-4 h-4 bg-gray-300 rounded-full mr-3"></div>
+                <span className="text-sm text-gray-400">Invite team members</span>
+              </div>
+            </div>
+            <div className="mt-4 bg-gray-200 rounded-full h-2">
+              <div className="bg-gradient-to-r from-indigo-500 to-purple-600 h-2 rounded-full" style={{ width: '50%' }}></div>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">2 of 4 steps completed</p>
+          </div>
+
+          {/* Help & Resources */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h3 className="font-semibold text-gray-900 mb-4">Help & Resources</h3>
+            <div className="space-y-3">
+              <a href="#" className="block text-sm text-indigo-600 hover:text-indigo-800 transition-colors">
+                📚 Getting Started Guide
+              </a>
+              <a href="#" className="block text-sm text-indigo-600 hover:text-indigo-800 transition-colors">
+                🎥 Video Tutorials
+              </a>
+              <a href="#" className="block text-sm text-indigo-600 hover:text-indigo-800 transition-colors">
+                💬 Join Community
+              </a>
+              <a href="#" className="block text-sm text-indigo-600 hover:text-indigo-800 transition-colors">
+                📧 Contact Support
+              </a>
             </div>
           </div>
         </div>
-      )}
-      
-      <AuthModal 
-        isOpen={isAuthModalOpen} 
-        onClose={() => setIsAuthModalOpen(false)} 
-      />
+      </div>
     </div>
   );
 }

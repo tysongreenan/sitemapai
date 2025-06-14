@@ -1,4 +1,3 @@
-// src/context/AuthContext.tsx
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
@@ -9,7 +8,8 @@ type AuthContextType = {
   session: Session | null;
   user: User | null;
   signOut: () => Promise<void>;
-  loading: boolean; // Indicates if the initial session check is still ongoing
+  loading: boolean;
+  initialized: boolean; // New flag to track if auth has been initialized
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -17,66 +17,101 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true); // Initialize as true to indicate check is pending
+  const [loading, setLoading] = useState(true);
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
-    // Function to get and set session, ensuring loading state is handled
+    let mounted = true;
+
+    // Function to get and set session with proper error handling
     const getInitialSession = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession(); //
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (!mounted) return; // Prevent state updates if component unmounted
+        
         if (error) {
-          AppErrorHandler.handle(error, { context: 'AuthContext initial getSession' }); //
+          console.error('Auth session error:', error);
+          AppErrorHandler.handle(error, { context: 'AuthContext initial getSession' });
           setSession(null);
           setUser(null);
         } else {
-          setSession(session); //
-          setUser(session?.user ?? null); //
+          setSession(session);
+          setUser(session?.user ?? null);
+          
+          if (session?.user) {
+            console.log('✅ User session restored:', session.user.email);
+          }
         }
+      } catch (error) {
+        if (!mounted) return;
+        console.error('Auth initialization error:', error);
+        AppErrorHandler.handle(error, { context: 'AuthContext getSession catch' });
+        setSession(null);
+        setUser(null);
       } finally {
-        setLoading(false); // Always set loading to false after the initial check, even if there's an error
+        if (mounted) {
+          setLoading(false);
+          setInitialized(true);
+        }
       }
     };
 
-    getInitialSession(); // Call the async function immediately
+    getInitialSession();
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange( //
+    // Listen for auth changes with improved error handling
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        setSession(session); //
-        setUser(session?.user ?? null); //
-        // Do NOT set setLoading(false) here, as getInitialSession already handles the initial load.
-        // This listener is for subsequent changes after initial load.
+        if (!mounted) return;
+        
+        console.log('🔄 Auth state change:', event, session?.user?.email || 'no user');
+        
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
+        setInitialized(true);
 
-        // Handle auth events
+        // Handle auth events with user feedback
         switch (event) {
           case 'SIGNED_IN':
-            toast.success('Successfully signed in!'); //
+            toast.success(`Welcome back, ${session?.user?.email?.split('@')[0] || 'there'}!`);
             break;
           case 'SIGNED_OUT':
-            toast.info('Successfully signed out'); //
+            toast.info('Successfully signed out');
             break;
           case 'USER_UPDATED':
-            toast.success('Profile updated successfully'); //
+            toast.success('Profile updated successfully');
             break;
           case 'PASSWORD_RECOVERY':
-            toast.info('Check your email for password reset instructions'); //
+            toast.info('Check your email for password reset instructions');
+            break;
+          case 'TOKEN_REFRESHED':
+            console.log('🔄 Token refreshed successfully');
             break;
         }
       }
     );
 
-    // Cleanup subscription
+    // Cleanup function
     return () => {
-      subscription.unsubscribe(); //
+      mounted = false;
+      subscription.unsubscribe();
     };
-  }, []); // Empty dependency array means this runs once on mount
+  }, []);
 
   const signOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut(); //
+      setLoading(true);
+      const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      
+      // Clear any cached data
+      localStorage.removeItem('supabase.auth.token');
+      
     } catch (error) {
-      AppErrorHandler.handle(error, { context: 'AuthContext signOut' }); //
+      AppErrorHandler.handle(error, { context: 'AuthContext signOut' });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -85,15 +120,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user,
     signOut,
     loading,
+    initialized,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext); //
+  const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider'); //
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 }

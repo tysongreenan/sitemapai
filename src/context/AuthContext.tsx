@@ -110,7 +110,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (error) {
           // Check if this is the specific "session not found" error
           if (error.message?.includes('Session from session_id claim in JWT does not exist') || 
-              error.message?.includes('session_not_found')) {
+              error.message?.includes('session_not_found') ||
+              error.message?.includes('Auth session missing')) {
             // This is expected when the session is already invalid on the server
             console.warn('Session already expired on server, proceeding with local cleanup');
           } else {

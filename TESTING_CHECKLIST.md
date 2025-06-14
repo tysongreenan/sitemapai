@@ -4,28 +4,6 @@
 
 ### 🔐 **Phase 1: Authentication & Foundation**
 
-#### **Authentication System**
-- [ ] **Sign Up Flow**
-  - [ ] Create new account with email/password
-  - [ ] Verify email validation works
-  - [ ] Check password strength requirements
-  - [ ] Test error messages for invalid inputs
-  - [ ] Confirm account creation success
-
-- [ ] **Sign In Flow**
-  - [ ] Login with valid credentials
-  - [ ] Test "Remember me" functionality
-  - [ ] Verify persistent sessions (refresh page, still logged in)
-  - [ ] Test invalid login attempts
-  - [ ] Check password reset flow
-
-- [ ] **Session Management**
-  - [ ] Stay logged in after browser refresh
-  - [ ] Stay logged in after closing/reopening browser
-  - [ ] Automatic redirect to dashboard when logged in
-  - [ ] Proper logout functionality
-  - [ ] Session timeout handling
-
 #### **Dashboard Layout & Navigation**
 - [ ] **Sidebar Navigation**
   - [ ] Logo displays correctly

@@ -108,12 +108,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { error } = await supabase.auth.signOut();
         
         if (error) {
-          // Check if this is the specific "session not found" error
-          if (error.message?.includes('Session from session_id claim in JWT does not exist') || 
-              error.message?.includes('session_not_found') ||
-              error.message?.includes('Auth session missing')) {
+          // Enhanced check for session_not_found errors
+          const isSessionNotFound = 
+            error.message?.includes('Session from session_id claim in JWT does not exist') || 
+            error.message?.includes('session_not_found') ||
+            error.message?.includes('Auth session missing') ||
+            (error as any)?.code === 'session_not_found' ||
+            (error as any)?.status === 403;
+          
+          if (isSessionNotFound) {
             // This is expected when the session is already invalid on the server
             console.warn('Session already expired on server, proceeding with local cleanup');
+            
+            // Always clear local state and cached data
+            setSession(null);
+            setUser(null);
+            localStorage.removeItem('supabase.auth.token');
+            setLoading(false);
+            
+            // Return early to prevent error from being re-thrown
+            return;
           } else {
             // This is a different error that should be handled normally
             throw error;

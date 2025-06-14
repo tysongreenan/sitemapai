@@ -25,7 +25,13 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     return <LoadingScreen />;
   }
 
-  // If auth is initialized and we have a user, render children
+  // If user exists but email is not confirmed, redirect to verify email page
+  if (user && !user.email_confirmed_at) {
+    navigate(`/verify-email?email=${encodeURIComponent(user.email || '')}`);
+    return <LoadingScreen message="Redirecting to email verification..." />;
+  }
+
+  // If auth is initialized and we have a verified user, render children
   // If no user, the useEffect will handle the redirect
-  return user ? <>{children}</> : <LoadingScreen />;
+  return user && user.email_confirmed_at ? <>{children}</> : <LoadingScreen />;
 }

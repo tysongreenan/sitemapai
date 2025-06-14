@@ -55,7 +55,12 @@ export const FullScreenSignup = () => {
       
       if (error) throw error;
       
-      if (data.user) {
+      if (data.user && !data.user.email_confirmed_at) {
+        // User needs to verify email
+        toast.success("Account created! Please check your email to verify your account.");
+        navigate(`/verify-email?email=${encodeURIComponent(email)}`);
+      } else if (data.user && data.user.email_confirmed_at) {
+        // User is already verified (shouldn't happen with new signups, but just in case)
         toast.success("Account created successfully! Welcome to SiteMapAI!");
         navigate("/dashboard");
       }

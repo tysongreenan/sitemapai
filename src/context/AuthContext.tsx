@@ -74,7 +74,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Handle auth events with user feedback
         switch (event) {
           case 'SIGNED_IN':
-            toast.success(`Welcome back, ${session?.user?.email?.split('@')[0] || 'there'}!`);
+            // Only show welcome message for confirmed users
+            if (session?.user?.email_confirmed_at) {
+              toast.success(`Welcome back, ${session?.user?.email?.split('@')[0] || 'there'}!`);
+            }
             break;
           case 'SIGNED_OUT':
             toast.info('Successfully signed out');

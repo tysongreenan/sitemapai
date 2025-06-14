@@ -102,8 +102,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      
+      // Only attempt to sign out if there's an active user session
+      if (user) {
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
+      } else {
+        // If no user is logged in, just clear local state
+        console.log('No active session to sign out from');
+      }
       
       // Clear any cached data
       localStorage.removeItem('supabase.auth.token');

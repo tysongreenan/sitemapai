@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, Globe, LogOut } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useAuth } from '../../context/AuthContext';
@@ -11,6 +11,7 @@ export function Navbar() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   // Handle scroll effect for transparent to solid background
   useEffect(() => {
@@ -26,6 +27,16 @@ export function Navbar() {
   useEffect(() => {
     setIsMenuOpen(false);
   }, [location]);
+
+  // Listen for custom event to open auth modal
+  useEffect(() => {
+    const handleOpenAuthModal = () => {
+      setIsAuthModalOpen(true);
+    };
+
+    window.addEventListener('openAuthModal', handleOpenAuthModal);
+    return () => window.removeEventListener('openAuthModal', handleOpenAuthModal);
+  }, []);
 
   return (
     <>
@@ -91,7 +102,8 @@ export function Navbar() {
                   </Button>
                   <Button
                     variant="primary"
-                    onClick={() => setIsAuthModalOpen(true)}
+                    onClick={() => navigate('/signup')}
+                    className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
                   >
                     Get started
                   </Button>
@@ -178,8 +190,8 @@ export function Navbar() {
                   </Button>
                   <Button
                     variant="primary"
-                    onClick={() => setIsAuthModalOpen(true)}
-                    className="w-full"
+                    onClick={() => navigate('/signup')}
+                    className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
                   >
                     Get started
                   </Button>

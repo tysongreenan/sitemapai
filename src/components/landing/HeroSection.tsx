@@ -7,7 +7,6 @@ import { Textarea } from '../ui/Textarea';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '../../context/AuthContext';
 import { useProject } from '../../context/ProjectContext';
-import { AuthModal } from '../auth/AuthModal';
 import { validateUrl, validateDescription } from '../../lib/validation';
 import { AppErrorHandler } from '../../lib/errorHandling';
 
@@ -20,7 +19,6 @@ export function HeroSection() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { createProject } = useProject();
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
   const { register, handleSubmit, formState: { errors }, setError } = useForm<FormValues>({
@@ -32,7 +30,8 @@ export function HeroSection() {
 
   const onSubmit = async (data: FormValues) => {
     if (!user) {
-      setIsAuthModalOpen(true);
+      // Redirect to signup page instead of opening modal
+      navigate('/signup');
       return;
     }
 
@@ -132,10 +131,10 @@ export function HeroSection() {
                   <Button
                     type="submit"
                     size="lg"
-                    className="w-full"
+                    className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
                     isLoading={isLoading}
                   >
-                    Generate Sitemap
+                    {user ? 'Generate Sitemap' : 'Get Started - Sign Up Free'}
                   </Button>
                 </div>
                 
@@ -147,11 +146,6 @@ export function HeroSection() {
           </form>
         </div>
       </div>
-
-      <AuthModal 
-        isOpen={isAuthModalOpen} 
-        onClose={() => setIsAuthModalOpen(false)} 
-      />
     </section>
   );
 }

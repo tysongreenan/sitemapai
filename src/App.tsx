@@ -9,6 +9,7 @@ import { ProjectProvider } from './context/ProjectContext';
 
 // Pages
 import LandingPage from './pages/LandingPage';
+import SignUpPage from './pages/SignUpPage';
 import DashboardPage from './pages/DashboardPage';
 import ProjectsPage from './pages/ProjectsPage';
 import AppsPage from './pages/AppsPage';
@@ -30,6 +31,7 @@ function App() {
             <Routes>
               {/* Public routes */}
               <Route path="/" element={<LandingPage />} />
+              <Route path="/signup" element={<SignUpPage />} />
               
               {/* Protected routes with dashboard layout */}
               <Route 

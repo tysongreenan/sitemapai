@@ -112,13 +112,13 @@ export function AuthModal({ isOpen, onClose, redirectTo }: AuthModalProps) {
       }}
     >
       <div
-        className={`bg-white rounded-lg shadow-xl w-full max-w-md transform transition-all duration-300 ${
+        className={`bg-white rounded-xl shadow-xl w-full max-w-md transform transition-all duration-300 ${
           isOpen ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
         }`}
       >
-        <div className="flex justify-between items-center p-4 border-b">
+        <div className="flex justify-between items-center p-6 border-b border-gray-200">
           <h2 className="text-xl font-semibold text-gray-800">
-            {view === 'sign_in' ? 'Sign in to your account' :
+            {view === 'sign_in' ? 'Welcome back' :
              view === 'sign_up' ? 'Create an account' :
              view === 'forgotten_password' ? 'Reset your password' :
              view === 'update_password' ? 'Update password' :
@@ -136,12 +136,12 @@ export function AuthModal({ isOpen, onClose, redirectTo }: AuthModalProps) {
         </div>
 
         {status.type && (
-          <div className={`m-4 p-3 rounded-md border ${getStatusColor(status.type)}`}>
+          <div className={`m-6 p-4 rounded-lg border ${getStatusColor(status.type)}`}>
             {status.message}
           </div>
         )}
 
-        <div className="p-4">
+        <div className="p-6">
           <Auth
             supabaseClient={supabase}
             view={view}
@@ -157,10 +157,11 @@ export function AuthModal({ isOpen, onClose, redirectTo }: AuthModalProps) {
               },
               className: {
                 container: 'w-full',
-                button: 'w-full px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 rounded-md',
-                input: 'block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm',
-                label: 'block text-sm font-medium text-gray-700 mb-1',
-                message: 'text-sm text-red-600 mt-1',
+                button: 'w-full px-4 py-3 text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 rounded-lg transition-all duration-200',
+                input: 'block w-full px-3 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-colors',
+                label: 'block text-sm font-medium text-gray-700 mb-2',
+                message: 'text-sm text-red-600 mt-2',
+                anchor: 'text-indigo-600 hover:text-indigo-800 font-medium transition-colors',
               },
             }}
             providers={['google', 'github']}
@@ -194,6 +195,26 @@ export function AuthModal({ isOpen, onClose, redirectTo }: AuthModalProps) {
               },
             }}
           />
+          
+          {/* Additional sign up CTA */}
+          {view === 'sign_in' && (
+            <div className="mt-6 pt-6 border-t border-gray-200 text-center">
+              <p className="text-sm text-gray-600 mb-3">
+                New to SiteMapAI?
+              </p>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  onClose();
+                  // Navigate to signup page
+                  window.location.href = '/signup';
+                }}
+                className="w-full"
+              >
+                Create your free account
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </div>

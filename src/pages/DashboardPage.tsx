@@ -92,8 +92,9 @@ export default function DashboardPage() {
       setProcessingStage('Finalizing your workspace...');
       await new Promise(resolve => setTimeout(resolve, 800));
       
-      // Navigate to the project editor
-      navigate(`/editor/${project.id}`);
+      // Navigate to the project editor with the user's request as a parameter
+      // This will trigger the AI chatbot to automatically generate content
+      navigate(`/editor/${project.id}?autoGenerate=${encodeURIComponent(inputValue)}`);
       
     } catch (error) {
       console.error('Error processing request:', error);

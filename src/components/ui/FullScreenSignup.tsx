@@ -224,16 +224,8 @@ export const FullScreenSignup = () => {
             <div className="text-center text-gray-600 text-sm">
               Already have an account?{" "}
               <Link 
-                to="/" 
+                to="/signin" 
                 className="text-indigo-600 font-semibold hover:text-indigo-800 transition-colors"
-                onClick={(e) => {
-                  e.preventDefault();
-                  navigate("/");
-                  // Small delay to ensure navigation completes before opening modal
-                  setTimeout(() => {
-                    window.dispatchEvent(new CustomEvent('openAuthModal'));
-                  }, 100);
-                }}
               >
                 Sign in
               </Link>

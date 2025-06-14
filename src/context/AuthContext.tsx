@@ -106,16 +106,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Only attempt to sign out if there's an active user session
       if (user) {
         const { error } = await supabase.auth.signOut();
-        if (error) throw error;
+        
+        if (error) {
+          // Check if this is the specific "session not found" error
+          if (error.message?.includes('Session from session_id claim in JWT does not exist') || 
+              error.message?.includes('session_not_found')) {
+            // This is expected when the session is already invalid on the server
+            console.warn('Session already expired on server, proceeding with local cleanup');
+          } else {
+            // This is a different error that should be handled normally
+            throw error;
+          }
+        }
       } else {
         // If no user is logged in, just clear local state
         console.log('No active session to sign out from');
       }
       
-      // Clear any cached data
+      // Always clear local state and cached data regardless of server response
+      setSession(null);
+      setUser(null);
       localStorage.removeItem('supabase.auth.token');
       
     } catch (error) {
+      // Only handle non-session-not-found errors as critical
       AppErrorHandler.handle(error, { context: 'AuthContext signOut' });
     } finally {
       setLoading(false);

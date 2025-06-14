@@ -10,6 +10,7 @@ import { ProjectProvider } from './context/ProjectContext';
 // Pages
 import LandingPage from './pages/LandingPage';
 import SignUpPage from './pages/SignUpPage';
+import SignInPage from './pages/SignInPage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
 import DashboardPage from './pages/DashboardPage';
 import ProjectsPage from './pages/ProjectsPage';
@@ -33,6 +34,7 @@ function App() {
               {/* Public routes */}
               <Route path="/" element={<LandingPage />} />
               <Route path="/signup" element={<SignUpPage />} />
+              <Route path="/signin" element={<SignInPage />} />
               <Route path="/verify-email" element={<VerifyEmailPage />} />
               
               {/* Protected routes with dashboard layout */}

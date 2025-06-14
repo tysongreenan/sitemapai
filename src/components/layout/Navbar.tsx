@@ -3,12 +3,10 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, Globe, LogOut } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useAuth } from '../../context/AuthContext';
-import { AuthModal } from '../auth/AuthModal';
 
 export function Navbar() {
   const { user, signOut } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -27,16 +25,6 @@ export function Navbar() {
   useEffect(() => {
     setIsMenuOpen(false);
   }, [location]);
-
-  // Listen for custom event to open auth modal
-  useEffect(() => {
-    const handleOpenAuthModal = () => {
-      setIsAuthModalOpen(true);
-    };
-
-    window.addEventListener('openAuthModal', handleOpenAuthModal);
-    return () => window.removeEventListener('openAuthModal', handleOpenAuthModal);
-  }, []);
 
   return (
     <>
@@ -96,7 +84,7 @@ export function Navbar() {
                 <div className="flex items-center space-x-4">
                   <Button
                     variant="ghost"
-                    onClick={() => setIsAuthModalOpen(true)}
+                    onClick={() => navigate('/signin')}
                   >
                     Sign in
                   </Button>
@@ -183,7 +171,7 @@ export function Navbar() {
                 <div className="space-y-2">
                   <Button
                     variant="ghost"
-                    onClick={() => setIsAuthModalOpen(true)}
+                    onClick={() => navigate('/signin')}
                     className="w-full"
                   >
                     Sign in
@@ -201,11 +189,6 @@ export function Navbar() {
           </div>
         </div>
       </header>
-
-      <AuthModal 
-        isOpen={isAuthModalOpen} 
-        onClose={() => setIsAuthModalOpen(false)} 
-      />
     </>
   );
 }

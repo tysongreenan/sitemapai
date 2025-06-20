@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Send, Sparkles, User, Bot, Lightbulb, FileText, Image, BarChart3, Video, Copy, ThumbsUp, ThumbsDown, Maximize2, Minimize2 } from 'lucide-react';
 import { Button } from '../ui/Button';
@@ -23,7 +23,11 @@ interface AIChatbotProps {
   audience?: string;
 }
 
-export function AIChatbot({ projectId, brandVoice, audience }: AIChatbotProps) {
+export interface AIChatbotRef {
+  setInputValueFromOutside: (text: string) => void;
+}
+
+export const AIChatbot = forwardRef<AIChatbotRef, AIChatbotProps>(({ projectId, brandVoice, audience }, ref) => {
   const [searchParams] = useSearchParams();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -32,6 +36,14 @@ export function AIChatbot({ projectId, brandVoice, audience }: AIChatbotProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Expose methods to parent component
+  useImperativeHandle(ref, () => ({
+    setInputValueFromOutside: (text: string) => {
+      setInputValue(text);
+      inputRef.current?.focus();
+    }
+  }));
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -79,7 +91,9 @@ export function AIChatbot({ projectId, brandVoice, audience }: AIChatbotProps) {
 
 ${brandVoice ? `I'll use your **"${brandVoice}"** brand voice` : 'Set up your brand voice in Jasper IQ for personalized content'} ${audience ? `and target your **"${audience}"** audience.` : 'and define your target audience for better results.'}
 
-**What would you like to create today?**`,
+**What would you like to create today?**
+
+💡 **Pro tip:** You can also highlight text in any content node and send it to me for rewriting!`,
         timestamp: new Date(),
         suggestions: [
           'Write a blog post about our product',
@@ -138,6 +152,33 @@ ${brandVoice ? `I'll use your **"${brandVoice}"** brand voice` : 'Set up your br
     // Determine response type based on user input
     const lowerMessage = userMessage.toLowerCase();
     
+    // Check if this is a rewrite request
+    if (lowerMessage.includes('rewrite') || lowerMessage.includes('please rewrite this text:')) {
+      const textToRewrite = userMessage.replace(/please rewrite this text:\s*["']?/i, '').replace(/["']?$/, '');
+      
+      return {
+        id: messageId,
+        type: 'ai',
+        content: `I've rewritten the selected text for you! Here's an improved version that maintains the original meaning while enhancing clarity and engagement.
+
+**Original text:** "${textToRewrite}"
+
+**Rewritten version:** "${textToRewrite.split(' ').map(word => 
+          word.charAt(0).toUpperCase() + word.slice(1)
+        ).join(' ').replace(/\./g, '. ').replace(/,/g, ', ')
+        .replace(/\s+/g, ' ').trim()}"
+
+The rewritten version improves readability and flow while preserving your original message. Would you like me to try a different approach or style?`,
+        timestamp: new Date(),
+        suggestions: [
+          'Make it more casual',
+          'Make it more professional', 
+          'Make it shorter',
+          'Add more detail'
+        ]
+      };
+    }
+    
     if (lowerMessage.includes('blog') || lowerMessage.includes('article') || lowerMessage.includes('post') || lowerMessage.includes('summer projects')) {
       return {
         id: messageId,
@@ -150,7 +191,7 @@ ${brandVoice ? `I'll use your **"${brandVoice}"** brand voice` : 'Set up your br
 - Practical tips and actionable advice
 - Reader-friendly formatting
 
-The content has been added to your canvas where you can further edit and customize it.`,
+The content has been added to your canvas where you can further edit and customize it. You can double-click the content node to edit it directly, or highlight specific sections and send them back to me for rewriting!`,
         timestamp: new Date(),
         generatedContent: {
           type: 'text',
@@ -250,6 +291,8 @@ What project will you start first? Remember, the best summer project is the one 
 • **Marketing copy** - Landing pages, ads, and sales materials
 • **Visual concepts** - Image ideas and design briefs
 • **Video scripts** - YouTube, TikTok, and promotional videos
+
+**💡 Pro tip:** You can also highlight text in any content node on the canvas and send it to me for rewriting or improvement!
 
 What specific type of content would you like me to create for your project?`,
       timestamp: new Date(),
@@ -494,4 +537,6 @@ What specific type of content would you like me to create for your project?`,
       </div>
     </div>
   );
-}
+});
+
+AIChatbot.displayName = 'AIChatbot';

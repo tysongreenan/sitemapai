@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Settings, Share, Save, Sparkles } from 'lucide-react';
 import { useProject } from '../context/ProjectContext';
@@ -7,7 +7,7 @@ import { supabase } from '../lib/supabase';
 import { LoadingScreen } from '../components/layout/LoadingScreen';
 import { Button } from '../components/ui/Button';
 import { ProjectCanvas } from '../components/project/ProjectCanvas';
-import { AIChatbot } from '../components/project/AIChatbot';
+import { AIChatbot, AIChatbotRef } from '../components/project/AIChatbot';
 
 export default function ProjectEditorPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -15,6 +15,7 @@ export default function ProjectEditorPage() {
   const { user } = useAuth();
   const { projects, currentProject, setCurrentProject, loading, saveStatus } = useProject();
   const [selectedCanvasItem, setSelectedCanvasItem] = useState(null);
+  const chatbotRef = useRef<AIChatbotRef>(null);
 
   // Set current project based on URL parameter
   useEffect(() => {
@@ -48,6 +49,13 @@ export default function ProjectEditorPage() {
       fetchProject();
     }
   }, [projectId, projects, navigate, setCurrentProject, loading]);
+
+  // Function to handle sending text to AI chatbot
+  const handleSendTextToChat = (text: string) => {
+    if (chatbotRef.current) {
+      chatbotRef.current.setInputValueFromOutside(text);
+    }
+  };
 
   if (loading || !currentProject) {
     return <LoadingScreen message="Loading your project..." />;
@@ -140,10 +148,12 @@ export default function ProjectEditorPage() {
           projectId={projectId!}
           onItemSelect={setSelectedCanvasItem}
           selectedItem={selectedCanvasItem}
+          onSendTextToChat={handleSendTextToChat}
         />
 
         {/* AI Chatbot Sidebar */}
         <AIChatbot
+          ref={chatbotRef}
           projectId={projectId!}
           brandVoice="Professional and friendly"
           audience="Marketing professionals"

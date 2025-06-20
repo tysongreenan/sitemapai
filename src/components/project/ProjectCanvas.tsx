@@ -46,9 +46,10 @@ interface ProjectCanvasProps {
   projectId: string;
   onItemSelect?: (item: CanvasItem | null) => void;
   selectedItem?: CanvasItem | null;
+  onSendTextToChat?: (text: string) => void;
 }
 
-const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem }: ProjectCanvasProps) => {
+const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem, onSendTextToChat }: ProjectCanvasProps) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
@@ -83,6 +84,7 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem }: ProjectCa
           content: node.data?.content || '',
           type: node.data?.type || 'text',
           createdAt: node.data?.createdAt ? new Date(node.data.createdAt) : new Date(),
+          onSendTextToChat,
         },
       }));
       
@@ -93,7 +95,7 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem }: ProjectCa
       initializedRef.current = true;
       currentProjectIdRef.current = projectId;
     }
-  }, [currentProject, projectId, setNodes, setEdges]);
+  }, [currentProject, projectId, setNodes, setEdges, onSendTextToChat]);
 
   // Enhanced debounced save function with connection checking
   const debouncedSave = useCallback(
@@ -198,6 +200,7 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem }: ProjectCa
           setNodes((nds) => nds.filter(n => n.id !== nodeId));
         },
         onContentUpdate: handleNodeContentUpdate,
+        onSendTextToChat,
       },
     };
     
@@ -222,7 +225,7 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem }: ProjectCa
     
     onItemSelect?.(canvasItem);
     toast.success('Content added to canvas');
-  }, [setNodes, onItemSelect, handleNodeContentUpdate]);
+  }, [setNodes, onItemSelect, handleNodeContentUpdate, onSendTextToChat]);
 
   // Handle node selection
   const onNodeClick = useCallback((event: React.MouseEvent, node: Node<ContentNodeData>) => {
@@ -342,6 +345,7 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem }: ProjectCa
         toast.success('Content removed from canvas');
       },
       onContentUpdate: handleNodeContentUpdate,
+      onSendTextToChat,
     }
   }));
 

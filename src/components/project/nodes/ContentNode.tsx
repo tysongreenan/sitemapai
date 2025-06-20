@@ -1,6 +1,6 @@
-import React, { memo, useState } from 'react';
+import React, { memo, useState, useRef, useImperativeHandle, forwardRef } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
-import { FileText, Image, BarChart3, Video, Copy, Trash2, Edit3, Save, X } from 'lucide-react';
+import { FileText, Image, BarChart3, Video, Copy, Trash2, Edit3, Save, X, Send } from 'lucide-react';
 import { toast } from 'react-toastify';
 import ReactQuill from 'react-quill';
 import ReactMarkdown from 'react-markdown';
@@ -14,11 +14,22 @@ export interface ContentNodeData {
   selected?: boolean;
   onDelete?: (nodeId: string) => void;
   onContentUpdate?: (nodeId: string, newContent: string) => void;
+  onSendTextToChat?: (text: string) => void;
 }
 
-const ContentNode = memo(({ data, selected, id }: NodeProps<ContentNodeData>) => {
+const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, selected, id }, ref) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(data.content);
+  const quillRef = useRef<ReactQuill>(null);
+
+  useImperativeHandle(ref, () => ({
+    startEditing: () => {
+      if (data.type === 'text') {
+        setEditedContent(data.content);
+        setIsEditing(true);
+      }
+    }
+  }));
 
   const getIcon = () => {
     switch (data.type) {
@@ -73,6 +84,14 @@ const ContentNode = memo(({ data, selected, id }: NodeProps<ContentNodeData>) =>
     }
   };
 
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (data.type === 'text' && !isEditing) {
+      setEditedContent(data.content);
+      setIsEditing(true);
+    }
+  };
+
   const handleSave = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (data.onContentUpdate) {
@@ -88,16 +107,41 @@ const ContentNode = memo(({ data, selected, id }: NodeProps<ContentNodeData>) =>
     setIsEditing(false);
   };
 
-  // React Quill modules configuration
+  const handleSendSelectedText = () => {
+    if (quillRef.current && data.onSendTextToChat) {
+      const quill = quillRef.current.getEditor();
+      const selection = quill.getSelection();
+      
+      if (selection && selection.length > 0) {
+        const selectedText = quill.getText(selection.index, selection.length);
+        if (selectedText.trim()) {
+          data.onSendTextToChat(`Please rewrite this text: "${selectedText.trim()}"`);
+          toast.success('Selected text sent to AI chat!');
+        } else {
+          toast.warn('Please select some text first');
+        }
+      } else {
+        toast.warn('Please select some text to send to AI');
+      }
+    }
+  };
+
+  // Enhanced React Quill modules configuration with custom toolbar
   const quillModules = {
-    toolbar: [
-      [{ 'header': [1, 2, 3, false] }],
-      ['bold', 'italic', 'underline', 'strike'],
-      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-      ['blockquote', 'code-block'],
-      ['link'],
-      ['clean']
-    ],
+    toolbar: {
+      container: [
+        [{ 'header': [1, 2, 3, false] }],
+        ['bold', 'italic', 'underline', 'strike'],
+        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+        ['blockquote', 'code-block'],
+        ['link'],
+        ['send-to-ai'], // Custom button
+        ['clean']
+      ],
+      handlers: {
+        'send-to-ai': handleSendSelectedText
+      }
+    },
   };
 
   const quillFormats = [
@@ -105,12 +149,30 @@ const ContentNode = memo(({ data, selected, id }: NodeProps<ContentNodeData>) =>
     'list', 'bullet', 'blockquote', 'code-block', 'link'
   ];
 
+  // Add custom button to Quill toolbar
+  React.useEffect(() => {
+    if (quillRef.current && isEditing) {
+      const quill = quillRef.current.getEditor();
+      const toolbar = quill.getModule('toolbar');
+      
+      // Add custom send button
+      const sendButton = toolbar.container.querySelector('.ql-send-to-ai');
+      if (sendButton) {
+        sendButton.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22,2 15,22 11,13 2,9"></polygon></svg>';
+        sendButton.setAttribute('title', 'Send selected text to AI');
+      }
+    }
+  }, [isEditing]);
+
   return (
-    <div className={`
-      bg-white rounded-xl shadow-lg border-2 transition-all duration-200 
-      ${isEditing ? 'min-w-[600px] max-w-[800px]' : 'min-w-[400px] max-w-[600px]'}
-      ${selected ? 'border-indigo-400 shadow-xl ring-2 ring-indigo-200' : `${getTypeColor()} hover:shadow-xl`}
-    `}>
+    <div 
+      className={`
+        bg-white rounded-xl shadow-lg border-2 transition-all duration-200 cursor-pointer
+        ${isEditing ? 'min-w-[600px] max-w-[800px]' : 'min-w-[400px] max-w-[600px]'}
+        ${selected ? 'border-indigo-400 shadow-xl ring-2 ring-indigo-200' : `${getTypeColor()} hover:shadow-xl`}
+      `}
+      onDoubleClick={handleDoubleClick}
+    >
       {/* Node Header */}
       <div className={`px-4 py-3 border-b rounded-t-xl ${getHeaderColor()}`}>
         <div className="flex items-center justify-between">
@@ -122,6 +184,11 @@ const ContentNode = memo(({ data, selected, id }: NodeProps<ContentNodeData>) =>
             {isEditing && (
               <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
                 Editing
+              </span>
+            )}
+            {!isEditing && data.type === 'text' && (
+              <span className="text-xs text-gray-500">
+                Double-click to edit
               </span>
             )}
           </div>
@@ -180,6 +247,7 @@ const ContentNode = memo(({ data, selected, id }: NodeProps<ContentNodeData>) =>
           <div className="space-y-4">
             <div className="canvas-editor">
               <ReactQuill
+                ref={quillRef}
                 value={editedContent}
                 onChange={setEditedContent}
                 modules={quillModules}
@@ -187,6 +255,13 @@ const ContentNode = memo(({ data, selected, id }: NodeProps<ContentNodeData>) =>
                 placeholder="Edit your content..."
                 theme="snow"
               />
+            </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-sm text-blue-800">
+                <Send size={14} />
+                <span className="font-medium">Pro tip:</span>
+                <span>Select text and click the send button in the toolbar to ask AI to rewrite it</span>
+              </div>
             </div>
             <div className="flex gap-2 justify-end">
               <Button
@@ -275,7 +350,7 @@ const ContentNode = memo(({ data, selected, id }: NodeProps<ContentNodeData>) =>
       />
     </div>
   );
-});
+}));
 
 ContentNode.displayName = 'ContentNode';
 

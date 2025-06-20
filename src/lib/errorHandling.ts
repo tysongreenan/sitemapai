@@ -50,7 +50,7 @@ export class AppErrorHandler {
     return `${operation}-${errorType}`;
   }
 
-  private static isNetworkError(error: any): boolean {
+  public static isNetworkError(error: any): boolean {
     return (
       error instanceof TypeError && 
       (error.message.includes('Failed to fetch') || 
@@ -132,7 +132,7 @@ export async function handleAsyncError<T>(
   } catch (error) {
     // For network errors, don't call the onError callback immediately
     // Let the connection status handling in ProjectContext deal with it
-    if (AppErrorHandler['isNetworkError'](error)) {
+    if (AppErrorHandler.isNetworkError(error)) {
       console.warn(`Network error in ${context.operation}, connection status will be updated`);
       // Still call onError but with a flag to indicate it's a network error
       if (context.onError) {

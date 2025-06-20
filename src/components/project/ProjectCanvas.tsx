@@ -24,6 +24,7 @@ import { useProject } from '../../context/ProjectContext';
 import { debounce } from '../../lib/utils';
 import { nanoid } from 'nanoid';
 import { toast } from 'react-toastify';
+import { AppErrorHandler } from '../../lib/errorHandling';
 
 // Define node types
 const nodeTypes = {
@@ -115,10 +116,11 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem }: ProjectCa
             console.warn('Save failed due to connection issues');
           }
         } catch (error) {
-          console.error('Error saving canvas:', error);
-          if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-            console.warn('Network error during save, will retry when connection is restored');
+          // Check if this is a network error using the public method
+          if (AppErrorHandler.isNetworkError(error)) {
+            console.warn('Network error during canvas save, connection status will handle UI feedback:', error.message);
           } else {
+            console.error('Error saving canvas:', error);
             toast.error('Failed to save canvas changes');
           }
         }

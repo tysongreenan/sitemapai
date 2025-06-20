@@ -265,45 +265,47 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
       <div className="p-4">
         {data.type === 'text' && (
           <>
-            {/* ReactQuill Editor - Always mounted, visibility controlled by CSS */}
-            <div className={`space-y-4 ${isEditing ? 'block' : 'hidden'}`}>
-              <div className="canvas-editor">
-                <ReactQuill
-                  ref={quillRef}
-                  value={String(editedContent || '')}
-                  onChange={(value) => setEditedContent(String(value || ''))}
-                  modules={quillModules}
-                  formats={quillFormats}
-                  placeholder="Edit your content..."
-                  theme="snow"
-                />
-              </div>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <div className="flex items-center gap-2 text-sm text-blue-800">
-                  <Send size={14} />
-                  <span className="font-medium">Pro tip:</span>
-                  <span>Select text and click the send button (📤) in the toolbar to ask AI to rewrite it</span>
+            {/* ReactQuill Editor - Only rendered when editing */}
+            {isEditing && (
+              <div className="space-y-4">
+                <div className="canvas-editor">
+                  <ReactQuill
+                    ref={quillRef}
+                    value={String(editedContent || '')}
+                    onChange={(value) => setEditedContent(String(value || ''))}
+                    modules={quillModules}
+                    formats={quillFormats}
+                    placeholder="Edit your content..."
+                    theme="snow"
+                  />
+                </div>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <div className="flex items-center gap-2 text-sm text-blue-800">
+                    <Send size={14} />
+                    <span className="font-medium">Pro tip:</span>
+                    <span>Select text and click the send button (📤) in the toolbar to ask AI to rewrite it</span>
+                  </div>
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleCancel}
+                    leftIcon={<X size={14} />}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleSave}
+                    leftIcon={<Save size={14} />}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    Save Changes
+                  </Button>
                 </div>
               </div>
-              <div className="flex gap-2 justify-end">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleCancel}
-                  leftIcon={<X size={14} />}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={handleSave}
-                  leftIcon={<Save size={14} />}
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  Save Changes
-                </Button>
-              </div>
-            </div>
+            )}
 
             {/* ReactMarkdown Preview - Only shown when not editing */}
             {!isEditing && (

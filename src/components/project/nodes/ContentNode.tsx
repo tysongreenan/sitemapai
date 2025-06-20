@@ -27,13 +27,6 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
     setEditedContent(String(data.content || ''));
   }, [data.content]);
 
-  // Critical fix: Set editedContent when entering edit mode
-  useEffect(() => {
-    if (isEditing) {
-      setEditedContent(String(data.content || ''));
-    }
-  }, [isEditing, data.content]);
-
   useImperativeHandle(ref, () => ({
     startEditing: () => {
       if (data.type === 'text') {

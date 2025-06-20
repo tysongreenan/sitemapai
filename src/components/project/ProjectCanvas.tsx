@@ -57,11 +57,22 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem }: ProjectCa
   const [modalContent, setModalContent] = useState<{ title: string; content: string } | null>(null);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   
+  // Add initialization flag to prevent continuous re-loading
+  const initializedRef = useRef(false);
+  const currentProjectIdRef = useRef<string | null>(null);
+  
   const { currentProject, updateProject, connectionStatus, retryConnection } = useProject();
 
-  // Load canvas data from project when component mounts
+  // Load canvas data from project when component mounts or project changes
   useEffect(() => {
-    if (currentProject?.sitemap_data) {
+    // Only initialize if:
+    // 1. We haven't initialized yet, OR
+    // 2. The project ID has changed (user navigated to different project)
+    const shouldInitialize = !initializedRef.current || currentProjectIdRef.current !== projectId;
+    
+    if (shouldInitialize && currentProject?.sitemap_data) {
+      console.log('Initializing canvas with project data:', projectId);
+      
       const { nodes: savedNodes = [], edges: savedEdges = [] } = currentProject.sitemap_data;
       
       // Convert saved nodes to React Flow format
@@ -79,8 +90,12 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem }: ProjectCa
       
       setNodes(flowNodes);
       setEdges(savedEdges);
+      
+      // Mark as initialized and store current project ID
+      initializedRef.current = true;
+      currentProjectIdRef.current = projectId;
     }
-  }, [currentProject, setNodes, setEdges]);
+  }, [currentProject, projectId, setNodes, setEdges]);
 
   // Enhanced debounced save function with connection checking
   const debouncedSave = useCallback(
@@ -110,6 +125,7 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem }: ProjectCa
             })),
           };
 
+          console.log('Saving canvas data:', { nodeCount: nodes.length, edgeCount: edges.length });
           const success = await updateProject(currentProject.id, { sitemap_data: sitemapData });
           
           if (!success && connectionStatus === 'disconnected') {
@@ -135,9 +151,10 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem }: ProjectCa
     [currentProject, updateProject, connectionStatus]
   );
 
-  // Save canvas changes when nodes or edges change
+  // Save canvas changes when nodes or edges change (but only after initialization)
   useEffect(() => {
-    if (nodes.length > 0 || edges.length > 0) {
+    if (initializedRef.current && (nodes.length > 0 || edges.length > 0)) {
+      console.log('Canvas state changed, triggering save:', { nodeCount: nodes.length, edgeCount: edges.length });
       debouncedSave(nodes, edges);
     }
   }, [nodes, edges, debouncedSave]);
@@ -153,6 +170,8 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem }: ProjectCa
 
   // Add new item to canvas
   const addItem = useCallback((type: CanvasItem['type'], content: string, title: string) => {
+    console.log('Adding new item to canvas:', { type, title });
+    
     const newNode: Node<ContentNodeData> = {
       id: nanoid(),
       type: 'contentNode',
@@ -174,7 +193,11 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem }: ProjectCa
       },
     };
     
-    setNodes((nds) => [...nds, newNode]);
+    setNodes((nds) => {
+      const newNodes = [...nds, newNode];
+      console.log('Canvas nodes updated:', { oldCount: nds.length, newCount: newNodes.length });
+      return newNodes;
+    });
     
     // Convert to CanvasItem for callback
     const canvasItem: CanvasItem = {

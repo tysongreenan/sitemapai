@@ -1,4 +1,4 @@
-import React, { memo, useState, useRef, useImperativeHandle, forwardRef } from 'react';
+import React, { memo, useState, useRef, useImperativeHandle, forwardRef, useEffect } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { FileText, Image, BarChart3, Video, Copy, Trash2, Edit3, Save, X, Send } from 'lucide-react';
 import { toast } from 'react-toastify';
@@ -21,6 +21,11 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(data.content);
   const quillRef = useRef<ReactQuill>(null);
+
+  // Update editedContent when data.content changes
+  useEffect(() => {
+    setEditedContent(data.content);
+  }, [data.content]);
 
   useImperativeHandle(ref, () => ({
     startEditing: () => {
@@ -77,7 +82,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (data.type === 'text') {
-      setEditedContent(data.content);
+      setEditedContent(data.content); // Ensure we start with current content
       setIsEditing(true);
     } else {
       toast.info('Editing is only available for text content');
@@ -87,7 +92,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
   const handleDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (data.type === 'text' && !isEditing) {
-      setEditedContent(data.content);
+      setEditedContent(data.content); // Ensure we start with current content
       setIsEditing(true);
     }
   };
@@ -103,7 +108,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
 
   const handleCancel = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setEditedContent(data.content);
+    setEditedContent(data.content); // Reset to original content
     setIsEditing(false);
   };
 
@@ -150,7 +155,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
   ];
 
   // Add custom button to Quill toolbar
-  React.useEffect(() => {
+  useEffect(() => {
     if (quillRef.current && isEditing) {
       const quill = quillRef.current.getEditor();
       const toolbar = quill.getModule('toolbar');
@@ -161,6 +166,21 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
         sendButton.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22,2 15,22 11,13 2,9"></polygon></svg>';
         sendButton.setAttribute('title', 'Send selected text to AI');
       }
+    }
+  }, [isEditing]);
+
+  // Focus the editor when entering edit mode
+  useEffect(() => {
+    if (isEditing && quillRef.current) {
+      setTimeout(() => {
+        const quill = quillRef.current?.getEditor();
+        if (quill) {
+          quill.focus();
+          // Set cursor at the end of content
+          const length = quill.getLength();
+          quill.setSelection(length - 1, 0);
+        }
+      }, 100);
     }
   }, [isEditing]);
 
@@ -260,7 +280,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
               <div className="flex items-center gap-2 text-sm text-blue-800">
                 <Send size={14} />
                 <span className="font-medium">Pro tip:</span>
-                <span>Select text and click the send button in the toolbar to ask AI to rewrite it</span>
+                <span>Select text and click the send button (📤) in the toolbar to ask AI to rewrite it</span>
               </div>
             </div>
             <div className="flex gap-2 justify-end">

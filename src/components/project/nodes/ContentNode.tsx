@@ -94,7 +94,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
     }
   }, [showToolbar]);
 
-  // Save on click-out functionality
+  // Save on click-out functionality - IMPROVED: Immediate state update
   useEffect(() => {
     if (!isEditing) return;
 
@@ -172,6 +172,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
     }
   };
 
+  // IMPROVED: Immediate state update for editing badge
   const saveContent = () => {
     if (contentRef.current) {
       const newContent = contentRef.current.innerHTML
@@ -180,9 +181,12 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
         .replace(/<br>/g, '\n')
         .replace(/<[^>]*>/g, '');
       
-      data.onContentUpdate?.(id, newContent);
+      // Update editing state IMMEDIATELY before calling onContentUpdate
       setIsEditing(false);
       setShowToolbar(false);
+      
+      // Then call the update function
+      data.onContentUpdate?.(id, newContent);
       toast.success('Content updated!');
     }
   };
@@ -328,6 +332,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
             <span className="text-sm font-semibold text-gray-900 truncate">
               {data.title}
             </span>
+            {/* IMPROVED: Editing badge only shows when actually editing */}
             {isEditing && (
               <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
                 Editing

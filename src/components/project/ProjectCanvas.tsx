@@ -67,18 +67,18 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem, onSendTextT
   // Get React Flow instance for focus functionality
   const reactFlow = useReactFlow();
 
-  // Handle double-click to focus on node
+  // Handle double-click to focus on node - FIXED: Zoom to top of content node
   const handleNodeDoubleClick = useCallback((nodeId: string) => {
     if (!reactFlow) return;
 
     const node = nodes.find(n => n.id === nodeId);
     if (!node) return;
 
-    // Calculate the center position for the node
+    // Calculate the center position for the TOP of the node
     const x = node.position.x + (node.width || 400) / 2;
-    const y = node.position.y + (node.height || 200) / 2;
+    const y = node.position.y; // Use just the y position (top of node) instead of adding half height
 
-    // Zoom to 1.5x and center on the node
+    // Zoom to 1.5x and center on the top of the node
     reactFlow.setCenter(x, y, { zoom: 1.5, duration: 800 });
     
     toast.success('Focused on content node');

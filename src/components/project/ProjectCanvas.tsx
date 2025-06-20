@@ -64,6 +64,26 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem, onSendTextT
   
   const { currentProject, updateProject, connectionStatus, retryConnection } = useProject();
 
+  // Get React Flow instance for focus functionality
+  const reactFlow = useReactFlow();
+
+  // Handle double-click to focus on node
+  const handleNodeDoubleClick = useCallback((nodeId: string) => {
+    if (!reactFlow) return;
+
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node) return;
+
+    // Calculate the center position for the node
+    const x = node.position.x + (node.width || 400) / 2;
+    const y = node.position.y + (node.height || 200) / 2;
+
+    // Zoom to 1.5x and center on the node
+    reactFlow.setCenter(x, y, { zoom: 1.5, duration: 800 });
+    
+    toast.success('Focused on content node');
+  }, [reactFlow, nodes]);
+
   // Load canvas data from project when component mounts or project changes
   useEffect(() => {
     // Only initialize if:
@@ -87,6 +107,7 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem, onSendTextT
           type: node.data?.type || 'text',
           createdAt: node.data?.createdAt ? new Date(node.data.createdAt) : new Date(),
           onSendTextToChat,
+          onNodeDoubleClick: handleNodeDoubleClick,
         },
       }));
       
@@ -97,7 +118,7 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem, onSendTextT
       initializedRef.current = true;
       currentProjectIdRef.current = projectId;
     }
-  }, [currentProject, projectId, setNodes, setEdges, onSendTextToChat]);
+  }, [currentProject, projectId, setNodes, setEdges, onSendTextToChat, handleNodeDoubleClick]);
 
   // Enhanced debounced save function with connection checking
   const debouncedSave = useCallback(
@@ -271,6 +292,7 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem, onSendTextT
         onDelete: handleDeleteNode,
         onContentUpdate: handleNodeContentUpdate,
         onSendTextToChat,
+        onNodeDoubleClick: handleNodeDoubleClick,
       },
     };
     
@@ -297,7 +319,7 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem, onSendTextT
     
     onItemSelect?.(canvasItem);
     toast.success('Content added to canvas');
-  }, [setNodes, nodes, edges, onItemSelect, handleNodeContentUpdate, handleDeleteNode, onSendTextToChat, debouncedSave]);
+  }, [setNodes, nodes, edges, onItemSelect, handleNodeContentUpdate, handleDeleteNode, onSendTextToChat, handleNodeDoubleClick, debouncedSave]);
 
   // Handle node selection
   const onNodeClick = useCallback((event: React.MouseEvent, node: Node<ContentNodeData>) => {
@@ -412,6 +434,7 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem, onSendTextT
       onDelete: handleDeleteNode,
       onContentUpdate: handleNodeContentUpdate,
       onSendTextToChat,
+      onNodeDoubleClick: handleNodeDoubleClick,
     }
   }));
 

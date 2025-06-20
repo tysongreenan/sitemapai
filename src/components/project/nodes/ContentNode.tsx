@@ -14,6 +14,7 @@ export interface ContentNodeData {
   onDelete?: (nodeId: string) => void;
   onContentUpdate?: (nodeId: string, newContent: string) => void;
   onSendTextToChat?: (text: string) => void;
+  onNodeDoubleClick?: (nodeId: string) => void;
 }
 
 const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, selected, id }, ref) => {
@@ -93,6 +94,32 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
     }
   }, [showToolbar]);
 
+  // Save on click-out functionality
+  useEffect(() => {
+    if (!isEditing) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      
+      // Check if click is outside both the node and the toolbar
+      const isOutsideNode = nodeRef.current && !nodeRef.current.contains(target);
+      const isOutsideToolbar = toolbarRef.current && !toolbarRef.current.contains(target);
+      
+      if (isOutsideNode && isOutsideToolbar) {
+        console.log('Click detected outside content node, saving changes');
+        saveContent();
+      }
+    };
+
+    // Add event listener to document
+    document.addEventListener('mousedown', handleClickOutside);
+    
+    // Cleanup function
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isEditing]); // Only re-run when isEditing changes
+
   const getIcon = () => {
     switch (data.type) {
       case 'text': return <FileText size={16} className="text-blue-600" />;
@@ -155,6 +182,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
       
       data.onContentUpdate?.(id, newContent);
       setIsEditing(false);
+      setShowToolbar(false);
       toast.success('Content updated!');
     }
   };
@@ -186,6 +214,14 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
       data.onSendTextToChat(`Please rewrite this text: "${selectedText}"`);
       toast.success('Text sent to AI!');
       setShowToolbar(false);
+    }
+  };
+
+  // Handle double-click on header to focus/zoom
+  const handleHeaderDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (data.onNodeDoubleClick) {
+      data.onNodeDoubleClick(id);
     }
   };
 
@@ -280,8 +316,12 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
         </div>
       )}
 
-      {/* Node Header */}
-      <div className={`px-4 py-3 border-b rounded-t-xl ${getHeaderColor()}`}>
+      {/* Node Header - Double-click to focus */}
+      <div 
+        className={`px-4 py-3 border-b rounded-t-xl ${getHeaderColor()} cursor-pointer hover:bg-opacity-80 transition-colors`}
+        onDoubleClick={handleHeaderDoubleClick}
+        title="Double-click to focus on this content"
+      >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 flex-1 min-w-0">
             {getIcon()}
@@ -356,11 +396,6 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
                 className="prose prose-sm max-w-none text-gray-700 outline-none min-h-[100px] p-2 rounded-lg bg-gray-50 border border-gray-200 focus:border-indigo-300 focus:bg-white transition-colors"
                 onKeyDown={handleKeyDown}
                 dangerouslySetInnerHTML={{ __html: editedContent }}
-                onBlur={() => {
-                  if (contentRef.current) {
-                    setEditedContent(contentRef.current.innerHTML);
-                  }
-                }}
                 onMouseDown={(e) => e.stopPropagation()}
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => e.stopPropagation()}
@@ -381,7 +416,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
             )}
             {isEditing && (
               <div className="mt-2 text-xs text-gray-500">
-                Tip: Press Ctrl+Enter to save, Esc to cancel. Select text to see formatting options.
+                Tip: Press Ctrl+Enter to save, Esc to cancel, or click outside to save. Select text to see formatting options.
               </div>
             )}
           </>

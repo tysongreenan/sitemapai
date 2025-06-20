@@ -27,6 +27,17 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
     setEditedContent(String(data.content || ''));
   }, [data.content]);
 
+  // Auto-enter editing mode when text node is selected
+  useEffect(() => {
+    if (selected && data.type === 'text' && !isEditing) {
+      setEditedContent(String(data.content || ''));
+      setIsEditing(true);
+    } else if (!selected && isEditing) {
+      // Auto-exit editing mode when node is deselected
+      setIsEditing(false);
+    }
+  }, [selected, data.type, data.content, isEditing]);
+
   useImperativeHandle(ref, () => ({
     startEditing: () => {
       if (data.type === 'text') {
@@ -86,14 +97,6 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
       setIsEditing(true);
     } else {
       toast.info('Editing is only available for text content');
-    }
-  };
-
-  const handleDoubleClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (data.type === 'text' && !isEditing) {
-      setEditedContent(String(data.content || '')); // Ensure string type
-      setIsEditing(true);
     }
   };
 
@@ -191,7 +194,6 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
         ${isEditing ? 'min-w-[600px] max-w-[800px]' : 'min-w-[400px] max-w-[600px]'}
         ${selected ? 'border-indigo-400 shadow-xl ring-2 ring-indigo-200' : `${getTypeColor()} hover:shadow-xl`}
       `}
-      onDoubleClick={handleDoubleClick}
     >
       {/* Node Header */}
       <div className={`px-4 py-3 border-b rounded-t-xl ${getHeaderColor()}`}>
@@ -208,7 +210,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
             )}
             {!isEditing && data.type === 'text' && (
               <span className="text-xs text-gray-500">
-                Double-click to edit
+                Click to edit
               </span>
             )}
           </div>

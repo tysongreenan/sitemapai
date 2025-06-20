@@ -12,7 +12,14 @@ type AuthContextType = {
   initialized: boolean; // New flag to track if auth has been initialized
 };
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// Create context with a default value to prevent undefined errors
+const AuthContext = createContext<AuthContextType>({
+  session: null,
+  user: null,
+  signOut: async () => {},
+  loading: true,
+  initialized: false,
+});
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);

@@ -13,7 +13,9 @@ import ReactFlow, {
   Panel,
   MiniMap,
   useReactFlow,
-  ReactFlowInstance
+  ReactFlowInstance,
+  NodeChange,
+  EdgeChange
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Plus, Download, Share, Maximize2, Grid, Layers, ZoomIn, ZoomOut, Link2, FileDown, Wifi, WifiOff, RefreshCw } from 'lucide-react';
@@ -151,36 +153,106 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem, onSendTextT
     [currentProject, updateProject, connectionStatus]
   );
 
-  // Save canvas changes when nodes or edges change (but only after initialization)
-  useEffect(() => {
-    if (initializedRef.current && (nodes.length > 0 || edges.length > 0)) {
-      console.log('Canvas state changed, triggering save:', { nodeCount: nodes.length, edgeCount: edges.length });
-      debouncedSave(nodes, edges);
-    }
-  }, [nodes, edges, debouncedSave]);
+  // Handle nodes change with selective saving
+  const handleNodesChange = useCallback((changes: NodeChange[]) => {
+    onNodesChange(changes);
+    
+    // Only save after meaningful changes (position changes when dragging is complete)
+    const shouldSave = changes.some(change => {
+      if (change.type === 'position' && change.dragging === false) {
+        console.log('Node position change completed, triggering save');
+        return true;
+      }
+      if (change.type === 'dimensions' && change.resizing === false) {
+        console.log('Node resize completed, triggering save');
+        return true;
+      }
+      return false;
+    });
 
+    if (shouldSave && initializedRef.current) {
+      // Use current state after the change
+      setTimeout(() => {
+        debouncedSave(nodes, edges);
+      }, 0);
+    }
+  }, [onNodesChange, debouncedSave, nodes, edges]);
+
+  // Handle edges change with selective saving
+  const handleEdgesChange = useCallback((changes: EdgeChange[]) => {
+    onEdgesChange(changes);
+    
+    // Only save when edges are removed
+    const shouldSave = changes.some(change => {
+      if (change.type === 'remove') {
+        console.log('Edge removed, triggering save');
+        return true;
+      }
+      return false;
+    });
+
+    if (shouldSave && initializedRef.current) {
+      // Use current state after the change
+      setTimeout(() => {
+        debouncedSave(nodes, edges);
+      }, 0);
+    }
+  }, [onEdgesChange, debouncedSave, nodes, edges]);
+
+  // Handle new connections with immediate save
   const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
-    [setEdges]
+    (params: Connection) => {
+      const newEdges = addEdge(params, edges);
+      setEdges(newEdges);
+      
+      if (initializedRef.current) {
+        console.log('New edge connection created, triggering save');
+        debouncedSave(nodes, newEdges);
+      }
+    },
+    [setEdges, edges, debouncedSave, nodes]
   );
 
   const onInit = (instance: ReactFlowInstance) => {
     setReactFlowInstance(instance);
   };
 
-  // Handle node content update
+  // Handle node content update with immediate save
   const handleNodeContentUpdate = useCallback((nodeId: string, newContent: string) => {
-    setNodes((nds) => 
-      nds.map((node) => 
-        node.id === nodeId 
-          ? { ...node, data: { ...node.data, content: newContent } }
-          : node
-      )
+    const updatedNodes = nodes.map((node) => 
+      node.id === nodeId 
+        ? { ...node, data: { ...node.data, content: newContent } }
+        : node
     );
+    
+    setNodes(updatedNodes);
+    
+    if (initializedRef.current) {
+      console.log('Node content updated, triggering save');
+      debouncedSave(updatedNodes, edges);
+    }
+    
     toast.success('Content updated successfully!');
-  }, [setNodes]);
+  }, [setNodes, nodes, edges, debouncedSave]);
 
-  // Add new item to canvas
+  // Handle node deletion with immediate save
+  const handleDeleteNode = useCallback((nodeId: string) => {
+    const updatedNodes = nodes.filter(n => n.id !== nodeId);
+    setNodes(updatedNodes);
+    
+    if (selectedItem?.id === nodeId) {
+      onItemSelect?.(null);
+    }
+    
+    if (initializedRef.current) {
+      console.log('Node deleted, triggering save');
+      debouncedSave(updatedNodes, edges);
+    }
+    
+    toast.success('Content removed from canvas');
+  }, [nodes, setNodes, selectedItem, onItemSelect, edges, debouncedSave]);
+
+  // Add new item to canvas with immediate save
   const addItem = useCallback((type: CanvasItem['type'], content: string, title: string) => {
     console.log('Adding new item to canvas:', { type, title });
     
@@ -196,19 +268,19 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem, onSendTextT
         content,
         type,
         createdAt: new Date(),
-        onDelete: (nodeId: string) => {
-          setNodes((nds) => nds.filter(n => n.id !== nodeId));
-        },
+        onDelete: handleDeleteNode,
         onContentUpdate: handleNodeContentUpdate,
         onSendTextToChat,
       },
     };
     
-    setNodes((nds) => {
-      const newNodes = [...nds, newNode];
-      console.log('Canvas nodes updated:', { oldCount: nds.length, newCount: newNodes.length });
-      return newNodes;
-    });
+    const updatedNodes = [...nodes, newNode];
+    setNodes(updatedNodes);
+    
+    if (initializedRef.current) {
+      console.log('New item added to canvas, triggering save');
+      debouncedSave(updatedNodes, edges);
+    }
     
     // Convert to CanvasItem for callback
     const canvasItem: CanvasItem = {
@@ -225,7 +297,7 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem, onSendTextT
     
     onItemSelect?.(canvasItem);
     toast.success('Content added to canvas');
-  }, [setNodes, onItemSelect, handleNodeContentUpdate, onSendTextToChat]);
+  }, [setNodes, nodes, edges, onItemSelect, handleNodeContentUpdate, handleDeleteNode, onSendTextToChat, debouncedSave]);
 
   // Handle node selection
   const onNodeClick = useCallback((event: React.MouseEvent, node: Node<ContentNodeData>) => {
@@ -337,13 +409,7 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem, onSendTextT
     data: {
       ...node.data,
       selected: selectedItem?.id === node.id,
-      onDelete: (nodeId: string) => {
-        setNodes((nds) => nds.filter(n => n.id !== nodeId));
-        if (selectedItem?.id === nodeId) {
-          onItemSelect?.(null);
-        }
-        toast.success('Content removed from canvas');
-      },
+      onDelete: handleDeleteNode,
       onContentUpdate: handleNodeContentUpdate,
       onSendTextToChat,
     }
@@ -382,8 +448,8 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem, onSendTextT
         <ReactFlow
           nodes={updatedNodes}
           edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
+          onNodesChange={handleNodesChange}
+          onEdgesChange={handleEdgesChange}
           onConnect={onConnect}
           onInit={onInit}
           onNodeClick={onNodeClick}

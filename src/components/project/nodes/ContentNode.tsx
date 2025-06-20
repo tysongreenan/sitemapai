@@ -172,7 +172,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
     }
   };
 
-  // IMPROVED: Immediate state update for editing badge
+  // FIXED: Remove premature toast - only update state and call onContentUpdate
   const saveContent = () => {
     if (contentRef.current) {
       const newContent = contentRef.current.innerHTML
@@ -185,9 +185,8 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
       setIsEditing(false);
       setShowToolbar(false);
       
-      // Then call the update function
+      // Call the update function - toast will be shown in ProjectCanvas after successful save
       data.onContentUpdate?.(id, newContent);
-      toast.success('Content updated!');
     }
   };
 

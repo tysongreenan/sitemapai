@@ -1,6 +1,6 @@
 import React, { memo, useState, useRef, useImperativeHandle, forwardRef, useEffect, useCallback } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
-import { FileText, Image, BarChart3, Video, Copy, Trash2, Edit3, Save, X, Send } from 'lucide-react';
+import { FileText, Image, BarChart3, Video, Copy, Trash2, Edit3, Save, X, Send, Loader2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import ReactQuill from 'react-quill';
 import ReactMarkdown from 'react-markdown';
@@ -21,6 +21,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(String(data.content || ''));
   const [quillKey, setQuillKey] = useState(0); // Force remount when switching modes
+  const [isTransitioning, setIsTransitioning] = useState(false); // Loading state for mode transitions
   const quillRef = useRef<ReactQuill>(null);
 
   // Update editedContent when data.content changes, ensuring it's always a string
@@ -96,34 +97,50 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (data.type === 'text') {
+      setIsTransitioning(true);
       setEditedContent(String(data.content || '')); // Ensure string type
       setQuillKey(prev => prev + 1); // Force Quill remount
-      setIsEditing(true);
+      
+      // Add brief loading state for smooth transition
+      setTimeout(() => {
+        setIsEditing(true);
+        setIsTransitioning(false);
+      }, 200);
     } else {
       toast.info('Editing is only available for text content');
     }
   };
 
-  // Improved handleSave with error handling and optional event parameter
+  // Improved handleSave with loading state and error handling
   const handleSave = useCallback(async (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    
+    setIsTransitioning(true);
     
     try {
       if (data.onContentUpdate) {
         data.onContentUpdate(id, String(editedContent || ''));
-        setIsEditing(false);
-        setQuillKey(prev => prev + 1); // Force clean remount
-        toast.success('Content updated successfully!');
+        
+        // Add brief loading state for smooth transition
+        setTimeout(() => {
+          setIsEditing(false);
+          setQuillKey(prev => prev + 1); // Force clean remount
+          setIsTransitioning(false);
+          toast.success('Content updated successfully!');
+        }, 200);
       }
     } catch (error) {
       console.error('Error saving content:', error);
+      setIsTransitioning(false);
       toast.error('Failed to save content');
     }
   }, [data, id, editedContent]);
 
-  // Improved handleCancel with proper cleanup and optional event parameter
+  // Improved handleCancel with loading state and proper cleanup
   const handleCancel = useCallback((e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    
+    setIsTransitioning(true);
     
     // Reset content before hiding editor
     setEditedContent(String(data.content || ''));
@@ -132,7 +149,8 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
     setTimeout(() => {
       setIsEditing(false);
       setQuillKey(prev => prev + 1); // Force clean remount
-    }, 0);
+      setIsTransitioning(false);
+    }, 200);
   }, [data.content]);
 
   // Enhanced handleSendSelectedText with error handling
@@ -198,7 +216,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
   // Add custom button to Quill toolbar with error handling
   useEffect(() => {
     try {
-      if (quillRef.current && isEditing) {
+      if (quillRef.current && isEditing && !isTransitioning) {
         const quill = quillRef.current.getEditor();
         const toolbar = quill.getModule('toolbar');
         
@@ -212,11 +230,11 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
     } catch (error) {
       console.error('Error setting up Quill toolbar:', error);
     }
-  }, [isEditing, quillKey]); // Added quillKey to dependencies
+  }, [isEditing, quillKey, isTransitioning]); // Added isTransitioning to dependencies
 
   // Focus the editor when entering edit mode with error handling
   useEffect(() => {
-    if (isEditing && quillRef.current) {
+    if (isEditing && !isTransitioning && quillRef.current) {
       try {
         setTimeout(() => {
           const quill = quillRef.current?.getEditor();
@@ -231,16 +249,29 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
         console.error('Error focusing Quill editor:', error);
       }
     }
-  }, [isEditing, quillKey]); // Added quillKey to dependencies
+  }, [isEditing, quillKey, isTransitioning]); // Added isTransitioning to dependencies
 
   return (
     <div 
       className={`
-        bg-white rounded-xl shadow-lg border-2 transition-all duration-200 cursor-pointer
+        bg-white rounded-xl shadow-lg border-2 transition-all duration-200 cursor-pointer relative
         ${isEditing ? 'min-w-[600px] max-w-[800px]' : 'min-w-[400px] max-w-[600px]'}
         ${selected ? 'border-indigo-400 shadow-xl ring-2 ring-indigo-200' : `${getTypeColor()} hover:shadow-xl`}
+        ${isTransitioning ? 'opacity-75' : ''}
       `}
     >
+      {/* Loading Overlay */}
+      {isTransitioning && (
+        <div className="absolute inset-0 bg-white bg-opacity-75 rounded-xl flex items-center justify-center z-10">
+          <div className="flex items-center gap-2 text-indigo-600">
+            <Loader2 size={20} className="animate-spin" />
+            <span className="text-sm font-medium">
+              {isEditing ? 'Saving...' : 'Loading editor...'}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Node Header */}
       <div className={`px-4 py-3 border-b rounded-t-xl ${getHeaderColor()}`}>
         <div className="flex items-center justify-between">
@@ -249,18 +280,18 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
             <span className="text-sm font-semibold text-gray-900 truncate">
               {data.title}
             </span>
-            {isEditing && (
+            {isEditing && !isTransitioning && (
               <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
                 Editing
               </span>
             )}
-            {!isEditing && data.type === 'text' && (
+            {!isEditing && data.type === 'text' && !isTransitioning && (
               <span className="text-xs text-gray-500">
                 Click to edit
               </span>
             )}
           </div>
-          {selected && (
+          {selected && !isTransitioning && (
             <div className="flex items-center gap-1 ml-2">
               {!isEditing ? (
                 <>
@@ -290,14 +321,16 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
                 <>
                   <button
                     onClick={handleSave}
-                    className="p-1.5 rounded-md text-green-500 hover:text-green-700 hover:bg-white/50 transition-colors"
+                    disabled={isTransitioning}
+                    className="p-1.5 rounded-md text-green-500 hover:text-green-700 hover:bg-white/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     title="Save changes"
                   >
                     <Save size={12} />
                   </button>
                   <button
                     onClick={handleCancel}
-                    className="p-1.5 rounded-md text-gray-500 hover:text-gray-700 hover:bg-white/50 transition-colors"
+                    disabled={isTransitioning}
+                    className="p-1.5 rounded-md text-gray-500 hover:text-gray-700 hover:bg-white/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     title="Cancel editing"
                   >
                     <X size={12} />
@@ -310,13 +343,13 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
       </div>
 
       {/* Node Content */}
-      <div className="p-4">
+      <div className={`p-4 ${isTransitioning ? 'pointer-events-none' : ''}`}>
         {data.type === 'text' && (
           <>
             {/* ReactQuill Editor - Only rendered when editing with key for clean remount */}
-            {isEditing && (
+            {isEditing && !isTransitioning && (
               <div className="space-y-4">
-                <div className="canvas-editor">
+                <div className={`canvas-editor ${isTransitioning ? 'opacity-50 pointer-events-none' : ''}`}>
                   <ReactQuill
                     key={quillKey} // Force remount with key
                     ref={quillRef}
@@ -341,6 +374,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
                     variant="outline"
                     onClick={handleCancel}
                     leftIcon={<X size={14} />}
+                    disabled={isTransitioning}
                   >
                     Cancel
                   </Button>
@@ -349,6 +383,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
                     onClick={handleSave}
                     leftIcon={<Save size={14} />}
                     className="bg-green-600 hover:bg-green-700"
+                    disabled={isTransitioning}
                   >
                     Save Changes
                   </Button>
@@ -357,7 +392,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
             )}
 
             {/* ReactMarkdown Preview - Only shown when not editing */}
-            {!isEditing && (
+            {!isEditing && !isTransitioning && (
               <div className="text-sm text-gray-700 leading-relaxed">
                 <div className="prose prose-sm max-w-none">
                   <ReactMarkdown>
@@ -400,7 +435,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
         )}
 
         {/* Metadata - Only show for non-text types or when not editing text */}
-        {(data.type !== 'text' || !isEditing) && (
+        {(data.type !== 'text' || (!isEditing && !isTransitioning)) && (
           <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
             <span className="text-xs text-gray-400">
               {data.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

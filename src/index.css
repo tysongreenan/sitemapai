@@ -249,10 +249,33 @@
 /* Disable node dragging when editing */
 .react-flow__node-contentNode.editing {
   cursor: default !important;
+  pointer-events: auto !important;
 }
 
 .react-flow__node-contentNode.editing .react-flow__handle {
   pointer-events: none;
+}
+
+/* Ensure the node itself can't be dragged during editing */
+.react-flow__node.selected .editing {
+  cursor: default !important;
+}
+
+/* Make sure the drag handle is disabled during editing */
+.react-flow__node-contentNode.editing {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.react-flow__node-contentNode.editing [contenteditable="true"],
+.react-flow__node-contentNode.editing [contenteditable="true"] * {
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
+  cursor: text !important;
 }
 
 /* Loading animations */

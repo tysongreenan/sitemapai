@@ -24,11 +24,28 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
   const [selectedText, setSelectedText] = useState('');
   const contentRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const nodeRef = useRef<HTMLDivElement>(null);
 
   // Update content when data changes
   useEffect(() => {
     setEditedContent(data.content || '');
   }, [data.content]);
+
+  // Set node as non-draggable when editing
+  useEffect(() => {
+    if (nodeRef.current) {
+      const nodeElement = nodeRef.current.closest('.react-flow__node');
+      if (nodeElement) {
+        if (isEditing) {
+          nodeElement.classList.add('nodrag');
+          (nodeElement as HTMLElement).style.cursor = 'default';
+        } else {
+          nodeElement.classList.remove('nodrag');
+          (nodeElement as HTMLElement).style.cursor = 'grab';
+        }
+      }
+    }
+  }, [isEditing]);
 
   // Handle text selection for toolbar
   useEffect(() => {
@@ -172,14 +189,30 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
     }
   };
 
+  // Prevent React Flow dragging when editing
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (isEditing) {
+      e.stopPropagation();
+    }
+  }, [isEditing]);
+
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    if (isEditing) {
+      e.stopPropagation();
+    }
+  }, [isEditing]);
+
   return (
     <div 
+      ref={nodeRef}
       className={`
         bg-white rounded-xl shadow-lg border-2 transition-all duration-200 relative
         min-w-[400px] max-w-[600px]
         ${selected ? 'border-indigo-400 shadow-xl ring-2 ring-indigo-200' : `${getTypeColor()} hover:shadow-xl`}
-        ${isEditing ? 'editing' : ''}
+        ${isEditing ? 'editing nodrag' : ''}
       `}
+      onMouseDown={handleMouseDown}
+      onPointerDown={handlePointerDown}
     >
       {/* Floating Toolbar */}
       {showToolbar && isEditing && (
@@ -328,6 +361,11 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
                     setEditedContent(contentRef.current.innerHTML);
                   }
                 }}
+                onMouseDown={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+                onDoubleClick={(e) => e.stopPropagation()}
+                suppressContentEditableWarning={true}
               />
             ) : (
               <div 

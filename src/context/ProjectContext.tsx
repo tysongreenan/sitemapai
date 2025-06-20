@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, checkSupabaseConnection } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { Edge, Node } from 'reactflow';
 import { validateProjectTitle, validateDescription, validateSitemapData } from '../lib/validation';
@@ -28,6 +28,7 @@ type ProjectContextType = {
   loading: boolean;
   error: string | null;
   saveStatus: SaveStatus;
+  connectionStatus: 'connected' | 'disconnected' | 'checking';
   loadProjects: () => Promise<void>;
   createProject: (title: string, description?: string) => Promise<Project | null>;
   updateProject: (id: string, data: Partial<Omit<Project, 'id' | 'created_at'>>) => Promise<boolean>;
@@ -36,6 +37,7 @@ type ProjectContextType = {
   updateCurrentProjectLocally: (changes: Partial<Omit<Project, 'id' | 'created_at'>>) => void;
   setSaveStatus: (status: SaveStatus) => void;
   clearError: () => void;
+  retryConnection: () => Promise<void>;
 };
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
@@ -47,6 +49,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking');
   
   // Refs to prevent unnecessary re-renders and race conditions
   const loadingRef = useRef(false);
@@ -54,6 +57,40 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const lastLoadRef = useRef<number>(0);
 
   const clearError = useCallback(() => setError(null), []);
+
+  // Check connection status
+  const retryConnection = useCallback(async () => {
+    setConnectionStatus('checking');
+    const isConnected = await checkSupabaseConnection();
+    setConnectionStatus(isConnected ? 'connected' : 'disconnected');
+    
+    if (isConnected) {
+      toast.success('Connection restored');
+      // Retry loading projects if we have a user
+      if (user) {
+        loadProjects();
+      }
+    } else {
+      toast.error('Connection failed. Please check your internet connection and Supabase configuration.');
+    }
+  }, [user]);
+
+  // Enhanced error handling for network issues
+  const handleNetworkError = useCallback((error: any, operation: string) => {
+    console.error(`Network error in ${operation}:`, error);
+    
+    if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+      setConnectionStatus('disconnected');
+      setError('Connection lost. Please check your internet connection.');
+      toast.error('Connection lost. Click retry to reconnect.', {
+        autoClose: false,
+        closeOnClick: false,
+        onClick: retryConnection
+      });
+    } else {
+      AppErrorHandler.handle(error, { operation, userId: user?.id });
+    }
+  }, [user?.id, retryConnection]);
 
   const loadProjects = useCallback(async () => {
     if (!user || loadingRef.current) return;
@@ -78,17 +115,24 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       
       projectsRef.current = data as Project[];
       setProjects(data as Project[]);
+      setConnectionStatus('connected');
     } catch (error) {
-      AppErrorHandler.handle(error, { operation: 'loadProjects', userId: user.id });
+      handleNetworkError(error, 'loadProjects');
     } finally {
       loadingRef.current = false;
       setLoading(false);
     }
-  }, [user]);
+  }, [user, handleNetworkError]);
 
   const createProject = async (title: string, description?: string): Promise<Project | null> => {
     if (!user) {
       AppErrorHandler.handle({ type: 'auth', message: 'You must be logged in to create a project' });
+      return null;
+    }
+
+    // Check connection first
+    if (connectionStatus === 'disconnected') {
+      toast.error('No connection. Please retry to reconnect.');
       return null;
     }
 
@@ -125,13 +169,26 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       
       const createdProject = data as Project;
       setProjects((prev) => [createdProject, ...prev]);
+      setConnectionStatus('connected');
       return createdProject;
-    }, { operation: 'createProject', title, description });
+    }, { 
+      operation: 'createProject', 
+      title, 
+      description,
+      onError: (error) => handleNetworkError(error, 'createProject')
+    });
 
     return result;
   };
 
   const updateProject = async (id: string, data: Partial<Omit<Project, 'id' | 'created_at'>>): Promise<boolean> => {
+    // Check connection first
+    if (connectionStatus === 'disconnected') {
+      console.warn('Skipping update - no connection');
+      setSaveStatus('error');
+      return false;
+    }
+
     // Validate fields being updated
     if (data.title !== undefined) {
       const titleValidation = validateProjectTitle(data.title);
@@ -186,6 +243,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       }
 
       setSaveStatus('saved');
+      setConnectionStatus('connected');
       
       // Auto-clear saved status after 2 seconds
       setTimeout(() => {
@@ -193,7 +251,14 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       }, 2000);
 
       return true;
-    }, { operation: 'updateProject', projectId: id });
+    }, { 
+      operation: 'updateProject', 
+      projectId: id,
+      onError: (error) => {
+        handleNetworkError(error, 'updateProject');
+        setSaveStatus('error');
+      }
+    });
 
     if (!success) {
       setSaveStatus('error');
@@ -204,6 +269,12 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteProject = async (id: string) => {
+    // Check connection first
+    if (connectionStatus === 'disconnected') {
+      toast.error('No connection. Please retry to reconnect.');
+      return;
+    }
+
     await handleAsyncError(async () => {
       const { error } = await supabase.from('projects').delete().eq('id', id);
 
@@ -215,8 +286,13 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         setCurrentProject(null);
       }
 
+      setConnectionStatus('connected');
       toast.success('Project deleted successfully');
-    }, { operation: 'deleteProject', projectId: id });
+    }, { 
+      operation: 'deleteProject', 
+      projectId: id,
+      onError: (error) => handleNetworkError(error, 'deleteProject')
+    });
   };
 
   // Update current project locally without saving
@@ -233,8 +309,14 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     } else {
       setProjects([]);
       setCurrentProject(null);
+      setConnectionStatus('checking');
     }
   }, [user, loadProjects]);
+
+  // Initial connection check
+  useEffect(() => {
+    retryConnection();
+  }, [retryConnection]);
 
   const value = {
     projects,
@@ -242,6 +324,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     loading,
     error,
     saveStatus,
+    connectionStatus,
     loadProjects,
     createProject,
     updateProject,
@@ -250,6 +333,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     updateCurrentProjectLocally,
     setSaveStatus,
     clearError,
+    retryConnection,
   };
 
   return <ProjectContext.Provider value={value}>{children}</ProjectContext.Provider>;

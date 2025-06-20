@@ -16,7 +16,7 @@ import ReactFlow, {
   ReactFlowInstance
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Plus, Download, Share, Maximize2, Grid, Layers, ZoomIn, ZoomOut, Link2, FileDown } from 'lucide-react';
+import { Plus, Download, Share, Maximize2, Grid, Layers, ZoomIn, ZoomOut, Link2, FileDown, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { Button } from '../ui/Button';
 import ContentNode, { ContentNodeData } from './nodes/ContentNode';
 import { ContentDisplayModal } from '../modals/ContentDisplayModal';
@@ -56,7 +56,7 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem }: ProjectCa
   const [modalContent, setModalContent] = useState<{ title: string; content: string } | null>(null);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   
-  const { currentProject, updateProject } = useProject();
+  const { currentProject, updateProject, connectionStatus, retryConnection } = useProject();
 
   // Load canvas data from project when component mounts
   useEffect(() => {
@@ -81,11 +81,17 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem }: ProjectCa
     }
   }, [currentProject, setNodes, setEdges]);
 
-  // Debounced save function to persist canvas changes
+  // Enhanced debounced save function with connection checking
   const debouncedSave = useCallback(
     debounce(
       async (nodes: Node[], edges: Edge[]) => {
         if (!currentProject) return;
+        
+        // Skip saving if disconnected
+        if (connectionStatus === 'disconnected') {
+          console.warn('Skipping save - no connection');
+          return;
+        }
         
         try {
           const sitemapData = {
@@ -103,10 +109,18 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem }: ProjectCa
             })),
           };
 
-          await updateProject(currentProject.id, { sitemap_data: sitemapData });
+          const success = await updateProject(currentProject.id, { sitemap_data: sitemapData });
+          
+          if (!success && connectionStatus === 'disconnected') {
+            console.warn('Save failed due to connection issues');
+          }
         } catch (error) {
           console.error('Error saving canvas:', error);
-          toast.error('Failed to save canvas changes');
+          if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+            console.warn('Network error during save, will retry when connection is restored');
+          } else {
+            toast.error('Failed to save canvas changes');
+          }
         }
       },
       1000,
@@ -116,7 +130,7 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem }: ProjectCa
         context: 'ProjectCanvas.save'
       }
     ),
-    [currentProject, updateProject]
+    [currentProject, updateProject, connectionStatus]
   );
 
   // Save canvas changes when nodes or edges change
@@ -300,6 +314,33 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem }: ProjectCa
     }
   }));
 
+  // Connection status indicator
+  const getConnectionIcon = () => {
+    switch (connectionStatus) {
+      case 'connected':
+        return <Wifi size={16} className="text-green-600" />;
+      case 'disconnected':
+        return <WifiOff size={16} className="text-red-600" />;
+      case 'checking':
+        return <RefreshCw size={16} className="text-yellow-600 animate-spin" />;
+      default:
+        return <WifiOff size={16} className="text-gray-400" />;
+    }
+  };
+
+  const getConnectionText = () => {
+    switch (connectionStatus) {
+      case 'connected':
+        return 'Connected';
+      case 'disconnected':
+        return 'Disconnected';
+      case 'checking':
+        return 'Connecting...';
+      default:
+        return 'Unknown';
+    }
+  };
+
   return (
     <>
       <div className="flex-1 flex flex-col bg-gray-50 relative" ref={reactFlowWrapper}>
@@ -397,8 +438,28 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem }: ProjectCa
             </div>
           </Panel>
 
-          {/* Action Buttons */}
+          {/* Connection Status and Action Buttons */}
           <Panel position="top-right" className="flex items-center gap-2">
+            {/* Connection Status */}
+            <div className="bg-white rounded-lg border border-gray-200 shadow-lg p-2 flex items-center gap-2">
+              <div className="flex items-center gap-2 px-2">
+                {getConnectionIcon()}
+                <span className="text-sm font-medium">{getConnectionText()}</span>
+                {connectionStatus === 'disconnected' && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={retryConnection}
+                    className="p-1"
+                    title="Retry connection"
+                  >
+                    <RefreshCw size={14} />
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
             <div className="bg-white rounded-lg border border-gray-200 shadow-lg p-2 flex items-center gap-2">
               <Button 
                 variant="outline" 
@@ -406,6 +467,7 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem }: ProjectCa
                 leftIcon={<Link2 size={16} />}
                 onClick={handleShare}
                 title="Copy shareable link"
+                disabled={connectionStatus === 'disconnected'}
               >
                 Share
               </Button>
@@ -446,6 +508,29 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem }: ProjectCa
                     onClick={() => addItem('image', 'AI-generated marketing image concept featuring modern design elements, vibrant colors, and compelling visual storytelling that captures audience attention.', 'Marketing Visual')}
                   >
                     Add Sample Image
+                  </Button>
+                </div>
+              </div>
+            </Panel>
+          )}
+
+          {/* Connection Warning Overlay */}
+          {connectionStatus === 'disconnected' && (
+            <Panel position="bottom-center" className="pointer-events-auto">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 shadow-lg max-w-md">
+                <div className="flex items-center gap-3">
+                  <WifiOff size={20} className="text-red-600 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-red-800">Connection Lost</p>
+                    <p className="text-xs text-red-600">Changes may not be saved automatically</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={retryConnection}
+                    className="border-red-300 text-red-700 hover:bg-red-100"
+                  >
+                    Retry
                   </Button>
                 </div>
               </div>

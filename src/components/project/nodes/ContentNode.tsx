@@ -263,49 +263,50 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
 
       {/* Node Content */}
       <div className="p-4">
-        {isEditing && data.type === 'text' ? (
-          <div className="space-y-4">
-            <div className="canvas-editor">
-              <ReactQuill
-                key={`quill-${id}-${isEditing ? 'editing' : 'display'}`}
-                ref={quillRef}
-                value={editedContent || ''}
-                onChange={(value) => setEditedContent(value || '')}
-                modules={quillModules}
-                formats={quillFormats}
-                placeholder="Edit your content..."
-                theme="snow"
-              />
-            </div>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <div className="flex items-center gap-2 text-sm text-blue-800">
-                <Send size={14} />
-                <span className="font-medium">Pro tip:</span>
-                <span>Select text and click the send button (📤) in the toolbar to ask AI to rewrite it</span>
+        {data.type === 'text' && (
+          <>
+            {/* ReactQuill Editor - Always mounted, visibility controlled by CSS */}
+            <div className={`space-y-4 ${isEditing ? 'block' : 'hidden'}`}>
+              <div className="canvas-editor">
+                <ReactQuill
+                  ref={quillRef}
+                  value={editedContent || ''}
+                  onChange={(value) => setEditedContent(value || '')}
+                  modules={quillModules}
+                  formats={quillFormats}
+                  placeholder="Edit your content..."
+                  theme="snow"
+                />
+              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="flex items-center gap-2 text-sm text-blue-800">
+                  <Send size={14} />
+                  <span className="font-medium">Pro tip:</span>
+                  <span>Select text and click the send button (📤) in the toolbar to ask AI to rewrite it</span>
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleCancel}
+                  leftIcon={<X size={14} />}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleSave}
+                  leftIcon={<Save size={14} />}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  Save Changes
+                </Button>
               </div>
             </div>
-            <div className="flex gap-2 justify-end">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleCancel}
-                leftIcon={<X size={14} />}
-              >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleSave}
-                leftIcon={<Save size={14} />}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                Save Changes
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <>
-            {data.type === 'text' && (
+
+            {/* ReactMarkdown Preview - Only shown when not editing */}
+            {!isEditing && (
               <div className="text-sm text-gray-700 leading-relaxed">
                 <div className="prose prose-sm max-w-none">
                   <ReactMarkdown>
@@ -314,47 +315,49 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
                 </div>
               </div>
             )}
-            
-            {data.type === 'image' && (
-              <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
-                <div className="text-center">
-                  <Image size={32} className="text-gray-400 mx-auto mb-2" />
-                  <p className="text-xs text-gray-500">AI Generated Image</p>
-                  <p className="text-xs text-gray-400 mt-1 truncate max-w-[200px]">{data.title}</p>
-                </div>
-              </div>
-            )}
-            
-            {data.type === 'chart' && (
-              <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
-                <div className="text-center">
-                  <BarChart3 size={32} className="text-gray-400 mx-auto mb-2" />
-                  <p className="text-xs text-gray-500">Data Visualization</p>
-                  <p className="text-xs text-gray-400 mt-1 truncate max-w-[200px]">{data.title}</p>
-                </div>
-              </div>
-            )}
-            
-            {data.type === 'video' && (
-              <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
-                <div className="text-center">
-                  <Video size={32} className="text-gray-400 mx-auto mb-2" />
-                  <p className="text-xs text-gray-500">Video Content</p>
-                  <p className="text-xs text-gray-400 mt-1 truncate max-w-[200px]">{data.title}</p>
-                </div>
-              </div>
-            )}
-
-            {/* Metadata */}
-            <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
-              <span className="text-xs text-gray-400">
-                {data.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </span>
-              <span className="text-xs text-gray-500">
-                {(data.content || '').length} characters
-              </span>
-            </div>
           </>
+        )}
+        
+        {data.type === 'image' && (
+          <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
+            <div className="text-center">
+              <Image size={32} className="text-gray-400 mx-auto mb-2" />
+              <p className="text-xs text-gray-500">AI Generated Image</p>
+              <p className="text-xs text-gray-400 mt-1 truncate max-w-[200px]">{data.title}</p>
+            </div>
+          </div>
+        )}
+        
+        {data.type === 'chart' && (
+          <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
+            <div className="text-center">
+              <BarChart3 size={32} className="text-gray-400 mx-auto mb-2" />
+              <p className="text-xs text-gray-500">Data Visualization</p>
+              <p className="text-xs text-gray-400 mt-1 truncate max-w-[200px]">{data.title}</p>
+            </div>
+          </div>
+        )}
+        
+        {data.type === 'video' && (
+          <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
+            <div className="text-center">
+              <Video size={32} className="text-gray-400 mx-auto mb-2" />
+              <p className="text-xs text-gray-500">Video Content</p>
+              <p className="text-xs text-gray-400 mt-1 truncate max-w-[200px]">{data.title}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Metadata - Only show for non-text types or when not editing text */}
+        {(data.type !== 'text' || !isEditing) && (
+          <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+            <span className="text-xs text-gray-400">
+              {data.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+            <span className="text-xs text-gray-500">
+              {(data.content || '').length} characters
+            </span>
+          </div>
         )}
       </div>
 

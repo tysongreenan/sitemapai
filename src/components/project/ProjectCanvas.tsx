@@ -16,10 +16,14 @@ import ReactFlow, {
   ReactFlowInstance
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Plus, Download, Share, Maximize2, Grid, Layers, ZoomIn, ZoomOut } from 'lucide-react';
+import { Plus, Download, Share, Maximize2, Grid, Layers, ZoomIn, ZoomOut, Link2, FileDown } from 'lucide-react';
 import { Button } from '../ui/Button';
 import ContentNode, { ContentNodeData } from './nodes/ContentNode';
+import { ContentDisplayModal } from '../modals/ContentDisplayModal';
+import { useProject } from '../../context/ProjectContext';
+import { debounce } from '../../lib/utils';
 import { nanoid } from 'nanoid';
+import { toast } from 'react-toastify';
 
 // Define node types
 const nodeTypes = {
@@ -49,7 +53,78 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem }: ProjectCa
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
   const [showMiniMap, setShowMiniMap] = useState(true);
+  const [modalContent, setModalContent] = useState<{ title: string; content: string } | null>(null);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
+  
+  const { currentProject, updateProject } = useProject();
+
+  // Load canvas data from project when component mounts
+  useEffect(() => {
+    if (currentProject?.sitemap_data) {
+      const { nodes: savedNodes = [], edges: savedEdges = [] } = currentProject.sitemap_data;
+      
+      // Convert saved nodes to React Flow format
+      const flowNodes = savedNodes.map((node: any) => ({
+        id: node.id,
+        type: 'contentNode',
+        position: { x: node.position?.x || 0, y: node.position?.y || 0 },
+        data: {
+          title: node.data?.title || 'Untitled',
+          content: node.data?.content || '',
+          type: node.data?.type || 'text',
+          createdAt: node.data?.createdAt ? new Date(node.data.createdAt) : new Date(),
+        },
+      }));
+      
+      setNodes(flowNodes);
+      setEdges(savedEdges);
+    }
+  }, [currentProject, setNodes, setEdges]);
+
+  // Debounced save function to persist canvas changes
+  const debouncedSave = useCallback(
+    debounce(
+      async (nodes: Node[], edges: Edge[]) => {
+        if (!currentProject) return;
+        
+        try {
+          const sitemapData = {
+            nodes: nodes.map(node => ({
+              id: node.id,
+              type: node.type,
+              position: node.position,
+              data: node.data,
+            })),
+            edges: edges.map(edge => ({
+              id: edge.id,
+              source: edge.source,
+              target: edge.target,
+              type: edge.type,
+            })),
+          };
+
+          await updateProject(currentProject.id, { sitemap_data: sitemapData });
+        } catch (error) {
+          console.error('Error saving canvas:', error);
+          toast.error('Failed to save canvas changes');
+        }
+      },
+      1000,
+      {
+        maxWait: 5000,
+        onError: (error) => console.error('Save error:', error),
+        context: 'ProjectCanvas.save'
+      }
+    ),
+    [currentProject, updateProject]
+  );
+
+  // Save canvas changes when nodes or edges change
+  useEffect(() => {
+    if (nodes.length > 0 || edges.length > 0) {
+      debouncedSave(nodes, edges);
+    }
+  }, [nodes, edges, debouncedSave]);
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -74,6 +149,12 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem }: ProjectCa
         content,
         type,
         createdAt: new Date(),
+        onViewFull: (title: string, content: string) => {
+          setModalContent({ title, content });
+        },
+        onDelete: (nodeId: string) => {
+          setNodes((nds) => nds.filter(n => n.id !== nodeId));
+        },
       },
     };
     
@@ -93,6 +174,7 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem }: ProjectCa
     };
     
     onItemSelect?.(canvasItem);
+    toast.success('Content added to canvas');
   }, [setNodes, onItemSelect]);
 
   // Handle node selection
@@ -136,6 +218,61 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem }: ProjectCa
     }
   }, [reactFlowInstance]);
 
+  // Share functionality
+  const handleShare = useCallback(() => {
+    const shareUrl = `${window.location.origin}/editor/${projectId}`;
+    navigator.clipboard.writeText(shareUrl);
+    toast.success('Project link copied to clipboard!');
+  }, [projectId]);
+
+  // Export functionality
+  const handleExport = useCallback(() => {
+    if (!reactFlowInstance) return;
+
+    // Export as JSON
+    const exportData = {
+      project: {
+        id: projectId,
+        title: currentProject?.title,
+        description: currentProject?.description,
+        created_at: currentProject?.created_at,
+      },
+      canvas: {
+        nodes: nodes.map(node => ({
+          id: node.id,
+          type: node.type,
+          position: node.position,
+          data: node.data,
+        })),
+        edges: edges.map(edge => ({
+          id: edge.id,
+          source: edge.source,
+          target: edge.target,
+        })),
+      },
+      content: nodes.map(node => ({
+        title: node.data.title,
+        type: node.data.type,
+        content: node.data.content,
+        createdAt: node.data.createdAt,
+      })),
+    };
+
+    const dataStr = JSON.stringify(exportData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${currentProject?.title || 'project'}-export.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    toast.success('Project exported successfully!');
+  }, [reactFlowInstance, projectId, currentProject, nodes, edges]);
+
   // Expose addItem function globally
   useEffect(() => {
     (window as any).addCanvasItem = addItem;
@@ -144,155 +281,187 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem }: ProjectCa
     };
   }, [addItem]);
 
-  // Update node selection state
+  // Update node selection state and pass callbacks
   const updatedNodes = nodes.map(node => ({
     ...node,
     data: {
       ...node.data,
-      selected: selectedItem?.id === node.id
+      selected: selectedItem?.id === node.id,
+      onViewFull: (title: string, content: string) => {
+        setModalContent({ title, content });
+      },
+      onDelete: (nodeId: string) => {
+        setNodes((nds) => nds.filter(n => n.id !== nodeId));
+        if (selectedItem?.id === nodeId) {
+          onItemSelect?.(null);
+        }
+        toast.success('Content removed from canvas');
+      },
     }
   }));
 
   return (
-    <div className="flex-1 flex flex-col bg-gray-50 relative" ref={reactFlowWrapper}>
-      <ReactFlow
-        nodes={updatedNodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        onInit={onInit}
-        onNodeClick={onNodeClick}
-        onPaneClick={onPaneClick}
-        nodeTypes={nodeTypes}
-        fitView
-        attributionPosition="bottom-left"
-        className="bg-gray-50"
-        defaultViewport={{ x: 0, y: 0, zoom: 1 }}
-        minZoom={0.1}
-        maxZoom={2}
-        snapToGrid={true}
-        snapGrid={[20, 20]}
-      >
-        <Background 
-          variant={BackgroundVariant.Dots} 
-          gap={20} 
-          size={1} 
-          color="#e5e7eb"
-        />
-        
-        <Controls 
-          position="bottom-right"
-          className="!bg-white !border !border-gray-200 !rounded-lg !shadow-lg"
-        />
-        
-        {showMiniMap && (
-          <MiniMap 
-            position="bottom-left"
-            className="!bg-white !border !border-gray-200 !rounded-lg !shadow-lg"
-            nodeColor={(node) => {
-              switch (node.data?.type) {
-                case 'text': return '#3b82f6';
-                case 'image': return '#10b981';
-                case 'chart': return '#8b5cf6';
-                case 'video': return '#f59e0b';
-                default: return '#6b7280';
-              }
-            }}
+    <>
+      <div className="flex-1 flex flex-col bg-gray-50 relative" ref={reactFlowWrapper}>
+        <ReactFlow
+          nodes={updatedNodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onInit={onInit}
+          onNodeClick={onNodeClick}
+          onPaneClick={onPaneClick}
+          nodeTypes={nodeTypes}
+          fitView
+          attributionPosition="bottom-left"
+          className="bg-gray-50"
+          defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+          minZoom={0.1}
+          maxZoom={2}
+          snapToGrid={true}
+          snapGrid={[20, 20]}
+        >
+          <Background 
+            variant={BackgroundVariant.Dots} 
+            gap={20} 
+            size={1} 
+            color="#e5e7eb"
           />
-        )}
+          
+          <Controls 
+            position="bottom-right"
+            className="!bg-white !border !border-gray-200 !rounded-lg !shadow-lg"
+          />
+          
+          {showMiniMap && (
+            <MiniMap 
+              position="bottom-left"
+              className="!bg-white !border !border-gray-200 !rounded-lg !shadow-lg"
+              nodeColor={(node) => {
+                switch (node.data?.type) {
+                  case 'text': return '#3b82f6';
+                  case 'image': return '#10b981';
+                  case 'chart': return '#8b5cf6';
+                  case 'video': return '#f59e0b';
+                  default: return '#6b7280';
+                }
+              }}
+            />
+          )}
 
-        {/* Custom Toolbar */}
-        <Panel position="top-left" className="flex items-center gap-2">
-          <div className="bg-white rounded-lg border border-gray-200 shadow-lg p-2 flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={zoomOut}
-              className="p-2"
-              title="Zoom out"
-            >
-              <ZoomOut size={16} />
-            </Button>
-            
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={zoomIn}
-              className="p-2"
-              title="Zoom in"
-            >
-              <ZoomIn size={16} />
-            </Button>
-            
-            <div className="w-px h-6 bg-gray-300" />
-            
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={fitView}
-              className="p-2"
-              title="Fit to view"
-            >
-              <Maximize2 size={16} />
-            </Button>
-            
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowMiniMap(!showMiniMap)}
-              className={`p-2 ${showMiniMap ? 'bg-indigo-100 text-indigo-600' : ''}`}
-              title="Toggle minimap"
-            >
-              <Layers size={16} />
-            </Button>
-          </div>
-        </Panel>
-
-        {/* Action Buttons */}
-        <Panel position="top-right" className="flex items-center gap-2">
-          <div className="bg-white rounded-lg border border-gray-200 shadow-lg p-2 flex items-center gap-2">
-            <Button variant="outline" size="sm" leftIcon={<Share size={16} />}>
-              Share
-            </Button>
-            <Button variant="outline" size="sm" leftIcon={<Download size={16} />}>
-              Export
-            </Button>
-          </div>
-        </Panel>
-
-        {/* Empty State */}
-        {nodes.length === 0 && (
-          <Panel position="top-center" className="pointer-events-none">
-            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8 text-center max-w-md">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Plus size={24} className="text-gray-400" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Your canvas is empty</h3>
-              <p className="text-gray-600 mb-4">
-                Start chatting with AI to generate content that will appear here
-              </p>
-              <div className="flex flex-wrap gap-2 justify-center pointer-events-auto">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => addItem('text', 'This is a sample blog post about AI marketing trends and how they are shaping the future of digital marketing...', 'Sample Blog Post')}
-                >
-                  Add Sample Text
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => addItem('image', 'AI-generated marketing image concept', 'Marketing Visual')}
-                >
-                  Add Sample Image
-                </Button>
-              </div>
+          {/* Custom Toolbar */}
+          <Panel position="top-left" className="flex items-center gap-2">
+            <div className="bg-white rounded-lg border border-gray-200 shadow-lg p-2 flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={zoomOut}
+                className="p-2"
+                title="Zoom out"
+              >
+                <ZoomOut size={16} />
+              </Button>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={zoomIn}
+                className="p-2"
+                title="Zoom in"
+              >
+                <ZoomIn size={16} />
+              </Button>
+              
+              <div className="w-px h-6 bg-gray-300" />
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={fitView}
+                className="p-2"
+                title="Fit to view"
+              >
+                <Maximize2 size={16} />
+              </Button>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowMiniMap(!showMiniMap)}
+                className={`p-2 ${showMiniMap ? 'bg-indigo-100 text-indigo-600' : ''}`}
+                title="Toggle minimap"
+              >
+                <Layers size={16} />
+              </Button>
             </div>
           </Panel>
-        )}
-      </ReactFlow>
-    </div>
+
+          {/* Action Buttons */}
+          <Panel position="top-right" className="flex items-center gap-2">
+            <div className="bg-white rounded-lg border border-gray-200 shadow-lg p-2 flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                leftIcon={<Link2 size={16} />}
+                onClick={handleShare}
+                title="Copy shareable link"
+              >
+                Share
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                leftIcon={<FileDown size={16} />}
+                onClick={handleExport}
+                title="Export project data"
+              >
+                Export
+              </Button>
+            </div>
+          </Panel>
+
+          {/* Empty State */}
+          {nodes.length === 0 && (
+            <Panel position="top-center" className="pointer-events-none">
+              <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8 text-center max-w-md">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Plus size={24} className="text-gray-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Your canvas is empty</h3>
+                <p className="text-gray-600 mb-4">
+                  Start chatting with AI to generate content that will appear here
+                </p>
+                <div className="flex flex-wrap gap-2 justify-center pointer-events-auto">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => addItem('text', 'This is a sample blog post about AI marketing trends and how they are shaping the future of digital marketing. It includes insights on personalization, automation, and data-driven strategies that modern marketers are using to engage their audiences more effectively.', 'Sample Blog Post')}
+                  >
+                    Add Sample Text
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => addItem('image', 'AI-generated marketing image concept featuring modern design elements, vibrant colors, and compelling visual storytelling that captures audience attention.', 'Marketing Visual')}
+                  >
+                    Add Sample Image
+                  </Button>
+                </div>
+              </div>
+            </Panel>
+          )}
+        </ReactFlow>
+      </div>
+
+      {/* Content Display Modal */}
+      <ContentDisplayModal
+        isOpen={!!modalContent}
+        onClose={() => setModalContent(null)}
+        title={modalContent?.title || ''}
+        content={modalContent?.content || ''}
+      />
+    </>
   );
 };
 

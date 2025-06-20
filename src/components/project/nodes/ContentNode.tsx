@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { FileText, Image, BarChart3, Video, Copy, Trash2, Edit3, ExternalLink } from 'lucide-react';
+import { toast } from 'react-toastify';
 
 export interface ContentNodeData {
   title: string;
@@ -8,9 +9,11 @@ export interface ContentNodeData {
   type: 'text' | 'image' | 'chart' | 'video';
   createdAt: Date;
   selected?: boolean;
+  onViewFull?: (title: string, content: string) => void;
+  onDelete?: (nodeId: string) => void;
 }
 
-const ContentNode = memo(({ data, selected }: NodeProps<ContentNodeData>) => {
+const ContentNode = memo(({ data, selected, id }: NodeProps<ContentNodeData>) => {
   const getIcon = () => {
     switch (data.type) {
       case 'text': return <FileText size={16} className="text-blue-600" />;
@@ -41,8 +44,22 @@ const ContentNode = memo(({ data, selected }: NodeProps<ContentNodeData>) => {
     }
   };
 
-  const copyToClipboard = () => {
+  const copyToClipboard = (e: React.MouseEvent) => {
+    e.stopPropagation();
     navigator.clipboard.writeText(data.content);
+    toast.success('Content copied to clipboard!');
+  };
+
+  const handleViewFull = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    data.onViewFull?.(data.title, data.content);
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (window.confirm('Are you sure you want to delete this content?')) {
+      data.onDelete?.(id);
+    }
   };
 
   return (
@@ -70,11 +87,16 @@ const ContentNode = memo(({ data, selected }: NodeProps<ContentNodeData>) => {
               </button>
               <button
                 className="p-1.5 rounded-md text-gray-500 hover:text-gray-700 hover:bg-white/50 transition-colors"
-                title="Edit"
+                title="Edit (Coming soon)"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toast.info('Edit functionality coming soon!');
+                }}
               >
                 <Edit3 size={12} />
               </button>
               <button
+                onClick={handleDelete}
                 className="p-1.5 rounded-md text-red-500 hover:text-red-700 hover:bg-white/50 transition-colors"
                 title="Delete"
               >
@@ -100,6 +122,7 @@ const ContentNode = memo(({ data, selected }: NodeProps<ContentNodeData>) => {
             <div className="text-center">
               <Image size={32} className="text-gray-400 mx-auto mb-2" />
               <p className="text-xs text-gray-500">AI Generated Image</p>
+              <p className="text-xs text-gray-400 mt-1 truncate max-w-[200px]">{data.title}</p>
             </div>
           </div>
         )}
@@ -109,6 +132,7 @@ const ContentNode = memo(({ data, selected }: NodeProps<ContentNodeData>) => {
             <div className="text-center">
               <BarChart3 size={32} className="text-gray-400 mx-auto mb-2" />
               <p className="text-xs text-gray-500">Data Visualization</p>
+              <p className="text-xs text-gray-400 mt-1 truncate max-w-[200px]">{data.title}</p>
             </div>
           </div>
         )}
@@ -118,6 +142,7 @@ const ContentNode = memo(({ data, selected }: NodeProps<ContentNodeData>) => {
             <div className="text-center">
               <Video size={32} className="text-gray-400 mx-auto mb-2" />
               <p className="text-xs text-gray-500">Video Content</p>
+              <p className="text-xs text-gray-400 mt-1 truncate max-w-[200px]">{data.title}</p>
             </div>
           </div>
         )}
@@ -127,7 +152,10 @@ const ContentNode = memo(({ data, selected }: NodeProps<ContentNodeData>) => {
           <span className="text-xs text-gray-400">
             {data.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </span>
-          <button className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition-colors">
+          <button 
+            onClick={handleViewFull}
+            className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition-colors hover:bg-indigo-50 px-2 py-1 rounded"
+          >
             <ExternalLink size={10} />
             View Full
           </button>

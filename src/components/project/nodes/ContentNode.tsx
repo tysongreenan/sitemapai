@@ -1,8 +1,7 @@
 import React, { memo, useState, useRef, useImperativeHandle, forwardRef, useEffect, useCallback } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
-import { FileText, Image, BarChart3, Video, Copy, Trash2, Edit3, Save, X, Send, Loader2 } from 'lucide-react';
+import { FileText, Image, BarChart3, Video, Copy, Trash2, Edit3, Save, X, Send, Bold, Italic, Underline, List, Link2 } from 'lucide-react';
 import { toast } from 'react-toastify';
-import ReactQuill from 'react-quill';
 import ReactMarkdown from 'react-markdown';
 import { Button } from '../../ui/Button';
 
@@ -19,37 +18,63 @@ export interface ContentNodeData {
 
 const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, selected, id }, ref) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [editedContent, setEditedContent] = useState(String(data.content || ''));
-  const [quillKey, setQuillKey] = useState(0); // Force remount when switching modes
-  const [isTransitioning, setIsTransitioning] = useState(false); // Loading state for mode transitions
-  const quillRef = useRef<ReactQuill>(null);
+  const [editedContent, setEditedContent] = useState(data.content || '');
+  const [showToolbar, setShowToolbar] = useState(false);
+  const [toolbarPosition, setToolbarPosition] = useState({ top: 0, left: 0 });
+  const [selectedText, setSelectedText] = useState('');
+  const contentRef = useRef<HTMLDivElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
 
-  // Update editedContent when data.content changes, ensuring it's always a string
+  // Update content when data changes
   useEffect(() => {
-    setEditedContent(String(data.content || ''));
+    setEditedContent(data.content || '');
   }, [data.content]);
 
-  // Auto-enter editing mode when text node is selected (removed data.content and isEditing from deps)
+  // Handle text selection for toolbar
   useEffect(() => {
-    if (selected && data.type === 'text' && !isEditing) {
-      setEditedContent(String(data.content || ''));
-      setQuillKey(prev => prev + 1); // Force Quill remount
-      setIsEditing(true);
-    } else if (!selected && isEditing) {
-      // Auto-exit editing mode when node is deselected
-      handleCancel();
-    }
-  }, [selected, data.type]); // Removed data.content and isEditing from dependencies
+    const handleSelection = () => {
+      if (!isEditing || !contentRef.current) return;
 
-  useImperativeHandle(ref, () => ({
-    startEditing: () => {
-      if (data.type === 'text') {
-        setEditedContent(String(data.content || ''));
-        setQuillKey(prev => prev + 1); // Force Quill remount
-        setIsEditing(true);
+      const selection = window.getSelection();
+      const text = selection?.toString();
+
+      if (text && text.length > 0) {
+        setSelectedText(text);
+        
+        // Get selection coordinates
+        const range = selection?.getRangeAt(0);
+        const rect = range?.getBoundingClientRect();
+        
+        if (rect && contentRef.current) {
+          const containerRect = contentRef.current.getBoundingClientRect();
+          setToolbarPosition({
+            top: rect.top - containerRect.top - 40,
+            left: rect.left - containerRect.left + (rect.width / 2) - 100
+          });
+          setShowToolbar(true);
+        }
+      } else {
+        setShowToolbar(false);
       }
+    };
+
+    document.addEventListener('selectionchange', handleSelection);
+    return () => document.removeEventListener('selectionchange', handleSelection);
+  }, [isEditing]);
+
+  // Hide toolbar when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (toolbarRef.current && !toolbarRef.current.contains(e.target as Node)) {
+        setShowToolbar(false);
+      }
+    };
+
+    if (showToolbar) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
     }
-  }));
+  }, [showToolbar]);
 
   const getIcon = () => {
     switch (data.type) {
@@ -94,181 +119,131 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
     }
   };
 
-  const handleEdit = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const startEditing = () => {
     if (data.type === 'text') {
-      setIsTransitioning(true);
-      setEditedContent(String(data.content || '')); // Ensure string type
-      setQuillKey(prev => prev + 1); // Force Quill remount
-      
-      // Add brief loading state for smooth transition
+      setIsEditing(true);
       setTimeout(() => {
-        setIsEditing(true);
-        setIsTransitioning(false);
-      }, 200);
-    } else {
-      toast.info('Editing is only available for text content');
+        contentRef.current?.focus();
+      }, 0);
     }
   };
 
-  // Improved handleSave with loading state and error handling
-  const handleSave = useCallback(async (e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    
-    setIsTransitioning(true);
-    
-    try {
-      if (data.onContentUpdate) {
-        data.onContentUpdate(id, String(editedContent || ''));
-        
-        // Add brief loading state for smooth transition
-        setTimeout(() => {
-          setIsEditing(false);
-          setQuillKey(prev => prev + 1); // Force clean remount
-          setIsTransitioning(false);
-          toast.success('Content updated successfully!');
-        }, 200);
-      }
-    } catch (error) {
-      console.error('Error saving content:', error);
-      setIsTransitioning(false);
-      toast.error('Failed to save content');
-    }
-  }, [data, id, editedContent]);
-
-  // Improved handleCancel with loading state and proper cleanup
-  const handleCancel = useCallback((e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    
-    setIsTransitioning(true);
-    
-    // Reset content before hiding editor
-    setEditedContent(String(data.content || ''));
-    
-    // Use setTimeout to ensure state updates happen in correct order
-    setTimeout(() => {
+  const saveContent = () => {
+    if (contentRef.current) {
+      const newContent = contentRef.current.innerHTML
+        .replace(/<div>/g, '\n')
+        .replace(/<\/div>/g, '')
+        .replace(/<br>/g, '\n')
+        .replace(/<[^>]*>/g, '');
+      
+      data.onContentUpdate?.(id, newContent);
       setIsEditing(false);
-      setQuillKey(prev => prev + 1); // Force clean remount
-      setIsTransitioning(false);
-    }, 200);
-  }, [data.content]);
-
-  // Enhanced handleSendSelectedText with error handling
-  const handleSendSelectedText = useCallback(() => {
-    try {
-      if (quillRef.current && data.onSendTextToChat) {
-        const quill = quillRef.current.getEditor();
-        const selection = quill.getSelection();
-        
-        if (selection && selection.length > 0) {
-          const selectedText = quill.getText(selection.index, selection.length);
-          if (selectedText.trim()) {
-            data.onSendTextToChat(`Please rewrite this text: "${selectedText.trim()}"`);
-            toast.success('Selected text sent to AI chat!');
-          } else {
-            toast.warn('Please select some text first');
-          }
-        } else {
-          toast.warn('Please select some text to send to AI');
-        }
-      }
-    } catch (error) {
-      console.error('Error sending text to chat:', error);
-      toast.error('Failed to send text to AI');
+      toast.success('Content updated!');
     }
-  }, [data.onSendTextToChat]);
-
-  // Enhanced handleQuillChange wrapper with error handling
-  const handleQuillChange = useCallback((value: string) => {
-    try {
-      // Ensure content is always treated as a string
-      setEditedContent(String(value || ''));
-    } catch (error) {
-      console.error('Error updating Quill content:', error);
-      // Fallback to empty string
-      setEditedContent('');
-    }
-  }, []);
-
-  // Enhanced React Quill modules configuration with custom toolbar
-  const quillModules = {
-    toolbar: {
-      container: [
-        [{ 'header': [1, 2, 3, false] }],
-        ['bold', 'italic', 'underline', 'strike'],
-        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-        ['blockquote', 'code-block'],
-        ['link'],
-        ['send-to-ai'], // Custom button
-        ['clean']
-      ],
-      handlers: {
-        'send-to-ai': handleSendSelectedText
-      }
-    },
   };
 
-  const quillFormats = [
-    'header', 'bold', 'italic', 'underline', 'strike',
-    'list', 'bullet', 'blockquote', 'code-block', 'link'
-  ];
-
-  // Add custom button to Quill toolbar with error handling
-  useEffect(() => {
-    try {
-      if (quillRef.current && isEditing && !isTransitioning) {
-        const quill = quillRef.current.getEditor();
-        const toolbar = quill.getModule('toolbar');
-        
-        // Add custom send button
-        const sendButton = toolbar.container.querySelector('.ql-send-to-ai');
-        if (sendButton) {
-          sendButton.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22,2 15,22 11,13 2,9"></polygon></svg>';
-          sendButton.setAttribute('title', 'Send selected text to AI');
-        }
-      }
-    } catch (error) {
-      console.error('Error setting up Quill toolbar:', error);
+  const cancelEdit = () => {
+    if (contentRef.current) {
+      contentRef.current.innerHTML = data.content || '';
     }
-  }, [isEditing, quillKey, isTransitioning]); // Added isTransitioning to dependencies
+    setIsEditing(false);
+    setShowToolbar(false);
+  };
 
-  // Focus the editor when entering edit mode with error handling
-  useEffect(() => {
-    if (isEditing && !isTransitioning && quillRef.current) {
-      try {
-        setTimeout(() => {
-          const quill = quillRef.current?.getEditor();
-          if (quill) {
-            quill.focus();
-            // Set cursor at the end of content
-            const length = quill.getLength();
-            quill.setSelection(length - 1, 0);
-          }
-        }, 100);
-      } catch (error) {
-        console.error('Error focusing Quill editor:', error);
-      }
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      cancelEdit();
+    } else if (e.key === 'Enter' && e.ctrlKey) {
+      e.preventDefault();
+      saveContent();
     }
-  }, [isEditing, quillKey, isTransitioning]); // Added isTransitioning to dependencies
+  };
+
+  const applyFormat = (command: string, value?: string) => {
+    document.execCommand(command, false, value);
+    contentRef.current?.focus();
+  };
+
+  const sendSelectedToAI = () => {
+    if (selectedText && data.onSendTextToChat) {
+      data.onSendTextToChat(`Please rewrite this text: "${selectedText}"`);
+      toast.success('Text sent to AI!');
+      setShowToolbar(false);
+    }
+  };
 
   return (
     <div 
       className={`
-        bg-white rounded-xl shadow-lg border-2 transition-all duration-200 cursor-pointer relative
-        ${isEditing ? 'min-w-[600px] max-w-[800px]' : 'min-w-[400px] max-w-[600px]'}
+        bg-white rounded-xl shadow-lg border-2 transition-all duration-200 relative
+        min-w-[400px] max-w-[600px]
         ${selected ? 'border-indigo-400 shadow-xl ring-2 ring-indigo-200' : `${getTypeColor()} hover:shadow-xl`}
-        ${isTransitioning ? 'opacity-75' : ''}
+        ${isEditing ? 'editing' : ''}
       `}
     >
-      {/* Loading Overlay */}
-      {isTransitioning && (
-        <div className="absolute inset-0 bg-white bg-opacity-75 rounded-xl flex items-center justify-center z-10">
-          <div className="flex items-center gap-2 text-indigo-600">
-            <Loader2 size={20} className="animate-spin" />
-            <span className="text-sm font-medium">
-              {isEditing ? 'Saving...' : 'Loading editor...'}
-            </span>
-          </div>
+      {/* Floating Toolbar */}
+      {showToolbar && isEditing && (
+        <div
+          ref={toolbarRef}
+          className="absolute z-10 bg-gray-800 text-white rounded-lg shadow-xl p-1 flex items-center gap-1 floating-toolbar"
+          style={{
+            top: `${toolbarPosition.top}px`,
+            left: `${toolbarPosition.left}px`,
+            transform: 'translateX(-50%)',
+          }}
+        >
+          <button
+            className="p-2 hover:bg-gray-700 rounded transition-colors"
+            onClick={() => applyFormat('bold')}
+            title="Bold"
+          >
+            <Bold size={14} />
+          </button>
+          <button
+            className="p-2 hover:bg-gray-700 rounded transition-colors"
+            onClick={() => applyFormat('italic')}
+            title="Italic"
+          >
+            <Italic size={14} />
+          </button>
+          <button
+            className="p-2 hover:bg-gray-700 rounded transition-colors"
+            onClick={() => applyFormat('underline')}
+            title="Underline"
+          >
+            <Underline size={14} />
+          </button>
+          <div className="w-px h-6 bg-gray-600 mx-1" />
+          <button
+            className="p-2 hover:bg-gray-700 rounded transition-colors"
+            onClick={() => applyFormat('insertUnorderedList')}
+            title="Bullet List"
+          >
+            <List size={14} />
+          </button>
+          <button
+            className="p-2 hover:bg-gray-700 rounded transition-colors"
+            onClick={() => {
+              const url = prompt('Enter URL:');
+              if (url) applyFormat('createLink', url);
+            }}
+            title="Add Link"
+          >
+            <Link2 size={14} />
+          </button>
+          {data.onSendTextToChat && (
+            <>
+              <div className="w-px h-6 bg-gray-600 mx-1" />
+              <button
+                className="p-2 hover:bg-gray-700 rounded transition-colors flex items-center gap-1"
+                onClick={sendSelectedToAI}
+                title="Send to AI"
+              >
+                <Send size={14} />
+                <span className="text-xs">AI</span>
+              </button>
+            </>
+          )}
         </div>
       )}
 
@@ -280,18 +255,13 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
             <span className="text-sm font-semibold text-gray-900 truncate">
               {data.title}
             </span>
-            {isEditing && !isTransitioning && (
+            {isEditing && (
               <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
                 Editing
               </span>
             )}
-            {!isEditing && data.type === 'text' && !isTransitioning && (
-              <span className="text-xs text-gray-500">
-                Click to edit
-              </span>
-            )}
           </div>
-          {selected && !isTransitioning && (
+          {selected && (
             <div className="flex items-center gap-1 ml-2">
               {!isEditing ? (
                 <>
@@ -302,13 +272,15 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
                   >
                     <Copy size={12} />
                   </button>
-                  <button
-                    onClick={handleEdit}
-                    className="p-1.5 rounded-md text-gray-500 hover:text-gray-700 hover:bg-white/50 transition-colors"
-                    title="Edit content"
-                  >
-                    <Edit3 size={12} />
-                  </button>
+                  {data.type === 'text' && (
+                    <button
+                      onClick={startEditing}
+                      className="p-1.5 rounded-md text-gray-500 hover:text-gray-700 hover:bg-white/50 transition-colors"
+                      title="Edit content"
+                    >
+                      <Edit3 size={12} />
+                    </button>
+                  )}
                   <button
                     onClick={handleDelete}
                     className="p-1.5 rounded-md text-red-500 hover:text-red-700 hover:bg-white/50 transition-colors"
@@ -320,18 +292,16 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
               ) : (
                 <>
                   <button
-                    onClick={handleSave}
-                    disabled={isTransitioning}
-                    className="p-1.5 rounded-md text-green-500 hover:text-green-700 hover:bg-white/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Save changes"
+                    onClick={saveContent}
+                    className="p-1.5 rounded-md text-green-500 hover:text-green-700 hover:bg-white/50 transition-colors"
+                    title="Save changes (Ctrl+Enter)"
                   >
                     <Save size={12} />
                   </button>
                   <button
-                    onClick={handleCancel}
-                    disabled={isTransitioning}
-                    className="p-1.5 rounded-md text-gray-500 hover:text-gray-700 hover:bg-white/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Cancel editing"
+                    onClick={cancelEdit}
+                    className="p-1.5 rounded-md text-gray-500 hover:text-gray-700 hover:bg-white/50 transition-colors"
+                    title="Cancel (Esc)"
                   >
                     <X size={12} />
                   </button>
@@ -343,121 +313,77 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
       </div>
 
       {/* Node Content */}
-      <div className={`p-4 ${isTransitioning ? 'pointer-events-none' : ''}`}>
+      <div className="p-4">
         {data.type === 'text' && (
           <>
-            {/* ReactQuill Editor - Only rendered when editing with key for clean remount */}
-            {isEditing && !isTransitioning && (
-              <div className="space-y-4">
-                <div className={`canvas-editor ${isTransitioning ? 'opacity-50 pointer-events-none' : ''}`}>
-                  <ReactQuill
-                    key={quillKey} // Force remount with key
-                    ref={quillRef}
-                    value={String(editedContent || '')}
-                    onChange={handleQuillChange} // Use wrapper function
-                    modules={quillModules}
-                    formats={quillFormats}
-                    placeholder="Edit your content..."
-                    theme="snow"
-                  />
-                </div>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                  <div className="flex items-center gap-2 text-sm text-blue-800">
-                    <Send size={14} />
-                    <span className="font-medium">Pro tip:</span>
-                    <span>Select text and click the send button (📤) in the toolbar to ask AI to rewrite it</span>
-                  </div>
-                </div>
-                <div className="flex gap-2 justify-end">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleCancel}
-                    leftIcon={<X size={14} />}
-                    disabled={isTransitioning}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={handleSave}
-                    leftIcon={<Save size={14} />}
-                    className="bg-green-600 hover:bg-green-700"
-                    disabled={isTransitioning}
-                  >
-                    Save Changes
-                  </Button>
-                </div>
+            {isEditing ? (
+              <div
+                ref={contentRef}
+                contentEditable
+                className="prose prose-sm max-w-none text-gray-700 outline-none min-h-[100px] p-2 rounded-lg bg-gray-50 border border-gray-200 focus:border-indigo-300 focus:bg-white transition-colors"
+                onKeyDown={handleKeyDown}
+                dangerouslySetInnerHTML={{ __html: editedContent }}
+                onBlur={() => {
+                  if (contentRef.current) {
+                    setEditedContent(contentRef.current.innerHTML);
+                  }
+                }}
+              />
+            ) : (
+              <div 
+                className="prose prose-sm max-w-none text-gray-700 cursor-pointer hover:bg-gray-50 rounded p-2 transition-colors"
+                onClick={startEditing}
+              >
+                {data.content ? (
+                  <ReactMarkdown>{data.content}</ReactMarkdown>
+                ) : (
+                  <p className="text-gray-400 italic">Click to add content...</p>
+                )}
               </div>
             )}
-
-            {/* ReactMarkdown Preview - Only shown when not editing */}
-            {!isEditing && !isTransitioning && (
-              <div className="text-sm text-gray-700 leading-relaxed">
-                <div className="prose prose-sm max-w-none">
-                  <ReactMarkdown>
-                    {data.content || ''}
-                  </ReactMarkdown>
-                </div>
+            {isEditing && (
+              <div className="mt-2 text-xs text-gray-500">
+                Tip: Press Ctrl+Enter to save, Esc to cancel. Select text to see formatting options.
               </div>
             )}
           </>
         )}
-        
+
         {data.type === 'image' && (
-          <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
-            <div className="text-center">
-              <Image size={32} className="text-gray-400 mx-auto mb-2" />
-              <p className="text-xs text-gray-500">AI Generated Image</p>
-              <p className="text-xs text-gray-400 mt-1 truncate max-w-[200px]">{data.title}</p>
-            </div>
-          </div>
-        )}
-        
-        {data.type === 'chart' && (
-          <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
-            <div className="text-center">
-              <BarChart3 size={32} className="text-gray-400 mx-auto mb-2" />
-              <p className="text-xs text-gray-500">Data Visualization</p>
-              <p className="text-xs text-gray-400 mt-1 truncate max-w-[200px]">{data.title}</p>
-            </div>
-          </div>
-        )}
-        
-        {data.type === 'video' && (
-          <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
-            <div className="text-center">
-              <Video size={32} className="text-gray-400 mx-auto mb-2" />
-              <p className="text-xs text-gray-500">Video Content</p>
-              <p className="text-xs text-gray-400 mt-1 truncate max-w-[200px]">{data.title}</p>
-            </div>
+          <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
+            {data.content ? (
+              <img src={data.content} alt={data.title} className="max-w-full max-h-full object-contain rounded-lg" />
+            ) : (
+              <Image size={48} className="text-gray-400" />
+            )}
           </div>
         )}
 
-        {/* Metadata - Only show for non-text types or when not editing text */}
-        {(data.type !== 'text' || (!isEditing && !isTransitioning)) && (
-          <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
-            <span className="text-xs text-gray-400">
-              {data.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </span>
-            <span className="text-xs text-gray-500">
-              {(data.content || '').length} characters
-            </span>
+        {data.type === 'chart' && (
+          <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
+            <BarChart3 size={48} className="text-gray-400" />
           </div>
         )}
+
+        {data.type === 'video' && (
+          <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
+            {data.content ? (
+              <video src={data.content} controls className="max-w-full max-h-full rounded-lg" />
+            ) : (
+              <Video size={48} className="text-gray-400" />
+            )}
+          </div>
+        )}
+
+        {/* Timestamp */}
+        <div className="mt-4 text-xs text-gray-500">
+          Created: {new Date(data.createdAt).toLocaleString()}
+        </div>
       </div>
 
       {/* Connection Handles */}
-      <Handle
-        type="target"
-        position={Position.Top}
-        className="w-3 h-3 !bg-indigo-500 !border-2 !border-white"
-      />
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        className="w-3 h-3 !bg-indigo-500 !border-2 !border-white"
-      />
+      <Handle type="target" position={Position.Top} className="!bg-indigo-500" />
+      <Handle type="source" position={Position.Bottom} className="!bg-indigo-500" />
     </div>
   );
 }));

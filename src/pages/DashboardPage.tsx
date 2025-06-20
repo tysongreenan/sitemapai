@@ -39,16 +39,6 @@ export default function DashboardPage() {
       text: "Design marketing strategy for Q4",
       icon: <Target size={16} />,
       category: "Strategy"
-    },
-    {
-      text: "Create video script for product demo",
-      icon: <Video size={16} />,
-      category: "Video"
-    },
-    {
-      text: "Build landing page copy for new service",
-      icon: <BarChart3 size={16} />,
-      category: "Landing"
     }
   ];
 
@@ -183,30 +173,30 @@ export default function DashboardPage() {
     );
   }
 
-  // Main homepage interface
+  // Main homepage interface with improved whitespace
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
-      <div className="max-w-4xl mx-auto px-6 py-12">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <div className="flex items-center justify-center gap-3 mb-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-              <Sparkles className="w-8 h-8 text-white" />
+      <div className="max-w-5xl mx-auto px-8 py-20">
+        {/* Hero Section with Generous Spacing */}
+        <div className="text-center mb-20">
+          <div className="flex items-center justify-center gap-4 mb-12">
+            <div className="w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-3xl flex items-center justify-center shadow-xl">
+              <Sparkles className="w-10 h-10 text-white" />
             </div>
           </div>
           
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4 leading-tight">
+          <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-8 leading-tight tracking-tight">
             Welcome {user?.email?.split('@')[0] || 'there'}, what do you want to work on?
           </h1>
           
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
             Describe your project and let AI create amazing content for you in seconds
           </p>
         </div>
 
-        {/* Main Input */}
-        <form onSubmit={handleSubmit} className="mb-12">
-          <div className="relative">
+        {/* Main Input with More Space */}
+        <form onSubmit={handleSubmit} className="mb-24">
+          <div className="relative max-w-4xl mx-auto">
             <input
               ref={inputRef}
               type="text"
@@ -214,114 +204,114 @@ export default function DashboardPage() {
               onChange={(e) => setInputValue(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="Ask Jasper anything..."
-              className="w-full px-6 py-6 text-lg border-2 border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition-all duration-200 shadow-lg bg-white"
+              className="w-full px-8 py-8 text-xl border-2 border-gray-200 rounded-3xl focus:outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition-all duration-200 shadow-lg bg-white placeholder-gray-400"
               disabled={isProcessing}
             />
             
-            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
+            <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
               <Button
                 type="submit"
                 disabled={!inputValue.trim() || isProcessing}
-                className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 rounded-xl px-6 py-3"
+                className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 rounded-2xl px-8 py-4 text-lg"
               >
-                <Send size={20} />
+                <Send size={24} />
               </Button>
             </div>
           </div>
         </form>
 
-        {/* Quick Actions */}
-        <div className="grid md:grid-cols-3 gap-6 mb-12">
+        {/* Quick Actions with Better Spacing */}
+        <div className="grid md:grid-cols-3 gap-8 mb-24">
           <button
             onClick={() => navigate('/projects')}
-            className="group p-6 bg-white rounded-xl border-2 border-gray-200 hover:border-indigo-300 hover:shadow-lg transition-all duration-200 text-left"
+            className="group p-10 bg-white rounded-2xl border-2 border-gray-200 hover:border-indigo-300 hover:shadow-xl transition-all duration-300 text-left"
           >
-            <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-              <FileText className="w-6 h-6 text-indigo-600" />
+            <div className="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+              <FileText className="w-8 h-8 text-indigo-600" />
             </div>
-            <h3 className="font-semibold text-gray-900 mb-2">Create a Project</h3>
-            <p className="text-sm text-gray-600">Start a new AI-powered project</p>
-            <ArrowRight className="w-4 h-4 text-gray-400 mt-2 group-hover:text-indigo-600 transition-colors" />
+            <h3 className="text-xl font-semibold text-gray-900 mb-3">Create a Project</h3>
+            <p className="text-gray-600 mb-4">Start a new AI-powered project</p>
+            <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-indigo-600 transition-colors" />
           </button>
 
           <button
             onClick={() => navigate('/apps')}
-            className="group p-6 bg-white rounded-xl border-2 border-gray-200 hover:border-purple-300 hover:shadow-lg transition-all duration-200 text-left"
+            className="group p-10 bg-white rounded-2xl border-2 border-gray-200 hover:border-purple-300 hover:shadow-xl transition-all duration-300 text-left"
           >
-            <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-              <Sparkles className="w-6 h-6 text-purple-600" />
+            <div className="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+              <Sparkles className="w-8 h-8 text-purple-600" />
             </div>
-            <h3 className="font-semibold text-gray-900 mb-2">Discover Apps</h3>
-            <p className="text-sm text-gray-600">Browse AI-powered tools</p>
-            <ArrowRight className="w-4 h-4 text-gray-400 mt-2 group-hover:text-purple-600 transition-colors" />
+            <h3 className="text-xl font-semibold text-gray-900 mb-3">Discover Apps</h3>
+            <p className="text-gray-600 mb-4">Browse AI-powered tools</p>
+            <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-purple-600 transition-colors" />
           </button>
 
           <button
             onClick={() => navigate('/jasper-iq')}
-            className="group p-6 bg-white rounded-xl border-2 border-gray-200 hover:border-green-300 hover:shadow-lg transition-all duration-200 text-left"
+            className="group p-10 bg-white rounded-2xl border-2 border-gray-200 hover:border-green-300 hover:shadow-xl transition-all duration-300 text-left"
           >
-            <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-              <Lightbulb className="w-6 h-6 text-green-600" />
+            <div className="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+              <Lightbulb className="w-8 h-8 text-green-600" />
             </div>
-            <h3 className="font-semibold text-gray-900 mb-2">Create an App</h3>
-            <p className="text-sm text-gray-600">Build custom AI workflows</p>
-            <ArrowRight className="w-4 h-4 text-gray-400 mt-2 group-hover:text-green-600 transition-colors" />
+            <h3 className="text-xl font-semibold text-gray-900 mb-3">Create an App</h3>
+            <p className="text-gray-600 mb-4">Build custom AI workflows</p>
+            <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-green-600 transition-colors" />
           </button>
         </div>
 
-        {/* Quick Suggestions */}
-        <div className="mb-12">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick suggestions</h2>
-          <div className="grid md:grid-cols-2 gap-3">
+        {/* Quick Suggestions with More Space */}
+        <div className="mb-20">
+          <h2 className="text-2xl font-semibold text-gray-900 mb-8 text-center">Quick suggestions</h2>
+          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
             {quickSuggestions.map((suggestion, index) => (
               <button
                 key={index}
                 onClick={() => handleSuggestionClick(suggestion.text)}
-                className="flex items-center gap-3 p-4 bg-white rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all duration-200 text-left group"
+                className="flex items-center gap-4 p-6 bg-white rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-lg transition-all duration-200 text-left group"
               >
-                <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
+                <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
                   {suggestion.icon}
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">{suggestion.text}</p>
-                  <p className="text-xs text-gray-500">{suggestion.category}</p>
+                  <p className="font-medium text-gray-900 mb-1">{suggestion.text}</p>
+                  <p className="text-sm text-gray-500">{suggestion.category}</p>
                 </div>
-                <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-indigo-600 transition-colors" />
+                <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-indigo-600 transition-colors" />
               </button>
             ))}
           </div>
         </div>
 
-        {/* Recent Projects */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Recent Projects</h2>
+        {/* Recent Projects with Better Layout */}
+        <div className="bg-white rounded-2xl border border-gray-200 p-10 shadow-sm">
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-2xl font-semibold text-gray-900">Recent Projects</h2>
             <button
               onClick={() => navigate('/projects')}
-              className="text-sm text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1"
+              className="text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-2 transition-colors"
             >
               View All
-              <ArrowRight size={14} />
+              <ArrowRight size={16} />
             </button>
           </div>
           
-          <div className="space-y-3">
+          <div className="space-y-4">
             {recentProjects.map((project, index) => (
               <div
                 key={index}
-                className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                className="flex items-center justify-between p-6 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer"
                 onClick={() => navigate('/projects')}
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
-                    <FileText className="w-4 h-4 text-indigo-600" />
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
+                    <FileText className="w-6 h-6 text-indigo-600" />
                   </div>
                   <div>
-                    <p className="font-medium text-gray-900 text-sm">{project.name}</p>
-                    <p className="text-xs text-gray-500">{project.assets} assets</p>
+                    <p className="font-medium text-gray-900">{project.name}</p>
+                    <p className="text-sm text-gray-500">{project.assets} assets</p>
                   </div>
                 </div>
-                <span className="text-xs text-gray-500">{project.time}</span>
+                <span className="text-sm text-gray-500">{project.time}</span>
               </div>
             ))}
           </div>

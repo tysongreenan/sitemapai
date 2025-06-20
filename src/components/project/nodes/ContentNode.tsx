@@ -272,6 +272,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
               <div className="space-y-4">
                 <div className="canvas-editor">
                   <ReactQuill
+                    key={`${id}-${isEditing ? 'edit' : 'view'}`}
                     ref={quillRef}
                     value={String(editedContent || '')}
                     onChange={(value) => setEditedContent(String(value || ''))}

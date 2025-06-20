@@ -19,18 +19,18 @@ export interface ContentNodeData {
 
 const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, selected, id }, ref) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [editedContent, setEditedContent] = useState(data.content);
+  const [editedContent, setEditedContent] = useState(data.content || '');
   const quillRef = useRef<ReactQuill>(null);
 
-  // Update editedContent when data.content changes
+  // Update editedContent when data.content changes, ensuring it's never undefined
   useEffect(() => {
-    setEditedContent(data.content);
+    setEditedContent(data.content || '');
   }, [data.content]);
 
   useImperativeHandle(ref, () => ({
     startEditing: () => {
       if (data.type === 'text') {
-        setEditedContent(data.content);
+        setEditedContent(data.content || '');
         setIsEditing(true);
       }
     }
@@ -68,7 +68,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
 
   const copyToClipboard = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigator.clipboard.writeText(data.content);
+    navigator.clipboard.writeText(data.content || '');
     toast.success('Content copied to clipboard!');
   };
 
@@ -82,7 +82,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (data.type === 'text') {
-      setEditedContent(data.content); // Ensure we start with current content
+      setEditedContent(data.content || ''); // Ensure we start with current content or empty string
       setIsEditing(true);
     } else {
       toast.info('Editing is only available for text content');
@@ -92,7 +92,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
   const handleDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (data.type === 'text' && !isEditing) {
-      setEditedContent(data.content); // Ensure we start with current content
+      setEditedContent(data.content || ''); // Ensure we start with current content or empty string
       setIsEditing(true);
     }
   };
@@ -100,7 +100,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
   const handleSave = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (data.onContentUpdate) {
-      data.onContentUpdate(id, editedContent);
+      data.onContentUpdate(id, editedContent || '');
       setIsEditing(false);
       toast.success('Content updated successfully!');
     }
@@ -108,7 +108,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
 
   const handleCancel = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setEditedContent(data.content); // Reset to original content
+    setEditedContent(data.content || ''); // Reset to original content or empty string
     setIsEditing(false);
   };
 
@@ -268,8 +268,8 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
             <div className="canvas-editor">
               <ReactQuill
                 ref={quillRef}
-                value={editedContent}
-                onChange={setEditedContent}
+                value={editedContent || ''}
+                onChange={(value) => setEditedContent(value || '')}
                 modules={quillModules}
                 formats={quillFormats}
                 placeholder="Edit your content..."
@@ -308,7 +308,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
               <div className="text-sm text-gray-700 leading-relaxed">
                 <div className="prose prose-sm max-w-none">
                   <ReactMarkdown>
-                    {data.content}
+                    {data.content || ''}
                   </ReactMarkdown>
                 </div>
               </div>
@@ -350,7 +350,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
                 {data.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
               <span className="text-xs text-gray-500">
-                {data.content.length} characters
+                {(data.content || '').length} characters
               </span>
             </div>
           </>

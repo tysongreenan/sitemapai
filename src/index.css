@@ -5,6 +5,9 @@
 /* React Flow Styles */
 @import 'reactflow/dist/style.css';
 
+/* React Quill Styles */
+@import 'react-quill/dist/quill.snow.css';
+
 /* Custom scrollbar styling */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
@@ -83,6 +86,31 @@
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+/* Custom React Quill Styles for Canvas Editing */
+.canvas-editor .ql-toolbar {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px 8px 0 0;
+  background: #f9fafb;
+}
+
+.canvas-editor .ql-container {
+  border: 1px solid #e5e7eb;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  font-size: 14px;
+  min-height: 200px;
+}
+
+.canvas-editor .ql-editor {
+  padding: 12px;
+  line-height: 1.5;
+}
+
+.canvas-editor .ql-editor.ql-blank::before {
+  color: #9ca3af;
+  font-style: normal;
 }
 
 /* Markdown Styles for AI Chat */

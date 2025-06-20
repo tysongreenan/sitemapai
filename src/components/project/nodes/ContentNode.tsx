@@ -1,7 +1,10 @@
-import React, { memo } from 'react';
+import React, { memo, useState } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
-import { FileText, Image, BarChart3, Video, Copy, Trash2, Edit3, ExternalLink } from 'lucide-react';
+import { FileText, Image, BarChart3, Video, Copy, Trash2, Edit3, ExternalLink, Save, X } from 'lucide-react';
 import { toast } from 'react-toastify';
+import ReactQuill from 'react-quill';
+import ReactMarkdown from 'react-markdown';
+import { Button } from '../../ui/Button';
 
 export interface ContentNodeData {
   title: string;
@@ -11,9 +14,13 @@ export interface ContentNodeData {
   selected?: boolean;
   onViewFull?: (title: string, content: string) => void;
   onDelete?: (nodeId: string) => void;
+  onContentUpdate?: (nodeId: string, newContent: string) => void;
 }
 
 const ContentNode = memo(({ data, selected, id }: NodeProps<ContentNodeData>) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedContent, setEditedContent] = useState(data.content);
+
   const getIcon = () => {
     switch (data.type) {
       case 'text': return <FileText size={16} className="text-blue-600" />;
@@ -62,9 +69,52 @@ const ContentNode = memo(({ data, selected, id }: NodeProps<ContentNodeData>) =>
     }
   };
 
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (data.type === 'text') {
+      setEditedContent(data.content);
+      setIsEditing(true);
+    } else {
+      toast.info('Editing is only available for text content');
+    }
+  };
+
+  const handleSave = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (data.onContentUpdate) {
+      data.onContentUpdate(id, editedContent);
+      setIsEditing(false);
+      toast.success('Content updated successfully!');
+    }
+  };
+
+  const handleCancel = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditedContent(data.content);
+    setIsEditing(false);
+  };
+
+  // React Quill modules configuration
+  const quillModules = {
+    toolbar: [
+      [{ 'header': [1, 2, 3, false] }],
+      ['bold', 'italic', 'underline', 'strike'],
+      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+      ['blockquote', 'code-block'],
+      ['link'],
+      ['clean']
+    ],
+  };
+
+  const quillFormats = [
+    'header', 'bold', 'italic', 'underline', 'strike',
+    'list', 'bullet', 'blockquote', 'code-block', 'link'
+  ];
+
   return (
     <div className={`
-      bg-white rounded-xl shadow-lg border-2 transition-all duration-200 min-w-[320px] max-w-[400px]
+      bg-white rounded-xl shadow-lg border-2 transition-all duration-200 
+      ${isEditing ? 'min-w-[500px] max-w-[600px]' : 'min-w-[320px] max-w-[400px]'}
       ${selected ? 'border-indigo-400 shadow-xl ring-2 ring-indigo-200' : `${getTypeColor()} hover:shadow-xl`}
     `}>
       {/* Node Header */}
@@ -75,33 +125,56 @@ const ContentNode = memo(({ data, selected, id }: NodeProps<ContentNodeData>) =>
             <span className="text-sm font-semibold text-gray-900 truncate">
               {data.title}
             </span>
+            {isEditing && (
+              <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
+                Editing
+              </span>
+            )}
           </div>
           {selected && (
             <div className="flex items-center gap-1 ml-2">
-              <button
-                onClick={copyToClipboard}
-                className="p-1.5 rounded-md text-gray-500 hover:text-gray-700 hover:bg-white/50 transition-colors"
-                title="Copy content"
-              >
-                <Copy size={12} />
-              </button>
-              <button
-                className="p-1.5 rounded-md text-gray-500 hover:text-gray-700 hover:bg-white/50 transition-colors"
-                title="Edit (Coming soon)"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toast.info('Edit functionality coming soon!');
-                }}
-              >
-                <Edit3 size={12} />
-              </button>
-              <button
-                onClick={handleDelete}
-                className="p-1.5 rounded-md text-red-500 hover:text-red-700 hover:bg-white/50 transition-colors"
-                title="Delete"
-              >
-                <Trash2 size={12} />
-              </button>
+              {!isEditing ? (
+                <>
+                  <button
+                    onClick={copyToClipboard}
+                    className="p-1.5 rounded-md text-gray-500 hover:text-gray-700 hover:bg-white/50 transition-colors"
+                    title="Copy content"
+                  >
+                    <Copy size={12} />
+                  </button>
+                  <button
+                    onClick={handleEdit}
+                    className="p-1.5 rounded-md text-gray-500 hover:text-gray-700 hover:bg-white/50 transition-colors"
+                    title="Edit content"
+                  >
+                    <Edit3 size={12} />
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    className="p-1.5 rounded-md text-red-500 hover:text-red-700 hover:bg-white/50 transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={handleSave}
+                    className="p-1.5 rounded-md text-green-500 hover:text-green-700 hover:bg-white/50 transition-colors"
+                    title="Save changes"
+                  >
+                    <Save size={12} />
+                  </button>
+                  <button
+                    onClick={handleCancel}
+                    className="p-1.5 rounded-md text-gray-500 hover:text-gray-700 hover:bg-white/50 transition-colors"
+                    title="Cancel editing"
+                  >
+                    <X size={12} />
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -109,57 +182,94 @@ const ContentNode = memo(({ data, selected, id }: NodeProps<ContentNodeData>) =>
 
       {/* Node Content */}
       <div className="p-4">
-        {data.type === 'text' && (
-          <div className="text-sm text-gray-700 leading-relaxed">
-            <div className="max-h-32 overflow-hidden">
-              {data.content.length > 200 ? `${data.content.substring(0, 200)}...` : data.content}
+        {isEditing && data.type === 'text' ? (
+          <div className="space-y-4">
+            <div className="canvas-editor">
+              <ReactQuill
+                value={editedContent}
+                onChange={setEditedContent}
+                modules={quillModules}
+                formats={quillFormats}
+                placeholder="Edit your content..."
+                theme="snow"
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleCancel}
+                leftIcon={<X size={14} />}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSave}
+                leftIcon={<Save size={14} />}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                Save Changes
+              </Button>
             </div>
           </div>
-        )}
-        
-        {data.type === 'image' && (
-          <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
-            <div className="text-center">
-              <Image size={32} className="text-gray-400 mx-auto mb-2" />
-              <p className="text-xs text-gray-500">AI Generated Image</p>
-              <p className="text-xs text-gray-400 mt-1 truncate max-w-[200px]">{data.title}</p>
-            </div>
-          </div>
-        )}
-        
-        {data.type === 'chart' && (
-          <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
-            <div className="text-center">
-              <BarChart3 size={32} className="text-gray-400 mx-auto mb-2" />
-              <p className="text-xs text-gray-500">Data Visualization</p>
-              <p className="text-xs text-gray-400 mt-1 truncate max-w-[200px]">{data.title}</p>
-            </div>
-          </div>
-        )}
-        
-        {data.type === 'video' && (
-          <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
-            <div className="text-center">
-              <Video size={32} className="text-gray-400 mx-auto mb-2" />
-              <p className="text-xs text-gray-500">Video Content</p>
-              <p className="text-xs text-gray-400 mt-1 truncate max-w-[200px]">{data.title}</p>
-            </div>
-          </div>
-        )}
+        ) : (
+          <>
+            {data.type === 'text' && (
+              <div className="text-sm text-gray-700 leading-relaxed">
+                <div className="max-h-32 overflow-hidden prose prose-sm max-w-none">
+                  <ReactMarkdown>
+                    {data.content.length > 200 ? `${data.content.substring(0, 200)}...` : data.content}
+                  </ReactMarkdown>
+                </div>
+              </div>
+            )}
+            
+            {data.type === 'image' && (
+              <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
+                <div className="text-center">
+                  <Image size={32} className="text-gray-400 mx-auto mb-2" />
+                  <p className="text-xs text-gray-500">AI Generated Image</p>
+                  <p className="text-xs text-gray-400 mt-1 truncate max-w-[200px]">{data.title}</p>
+                </div>
+              </div>
+            )}
+            
+            {data.type === 'chart' && (
+              <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
+                <div className="text-center">
+                  <BarChart3 size={32} className="text-gray-400 mx-auto mb-2" />
+                  <p className="text-xs text-gray-500">Data Visualization</p>
+                  <p className="text-xs text-gray-400 mt-1 truncate max-w-[200px]">{data.title}</p>
+                </div>
+              </div>
+            )}
+            
+            {data.type === 'video' && (
+              <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
+                <div className="text-center">
+                  <Video size={32} className="text-gray-400 mx-auto mb-2" />
+                  <p className="text-xs text-gray-500">Video Content</p>
+                  <p className="text-xs text-gray-400 mt-1 truncate max-w-[200px]">{data.title}</p>
+                </div>
+              </div>
+            )}
 
-        {/* Metadata */}
-        <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
-          <span className="text-xs text-gray-400">
-            {data.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </span>
-          <button 
-            onClick={handleViewFull}
-            className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition-colors hover:bg-indigo-50 px-2 py-1 rounded"
-          >
-            <ExternalLink size={10} />
-            View Full
-          </button>
-        </div>
+            {/* Metadata */}
+            <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+              <span className="text-xs text-gray-400">
+                {data.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+              <button 
+                onClick={handleViewFull}
+                className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition-colors hover:bg-indigo-50 px-2 py-1 rounded"
+              >
+                <ExternalLink size={10} />
+                View Full
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Connection Handles */}

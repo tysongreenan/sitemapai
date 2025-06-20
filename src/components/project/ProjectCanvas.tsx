@@ -168,6 +168,18 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem }: ProjectCa
     setReactFlowInstance(instance);
   };
 
+  // Handle node content update
+  const handleNodeContentUpdate = useCallback((nodeId: string, newContent: string) => {
+    setNodes((nds) => 
+      nds.map((node) => 
+        node.id === nodeId 
+          ? { ...node, data: { ...node.data, content: newContent } }
+          : node
+      )
+    );
+    toast.success('Content updated successfully!');
+  }, [setNodes]);
+
   // Add new item to canvas
   const addItem = useCallback((type: CanvasItem['type'], content: string, title: string) => {
     console.log('Adding new item to canvas:', { type, title });
@@ -190,6 +202,7 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem }: ProjectCa
         onDelete: (nodeId: string) => {
           setNodes((nds) => nds.filter(n => n.id !== nodeId));
         },
+        onContentUpdate: handleNodeContentUpdate,
       },
     };
     
@@ -214,7 +227,7 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem }: ProjectCa
     
     onItemSelect?.(canvasItem);
     toast.success('Content added to canvas');
-  }, [setNodes, onItemSelect]);
+  }, [setNodes, onItemSelect, handleNodeContentUpdate]);
 
   // Handle node selection
   const onNodeClick = useCallback((event: React.MouseEvent, node: Node<ContentNodeData>) => {
@@ -336,6 +349,7 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem }: ProjectCa
         }
         toast.success('Content removed from canvas');
       },
+      onContentUpdate: handleNodeContentUpdate,
     }
   }));
 

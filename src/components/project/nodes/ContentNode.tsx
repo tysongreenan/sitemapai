@@ -104,7 +104,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
     }
   };
 
-  // Improved handleSave with error handling
+  // Improved handleSave with error handling and optional event parameter
   const handleSave = useCallback(async (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     
@@ -121,7 +121,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
     }
   }, [data, id, editedContent]);
 
-  // Improved handleCancel with proper cleanup
+  // Improved handleCancel with proper cleanup and optional event parameter
   const handleCancel = useCallback((e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     

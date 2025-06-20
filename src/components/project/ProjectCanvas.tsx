@@ -486,13 +486,13 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem, onSendTextT
           maxZoom={2}
           snapToGrid={true}
           snapGrid={[20, 20]}
-          // FIXED: Disable zoom on scroll to allow normal page scrolling
+          // FIXED: Enable vertical panning with mouse wheel
           zoomOnScroll={false}
           zoomOnPinch={true}
-          panOnScroll={false}
-          panOnScrollMode="free"
+          panOnScroll={true}
+          panOnScrollMode="vertical"
           panOnScrollSpeed={0.5}
-          preventScrolling={false}
+          preventScrolling={true}
         >
           <Background 
             variant={BackgroundVariant.Dots} 

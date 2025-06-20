@@ -1,4 +1,4 @@
-import React, { memo, useState, useRef, useImperativeHandle, forwardRef, useEffect } from 'react';
+import React, { memo, useState, useRef, useImperativeHandle, forwardRef, useEffect, useCallback } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { FileText, Image, BarChart3, Video, Copy, Trash2, Edit3, Save, X, Send } from 'lucide-react';
 import { toast } from 'react-toastify';
@@ -20,6 +20,7 @@ export interface ContentNodeData {
 const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, selected, id }, ref) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(String(data.content || ''));
+  const [quillKey, setQuillKey] = useState(0); // Force remount when switching modes
   const quillRef = useRef<ReactQuill>(null);
 
   // Update editedContent when data.content changes, ensuring it's always a string
@@ -27,21 +28,23 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
     setEditedContent(String(data.content || ''));
   }, [data.content]);
 
-  // Auto-enter editing mode when text node is selected
+  // Auto-enter editing mode when text node is selected (removed data.content and isEditing from deps)
   useEffect(() => {
     if (selected && data.type === 'text' && !isEditing) {
       setEditedContent(String(data.content || ''));
+      setQuillKey(prev => prev + 1); // Force Quill remount
       setIsEditing(true);
     } else if (!selected && isEditing) {
       // Auto-exit editing mode when node is deselected
-      setIsEditing(false);
+      handleCancel();
     }
-  }, [selected, data.type, data.content, isEditing]);
+  }, [selected, data.type]); // Removed data.content and isEditing from dependencies
 
   useImperativeHandle(ref, () => ({
     startEditing: () => {
       if (data.type === 'text') {
         setEditedContent(String(data.content || ''));
+        setQuillKey(prev => prev + 1); // Force Quill remount
         setIsEditing(true);
       }
     }
@@ -94,45 +97,80 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
     e.stopPropagation();
     if (data.type === 'text') {
       setEditedContent(String(data.content || '')); // Ensure string type
+      setQuillKey(prev => prev + 1); // Force Quill remount
       setIsEditing(true);
     } else {
       toast.info('Editing is only available for text content');
     }
   };
 
-  const handleSave = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (data.onContentUpdate) {
-      data.onContentUpdate(id, String(editedContent || ''));
-      setIsEditing(false);
-      toast.success('Content updated successfully!');
-    }
-  };
-
-  const handleCancel = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setEditedContent(String(data.content || '')); // Reset to original content as string
-    setIsEditing(false);
-  };
-
-  const handleSendSelectedText = () => {
-    if (quillRef.current && data.onSendTextToChat) {
-      const quill = quillRef.current.getEditor();
-      const selection = quill.getSelection();
-      
-      if (selection && selection.length > 0) {
-        const selectedText = quill.getText(selection.index, selection.length);
-        if (selectedText.trim()) {
-          data.onSendTextToChat(`Please rewrite this text: "${selectedText.trim()}"`);
-          toast.success('Selected text sent to AI chat!');
-        } else {
-          toast.warn('Please select some text first');
-        }
-      } else {
-        toast.warn('Please select some text to send to AI');
+  // Improved handleSave with error handling
+  const handleSave = useCallback(async (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    
+    try {
+      if (data.onContentUpdate) {
+        data.onContentUpdate(id, String(editedContent || ''));
+        setIsEditing(false);
+        setQuillKey(prev => prev + 1); // Force clean remount
+        toast.success('Content updated successfully!');
       }
+    } catch (error) {
+      console.error('Error saving content:', error);
+      toast.error('Failed to save content');
     }
-  };
+  }, [data, id, editedContent]);
+
+  // Improved handleCancel with proper cleanup
+  const handleCancel = useCallback((e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    
+    // Reset content before hiding editor
+    setEditedContent(String(data.content || ''));
+    
+    // Use setTimeout to ensure state updates happen in correct order
+    setTimeout(() => {
+      setIsEditing(false);
+      setQuillKey(prev => prev + 1); // Force clean remount
+    }, 0);
+  }, [data.content]);
+
+  // Enhanced handleSendSelectedText with error handling
+  const handleSendSelectedText = useCallback(() => {
+    try {
+      if (quillRef.current && data.onSendTextToChat) {
+        const quill = quillRef.current.getEditor();
+        const selection = quill.getSelection();
+        
+        if (selection && selection.length > 0) {
+          const selectedText = quill.getText(selection.index, selection.length);
+          if (selectedText.trim()) {
+            data.onSendTextToChat(`Please rewrite this text: "${selectedText.trim()}"`);
+            toast.success('Selected text sent to AI chat!');
+          } else {
+            toast.warn('Please select some text first');
+          }
+        } else {
+          toast.warn('Please select some text to send to AI');
+        }
+      }
+    } catch (error) {
+      console.error('Error sending text to chat:', error);
+      toast.error('Failed to send text to AI');
+    }
+  }, [data.onSendTextToChat]);
+
+  // Enhanced handleQuillChange wrapper with error handling
+  const handleQuillChange = useCallback((value: string) => {
+    try {
+      // Ensure content is always treated as a string
+      setEditedContent(String(value || ''));
+    } catch (error) {
+      console.error('Error updating Quill content:', error);
+      // Fallback to empty string
+      setEditedContent('');
+    }
+  }, []);
 
   // Enhanced React Quill modules configuration with custom toolbar
   const quillModules = {
@@ -157,35 +195,43 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
     'list', 'bullet', 'blockquote', 'code-block', 'link'
   ];
 
-  // Add custom button to Quill toolbar
+  // Add custom button to Quill toolbar with error handling
   useEffect(() => {
-    if (quillRef.current && isEditing) {
-      const quill = quillRef.current.getEditor();
-      const toolbar = quill.getModule('toolbar');
-      
-      // Add custom send button
-      const sendButton = toolbar.container.querySelector('.ql-send-to-ai');
-      if (sendButton) {
-        sendButton.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22,2 15,22 11,13 2,9"></polygon></svg>';
-        sendButton.setAttribute('title', 'Send selected text to AI');
+    try {
+      if (quillRef.current && isEditing) {
+        const quill = quillRef.current.getEditor();
+        const toolbar = quill.getModule('toolbar');
+        
+        // Add custom send button
+        const sendButton = toolbar.container.querySelector('.ql-send-to-ai');
+        if (sendButton) {
+          sendButton.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22,2 15,22 11,13 2,9"></polygon></svg>';
+          sendButton.setAttribute('title', 'Send selected text to AI');
+        }
       }
+    } catch (error) {
+      console.error('Error setting up Quill toolbar:', error);
     }
-  }, [isEditing]);
+  }, [isEditing, quillKey]); // Added quillKey to dependencies
 
-  // Focus the editor when entering edit mode
+  // Focus the editor when entering edit mode with error handling
   useEffect(() => {
     if (isEditing && quillRef.current) {
-      setTimeout(() => {
-        const quill = quillRef.current?.getEditor();
-        if (quill) {
-          quill.focus();
-          // Set cursor at the end of content
-          const length = quill.getLength();
-          quill.setSelection(length - 1, 0);
-        }
-      }, 100);
+      try {
+        setTimeout(() => {
+          const quill = quillRef.current?.getEditor();
+          if (quill) {
+            quill.focus();
+            // Set cursor at the end of content
+            const length = quill.getLength();
+            quill.setSelection(length - 1, 0);
+          }
+        }, 100);
+      } catch (error) {
+        console.error('Error focusing Quill editor:', error);
+      }
     }
-  }, [isEditing]);
+  }, [isEditing, quillKey]); // Added quillKey to dependencies
 
   return (
     <div 
@@ -267,15 +313,15 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
       <div className="p-4">
         {data.type === 'text' && (
           <>
-            {/* ReactQuill Editor - Only rendered when editing */}
+            {/* ReactQuill Editor - Only rendered when editing with key for clean remount */}
             {isEditing && (
               <div className="space-y-4">
                 <div className="canvas-editor">
                   <ReactQuill
-                    key={`${id}-${isEditing ? 'edit' : 'view'}`}
+                    key={quillKey} // Force remount with key
                     ref={quillRef}
                     value={String(editedContent || '')}
-                    onChange={(value) => setEditedContent(String(value || ''))}
+                    onChange={handleQuillChange} // Use wrapper function
                     modules={quillModules}
                     formats={quillFormats}
                     placeholder="Edit your content..."

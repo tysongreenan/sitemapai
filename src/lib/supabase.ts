@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './database.types';
-import { AppErrorHandler } from './errorHandling';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -46,60 +45,72 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   retryInterval: 1000
 });
 
-// Enhanced health check function with better error reporting
-export const checkSupabaseConnection = async () => {
+// Enhanced health check function with better error reporting and timeout
+export const checkSupabaseConnection = async (): Promise<boolean> => {
   try {
     console.log('Checking Supabase connection...');
     
-    // First, try a simple ping to the Supabase API
-    const response = await fetch(`${supabaseUrl}/rest/v1/`, {
-      method: 'HEAD',
-      headers: {
-        'apikey': supabaseAnonKey,
-        'Authorization': `Bearer ${supabaseAnonKey}`
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`Supabase API returned ${response.status}: ${response.statusText}`);
-    }
-
-    console.log('Supabase API is reachable');
-
-    // Then check auth session
-    const { data: { session }, error: authError } = await supabase.auth.getSession();
-    if (authError) {
-      console.warn('Auth session error:', authError);
-      // Don't throw here as this might be expected for logged-out users
-    }
+    // Create an AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
     
-    // Only check projects if we have a session
-    if (session) {
-      console.log('Checking database access...');
-      const { error: dbError } = await supabase.from('projects').select('count').limit(1);
-      if (dbError) {
-        console.error('Database access error:', dbError);
-        throw dbError;
+    try {
+      // First, try a simple ping to the Supabase API
+      const response = await fetch(`${supabaseUrl}/rest/v1/`, {
+        method: 'HEAD',
+        headers: {
+          'apikey': supabaseAnonKey,
+          'Authorization': `Bearer ${supabaseAnonKey}`
+        },
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`Supabase API returned ${response.status}: ${response.statusText}`);
       }
-      console.log('Database access confirmed');
+
+      console.log('Supabase API is reachable');
+
+      // Then check auth session (don't fail on auth errors for logged-out users)
+      try {
+        const { data: { session }, error: authError } = await supabase.auth.getSession();
+        if (authError) {
+          console.warn('Auth session warning (may be normal for logged-out users):', authError.message);
+        }
+        
+        // Only check projects if we have a session
+        if (session) {
+          console.log('Checking database access...');
+          const { error: dbError } = await supabase.from('projects').select('count').limit(1);
+          if (dbError) {
+            console.error('Database access error:', dbError);
+            throw dbError;
+          }
+          console.log('Database access confirmed');
+        }
+      } catch (authError) {
+        console.warn('Auth/DB check failed, but API is reachable:', authError);
+        // Don't fail the connection check just because of auth issues
+      }
+      
+      console.log('Supabase connection check passed');
+      return true;
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      throw fetchError;
     }
-    
-    console.log('Supabase connection check passed');
-    return true;
   } catch (error) {
-    console.error('Supabase connection check failed:', error);
+    console.warn('Supabase connection check failed:', error);
     
-    // Provide more specific error messages
+    // Don't spam error handlers for network issues
     if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-      AppErrorHandler.handle(new Error(
-        'Unable to connect to Supabase. Please check:\n' +
-        '1. Your internet connection\n' +
-        '2. Supabase project status (not paused)\n' +
-        '3. Environment variables in .env file\n' +
-        '4. Firewall/proxy settings'
-      ), { context: 'checkSupabaseConnection', originalError: error });
+      console.warn('Network connectivity issue detected');
+    } else if (error.name === 'AbortError') {
+      console.warn('Connection check timed out');
     } else {
-      AppErrorHandler.handle(error, { context: 'checkSupabaseConnection' });
+      console.error('Unexpected connection error:', error);
     }
     
     return false;
@@ -117,11 +128,13 @@ supabase.auth.onAuthStateChange((event, session) => {
   }
 });
 
-// Test connection on module load
+// Test connection on module load (but don't block)
 checkSupabaseConnection().then(success => {
   if (success) {
     console.log('✅ Supabase connection established');
   } else {
-    console.error('❌ Supabase connection failed');
+    console.warn('⚠️ Supabase connection check failed - will retry automatically');
   }
+}).catch(error => {
+  console.warn('⚠️ Initial Supabase connection test failed:', error.message);
 });

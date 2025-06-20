@@ -55,42 +55,54 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const loadingRef = useRef(false);
   const projectsRef = useRef<Project[]>([]);
   const lastLoadRef = useRef<number>(0);
+  const connectionCheckRef = useRef<boolean>(false);
 
   const clearError = useCallback(() => setError(null), []);
 
-  // Check connection status
+  // Check connection status with improved error handling
   const retryConnection = useCallback(async () => {
-    setConnectionStatus('checking');
-    const isConnected = await checkSupabaseConnection();
-    setConnectionStatus(isConnected ? 'connected' : 'disconnected');
+    if (connectionCheckRef.current) return; // Prevent concurrent checks
     
-    if (isConnected) {
-      toast.success('Connection restored');
-      // Retry loading projects if we have a user
-      if (user) {
-        loadProjects();
+    connectionCheckRef.current = true;
+    setConnectionStatus('checking');
+    
+    try {
+      const isConnected = await checkSupabaseConnection();
+      setConnectionStatus(isConnected ? 'connected' : 'disconnected');
+      
+      if (isConnected) {
+        toast.success('Connection restored', { autoClose: 2000 });
+        // Retry loading projects if we have a user
+        if (user) {
+          loadProjects();
+        }
+      } else {
+        console.warn('Connection check failed - will retry automatically');
       }
-    } else {
-      toast.error('Connection failed. Please check your internet connection and Supabase configuration.');
+    } catch (error) {
+      console.error('Connection retry failed:', error);
+      setConnectionStatus('disconnected');
+    } finally {
+      connectionCheckRef.current = false;
     }
   }, [user]);
 
   // Enhanced error handling for network issues
   const handleNetworkError = useCallback((error: any, operation: string) => {
-    console.error(`Network error in ${operation}:`, error);
+    const isNetworkError = error instanceof TypeError && error.message.includes('Failed to fetch');
     
-    if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+    if (isNetworkError) {
+      console.warn(`Network error in ${operation}:`, error.message);
       setConnectionStatus('disconnected');
       setError('Connection lost. Please check your internet connection.');
-      toast.error('Connection lost. Click retry to reconnect.', {
-        autoClose: false,
-        closeOnClick: false,
-        onClick: retryConnection
-      });
+      
+      // Don't show repeated network error toasts
+      // The UI will show the connection status indicator instead
     } else {
+      console.error(`Error in ${operation}:`, error);
       AppErrorHandler.handle(error, { operation, userId: user?.id });
     }
-  }, [user?.id, retryConnection]);
+  }, [user?.id]);
 
   const loadProjects = useCallback(async () => {
     if (!user || loadingRef.current) return;
@@ -182,7 +194,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateProject = async (id: string, data: Partial<Omit<Project, 'id' | 'created_at'>>): Promise<boolean> => {
-    // Check connection first
+    // Check connection first - fail silently for auto-saves during disconnection
     if (connectionStatus === 'disconnected') {
       console.warn('Skipping update - no connection');
       setSaveStatus('error');
@@ -317,6 +329,18 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     retryConnection();
   }, [retryConnection]);
+
+  // Auto-retry connection when disconnected
+  useEffect(() => {
+    if (connectionStatus === 'disconnected') {
+      const retryTimer = setTimeout(() => {
+        console.log('Auto-retrying connection...');
+        retryConnection();
+      }, 10000); // Retry after 10 seconds
+
+      return () => clearTimeout(retryTimer);
+    }
+  }, [connectionStatus, retryConnection]);
 
   const value = {
     projects,

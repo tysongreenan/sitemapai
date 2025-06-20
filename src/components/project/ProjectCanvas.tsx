@@ -19,7 +19,6 @@ import 'reactflow/dist/style.css';
 import { Plus, Download, Share, Maximize2, Grid, Layers, ZoomIn, ZoomOut, Link2, FileDown, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { Button } from '../ui/Button';
 import ContentNode, { ContentNodeData } from './nodes/ContentNode';
-import { ContentDisplayModal } from '../modals/ContentDisplayModal';
 import { useProject } from '../../context/ProjectContext';
 import { debounce } from '../../lib/utils';
 import { nanoid } from 'nanoid';
@@ -54,7 +53,6 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem }: ProjectCa
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
   const [showMiniMap, setShowMiniMap] = useState(true);
-  const [modalContent, setModalContent] = useState<{ title: string; content: string } | null>(null);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   
   // Add initialization flag to prevent continuous re-loading
@@ -196,9 +194,6 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem }: ProjectCa
         content,
         type,
         createdAt: new Date(),
-        onViewFull: (title: string, content: string) => {
-          setModalContent({ title, content });
-        },
         onDelete: (nodeId: string) => {
           setNodes((nds) => nds.filter(n => n.id !== nodeId));
         },
@@ -339,9 +334,6 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem }: ProjectCa
     data: {
       ...node.data,
       selected: selectedItem?.id === node.id,
-      onViewFull: (title: string, content: string) => {
-        setModalContent({ title, content });
-      },
       onDelete: (nodeId: string) => {
         setNodes((nds) => nds.filter(n => n.id !== nodeId));
         if (selectedItem?.id === nodeId) {
@@ -577,14 +569,6 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem }: ProjectCa
           )}
         </ReactFlow>
       </div>
-
-      {/* Content Display Modal */}
-      <ContentDisplayModal
-        isOpen={!!modalContent}
-        onClose={() => setModalContent(null)}
-        title={modalContent?.title || ''}
-        content={modalContent?.content || ''}
-      />
     </>
   );
 };

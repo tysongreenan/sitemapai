@@ -1,6 +1,6 @@
 import React, { memo, useState } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
-import { FileText, Image, BarChart3, Video, Copy, Trash2, Edit3, ExternalLink, Save, X } from 'lucide-react';
+import { FileText, Image, BarChart3, Video, Copy, Trash2, Edit3, Save, X } from 'lucide-react';
 import { toast } from 'react-toastify';
 import ReactQuill from 'react-quill';
 import ReactMarkdown from 'react-markdown';
@@ -12,7 +12,6 @@ export interface ContentNodeData {
   type: 'text' | 'image' | 'chart' | 'video';
   createdAt: Date;
   selected?: boolean;
-  onViewFull?: (title: string, content: string) => void;
   onDelete?: (nodeId: string) => void;
   onContentUpdate?: (nodeId: string, newContent: string) => void;
 }
@@ -55,11 +54,6 @@ const ContentNode = memo(({ data, selected, id }: NodeProps<ContentNodeData>) =>
     e.stopPropagation();
     navigator.clipboard.writeText(data.content);
     toast.success('Content copied to clipboard!');
-  };
-
-  const handleViewFull = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    data.onViewFull?.(data.title, data.content);
   };
 
   const handleDelete = (e: React.MouseEvent) => {
@@ -114,7 +108,7 @@ const ContentNode = memo(({ data, selected, id }: NodeProps<ContentNodeData>) =>
   return (
     <div className={`
       bg-white rounded-xl shadow-lg border-2 transition-all duration-200 
-      ${isEditing ? 'min-w-[500px] max-w-[600px]' : 'min-w-[320px] max-w-[400px]'}
+      ${isEditing ? 'min-w-[600px] max-w-[800px]' : 'min-w-[400px] max-w-[600px]'}
       ${selected ? 'border-indigo-400 shadow-xl ring-2 ring-indigo-200' : `${getTypeColor()} hover:shadow-xl`}
     `}>
       {/* Node Header */}
@@ -217,9 +211,9 @@ const ContentNode = memo(({ data, selected, id }: NodeProps<ContentNodeData>) =>
           <>
             {data.type === 'text' && (
               <div className="text-sm text-gray-700 leading-relaxed">
-                <div className="max-h-32 overflow-hidden prose prose-sm max-w-none">
+                <div className="prose prose-sm max-w-none">
                   <ReactMarkdown>
-                    {data.content.length > 200 ? `${data.content.substring(0, 200)}...` : data.content}
+                    {data.content}
                   </ReactMarkdown>
                 </div>
               </div>
@@ -260,13 +254,9 @@ const ContentNode = memo(({ data, selected, id }: NodeProps<ContentNodeData>) =>
               <span className="text-xs text-gray-400">
                 {data.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
-              <button 
-                onClick={handleViewFull}
-                className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition-colors hover:bg-indigo-50 px-2 py-1 rounded"
-              >
-                <ExternalLink size={10} />
-                View Full
-              </button>
+              <span className="text-xs text-gray-500">
+                {data.content.length} characters
+              </span>
             </div>
           </>
         )}

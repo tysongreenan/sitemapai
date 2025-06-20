@@ -19,18 +19,18 @@ export interface ContentNodeData {
 
 const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, selected, id }, ref) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [editedContent, setEditedContent] = useState(data.content || '');
+  const [editedContent, setEditedContent] = useState(String(data.content || ''));
   const quillRef = useRef<ReactQuill>(null);
 
-  // Update editedContent when data.content changes, ensuring it's never undefined
+  // Update editedContent when data.content changes, ensuring it's always a string
   useEffect(() => {
-    setEditedContent(data.content || '');
+    setEditedContent(String(data.content || ''));
   }, [data.content]);
 
   useImperativeHandle(ref, () => ({
     startEditing: () => {
       if (data.type === 'text') {
-        setEditedContent(data.content || '');
+        setEditedContent(String(data.content || ''));
         setIsEditing(true);
       }
     }
@@ -82,7 +82,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (data.type === 'text') {
-      setEditedContent(data.content || ''); // Ensure we start with current content or empty string
+      setEditedContent(String(data.content || '')); // Ensure string type
       setIsEditing(true);
     } else {
       toast.info('Editing is only available for text content');
@@ -92,7 +92,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
   const handleDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (data.type === 'text' && !isEditing) {
-      setEditedContent(data.content || ''); // Ensure we start with current content or empty string
+      setEditedContent(String(data.content || '')); // Ensure string type
       setIsEditing(true);
     }
   };
@@ -100,7 +100,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
   const handleSave = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (data.onContentUpdate) {
-      data.onContentUpdate(id, editedContent || '');
+      data.onContentUpdate(id, String(editedContent || ''));
       setIsEditing(false);
       toast.success('Content updated successfully!');
     }
@@ -108,7 +108,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
 
   const handleCancel = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setEditedContent(data.content || ''); // Reset to original content or empty string
+    setEditedContent(String(data.content || '')); // Reset to original content as string
     setIsEditing(false);
   };
 
@@ -270,8 +270,8 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
               <div className="canvas-editor">
                 <ReactQuill
                   ref={quillRef}
-                  value={editedContent || ''}
-                  onChange={(value) => setEditedContent(value || '')}
+                  value={String(editedContent || '')}
+                  onChange={(value) => setEditedContent(String(value || ''))}
                   modules={quillModules}
                   formats={quillFormats}
                   placeholder="Edit your content..."

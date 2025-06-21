@@ -238,18 +238,25 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem, onSendTextT
     setReactFlowInstance(instance);
   };
 
-  // Handle node content update with immediate save
+  // Handle node content update with immediate save and detailed logging
   const handleNodeContentUpdate = useCallback((nodeId: string, newContent: string) => {
+    console.log('🟢 handleNodeContentUpdate called');
+    console.log('🟢 nodeId:', nodeId);
+    console.log('🟢 newContent received:', newContent);
+    console.log('🟢 Current nodes array before update:', nodes.map(n => ({ id: n.id, content: n.data.content })));
+    
     const updatedNodes = nodes.map((node) => 
       node.id === nodeId 
         ? { ...node, data: { ...node.data, content: newContent } }
         : node
     );
     
+    console.log('🟢 Updated nodes array after local update:', updatedNodes.map(n => ({ id: n.id, content: n.data.content })));
+    
     setNodes(updatedNodes);
     
     if (initializedRef.current) {
-      console.log('Node content updated, triggering save');
+      console.log('🟢 Triggering debounced save with updated nodes');
       debouncedSave(updatedNodes, edges);
     }
     

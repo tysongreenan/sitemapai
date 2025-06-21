@@ -133,11 +133,16 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
 
   const startEditing = () => {
     if (data.type === 'text' && !isEditing) {
+      console.log('🟡 Starting edit mode for node:', id);
+      console.log('🟡 Current data.content:', data.content);
+      
       setIsEditing(true);
       lastSavedContent.current = data.content;
+      
       setTimeout(() => {
         if (contentRef.current) {
           contentRef.current.innerHTML = data.content || '';
+          console.log('🟡 Set contentRef.innerHTML to:', data.content);
           contentRef.current.focus();
         }
       }, 0);
@@ -146,17 +151,24 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
 
   const saveContent = () => {
     if (contentRef.current && isEditing) {
-      const newContent = contentRef.current.innerHTML
-        .replace(/<div>/g, '\n')
-        .replace(/<\/div>/g, '')
-        .replace(/<br>/g, '\n')
-        .replace(/<[^>]*>/g, '');
+      console.log('🔵 saveContent called');
+      console.log('🔵 contentRef.innerHTML before processing:', contentRef.current.innerHTML);
+      console.log('🔵 lastSavedContent.current:', lastSavedContent.current);
+      
+      // PRESERVE HTML FORMATTING - Don't strip HTML tags
+      const newContent = contentRef.current.innerHTML;
+      
+      console.log('🔵 newContent after processing (HTML preserved):', newContent);
+      console.log('🔵 Content changed?', newContent !== lastSavedContent.current);
       
       // Only save if content actually changed
       if (newContent !== lastSavedContent.current) {
+        console.log('🔵 Calling onContentUpdate with:', newContent);
         data.onContentUpdate?.(id, newContent);
         lastSavedContent.current = newContent;
-        // Don't show toast for auto-save to avoid being annoying
+        console.log('🔵 Updated lastSavedContent.current to:', lastSavedContent.current);
+      } else {
+        console.log('🔵 No changes detected, skipping save');
       }
       
       setIsEditing(false);
@@ -165,21 +177,30 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
   };
 
   const handleContentBlur = (e: React.FocusEvent) => {
+    console.log('🟠 handleContentBlur triggered');
+    
     // Check if the blur is moving to something within the node
     const relatedTarget = e.relatedTarget as HTMLElement;
     const isWithinNode = nodeRef.current?.contains(relatedTarget);
     
+    console.log('🟠 Blur target within node?', isWithinNode);
+    
     // Only save if we're truly leaving the content area
     if (!isWithinNode) {
+      console.log('🟠 Blur is leaving node, calling saveContent');
       saveContent();
+    } else {
+      console.log('🟠 Blur is within node, not saving');
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
+      console.log('🔴 Escape pressed, canceling edit');
       // Restore original content and exit without saving
       if (contentRef.current) {
         contentRef.current.innerHTML = lastSavedContent.current;
+        console.log('🔴 Restored content to:', lastSavedContent.current);
       }
       setIsEditing(false);
       setShowToolbar(false);
@@ -233,7 +254,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
       {showToolbar && isEditing && (
         <div
           ref={toolbarRef}
-          className="absolute z-10 bg-gray-800 text-white rounded-lg shadow-xl p-1 flex items-center gap-1"
+          className="absolute z-10 bg-gray-800 text-white rounded-lg shadow-xl p-1 flex items-center gap-1 floating-toolbar"
           style={{
             top: `${toolbarPosition.top}px`,
             left: `${toolbarPosition.left}px`,
@@ -363,7 +384,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
                 onClick={startEditing}
               >
                 {data.content ? (
-                  <ReactMarkdown>{data.content}</ReactMarkdown>
+                  <div dangerouslySetInnerHTML={{ __html: data.content }} />
                 ) : (
                   <p className="text-gray-400 italic">Click to add content...</p>
                 )}

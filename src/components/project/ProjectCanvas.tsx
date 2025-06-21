@@ -21,6 +21,7 @@ import 'reactflow/dist/style.css';
 import { Plus, Download, Share, Maximize2, Grid, Layers, ZoomIn, ZoomOut, Link2, FileDown, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { Button } from '../ui/Button';
 import ContentNode, { ContentNodeData } from './nodes/ContentNode';
+import { AddContentMenu } from './AddContentMenu';
 import { useProject } from '../../context/ProjectContext';
 import { debounce } from '../../lib/utils';
 import { nanoid } from 'nanoid';
@@ -56,6 +57,7 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem, onSendTextT
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
   const [showMiniMap, setShowMiniMap] = useState(true);
+  const [showAddMenu, setShowAddMenu] = useState(false);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   
   // Add initialization flag to prevent continuous re-loading
@@ -105,6 +107,8 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem, onSendTextT
           title: node.data?.title || 'Untitled',
           content: node.data?.content || '',
           type: node.data?.type || 'text',
+          subType: node.data?.subType,
+          metadata: node.data?.metadata || {},
           createdAt: node.data?.createdAt ? new Date(node.data.createdAt) : new Date(),
           onSendTextToChat,
           onNodeDoubleClick: handleNodeDoubleClick,
@@ -263,6 +267,24 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem, onSendTextT
     toast.success('Content updated successfully!');
   }, [setNodes, nodes, edges, debouncedSave]);
 
+  // Handle node metadata update with immediate save
+  const handleNodeMetadataUpdate = useCallback((nodeId: string, metadata: any) => {
+    const updatedNodes = nodes.map((node) => 
+      node.id === nodeId 
+        ? { ...node, data: { ...node.data, metadata } }
+        : node
+    );
+    
+    setNodes(updatedNodes);
+    
+    if (initializedRef.current) {
+      console.log('Node metadata updated, triggering save');
+      debouncedSave(updatedNodes, edges);
+    }
+    
+    toast.success('Settings updated successfully!');
+  }, [setNodes, nodes, edges, debouncedSave]);
+
   // Handle node deletion with immediate save
   const handleDeleteNode = useCallback((nodeId: string) => {
     const updatedNodes = nodes.filter(n => n.id !== nodeId);
@@ -281,8 +303,10 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem, onSendTextT
   }, [nodes, setNodes, selectedItem, onItemSelect, edges, debouncedSave]);
 
   // Add new item to canvas with immediate save
-  const addItem = useCallback((type: CanvasItem['type'], content: string, title: string) => {
-    console.log('Adding new item to canvas:', { type, title });
+  const addItem = useCallback((type: string, subType?: string, metadata?: any) => {
+    console.log('Adding new item to canvas:', { type, subType, metadata });
+    
+    const title = metadata?.title || `New ${type}`;
     
     const newNode: Node<ContentNodeData> = {
       id: nanoid(),
@@ -293,11 +317,14 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem, onSendTextT
       },
       data: {
         title,
-        content,
-        type,
+        content: type === 'text' ? '' : '',
+        type: type as any,
+        subType: subType as any,
+        metadata: metadata || {},
         createdAt: new Date(),
         onDelete: handleDeleteNode,
         onContentUpdate: handleNodeContentUpdate,
+        onMetadataUpdate: handleNodeMetadataUpdate,
         onSendTextToChat,
         onNodeDoubleClick: handleNodeDoubleClick,
       },
@@ -314,9 +341,9 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem, onSendTextT
     // Convert to CanvasItem for callback
     const canvasItem: CanvasItem = {
       id: newNode.id,
-      type,
+      type: type as any,
       title,
-      content,
+      content: '',
       x: newNode.position.x,
       y: newNode.position.y,
       width: 320,
@@ -325,8 +352,8 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem, onSendTextT
     };
     
     onItemSelect?.(canvasItem);
-    toast.success('Content added to canvas');
-  }, [setNodes, nodes, edges, onItemSelect, handleNodeContentUpdate, handleDeleteNode, onSendTextToChat, handleNodeDoubleClick, debouncedSave]);
+    toast.success(`${title} added to canvas`);
+  }, [setNodes, nodes, edges, onItemSelect, handleNodeContentUpdate, handleNodeMetadataUpdate, handleDeleteNode, onSendTextToChat, handleNodeDoubleClick, debouncedSave]);
 
   // Handle node selection
   const onNodeClick = useCallback((event: React.MouseEvent, node: Node<ContentNodeData>) => {
@@ -440,6 +467,7 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem, onSendTextT
       selected: selectedItem?.id === node.id,
       onDelete: handleDeleteNode,
       onContentUpdate: handleNodeContentUpdate,
+      onMetadataUpdate: handleNodeMetadataUpdate,
       onSendTextToChat,
       onNodeDoubleClick: handleNodeDoubleClick,
     }
@@ -521,8 +549,12 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem, onSendTextT
                 switch (node.data?.type) {
                   case 'text': return '#3b82f6';
                   case 'image': return '#10b981';
-                  case 'chart': return '#8b5cf6';
-                  case 'video': return '#f59e0b';
+                  case 'video': return '#8b5cf6';
+                  case 'website': return '#6366f1';
+                  case 'youtube': return '#ef4444';
+                  case 'social_ad': return '#f59e0b';
+                  case 'analytics': return '#f97316';
+                  case 'action': return '#059669';
                   default: return '#6b7280';
                 }
               }}
@@ -532,6 +564,18 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem, onSendTextT
           {/* Custom Toolbar */}
           <Panel position="top-left" className="flex items-center gap-2">
             <div className="bg-white rounded-lg border border-gray-200 shadow-lg p-2 flex items-center gap-2">
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setShowAddMenu(true)}
+                leftIcon={<Plus size={16} />}
+                className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+              >
+                Add Content
+              </Button>
+              
+              <div className="w-px h-6 bg-gray-300" />
+              
               <Button
                 variant="ghost"
                 size="sm"
@@ -551,8 +595,6 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem, onSendTextT
               >
                 <ZoomIn size={16} />
               </Button>
-              
-              <div className="w-px h-6 bg-gray-300" />
               
               <Button
                 variant="ghost"
@@ -625,27 +667,22 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem, onSendTextT
           {nodes.length === 0 && (
             <Panel position="top-center" className="pointer-events-none">
               <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8 text-center max-w-md">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Plus size={24} className="text-gray-400" />
+                <div className="w-16 h-16 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Plus size={24} className="text-indigo-600" />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Your canvas is empty</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Build Your Customer Journey</h3>
                 <p className="text-gray-600 mb-4">
-                  Start chatting with AI to generate content that will appear here
+                  Add touchpoints, content, and analytics to visualize your marketing funnel
                 </p>
                 <div className="flex flex-wrap gap-2 justify-center pointer-events-auto">
                   <Button
                     size="sm"
-                    variant="outline"
-                    onClick={() => addItem('text', 'This is a sample blog post about AI marketing trends and how they are shaping the future of digital marketing. It includes insights on personalization, automation, and data-driven strategies that modern marketers are using to engage their audiences more effectively.', 'Sample Blog Post')}
+                    variant="primary"
+                    onClick={() => setShowAddMenu(true)}
+                    leftIcon={<Plus size={16} />}
+                    className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
                   >
-                    Add Sample Text
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => addItem('image', 'AI-generated marketing image concept featuring modern design elements, vibrant colors, and compelling visual storytelling that captures audience attention.', 'Marketing Visual')}
-                  >
-                    Add Sample Image
+                    Add Content
                   </Button>
                 </div>
               </div>
@@ -676,6 +713,13 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem, onSendTextT
           )}
         </ReactFlow>
       </div>
+
+      {/* Add Content Menu Modal */}
+      <AddContentMenu
+        isOpen={showAddMenu}
+        onClose={() => setShowAddMenu(false)}
+        onAddContent={addItem}
+      />
     </>
   );
 };

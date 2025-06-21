@@ -17,7 +17,8 @@ import {
   X,
   Sparkles,
   Bell,
-  Search
+  Search,
+  Link2
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Button } from '../ui/Button';
@@ -32,6 +33,7 @@ export function DashboardLayout() {
     { name: 'Projects', href: '/projects', icon: FolderOpen, badge: 'New' },
     { name: 'Apps', href: '/apps', icon: Grid3X3 },
     { name: 'Jasper IQ', href: '/jasper-iq', icon: Brain },
+    { name: 'Integrations', href: '/integrations', icon: Link2, badge: 'Beta' },
   ];
 
   const bottomNavigation = [

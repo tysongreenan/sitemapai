@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import ReactMarkdown from 'react-markdown';
+import { SocialAdMetrics, AnalyticsMetrics } from '../../integrations/LiveMetrics';
 
 export interface ContentNodeData {
   title: string;
@@ -333,7 +334,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
 
       case 'social_ad':
         return (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {data.metadata?.thumbnail ? (
               <div className="relative group">
                 <img 
@@ -365,54 +366,32 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
               </div>
             )}
             
-            {/* Ad Metrics */}
-            {(data.metadata?.impressions || data.metadata?.clicks || data.metadata?.cost) && (
-              <div className="grid grid-cols-3 gap-2 text-xs">
-                {data.metadata.impressions && (
-                  <div className="bg-gray-50 p-2 rounded text-center">
-                    <div className="font-semibold">{data.metadata.impressions.toLocaleString()}</div>
-                    <div className="text-gray-500">Impressions</div>
-                  </div>
-                )}
-                {data.metadata.clicks && (
-                  <div className="bg-gray-50 p-2 rounded text-center">
-                    <div className="font-semibold">{data.metadata.clicks.toLocaleString()}</div>
-                    <div className="text-gray-500">Clicks</div>
-                  </div>
-                )}
-                {data.metadata.cost && (
-                  <div className="bg-gray-50 p-2 rounded text-center">
-                    <div className="font-semibold">{data.metadata.cost}</div>
-                    <div className="text-gray-500">Cost</div>
-                  </div>
-                )}
-              </div>
-            )}
+            {/* Live Metrics Component */}
+            <SocialAdMetrics 
+              nodeId={id} 
+              platform={`${data.subType}_ads`} 
+              metadata={data.metadata}
+            />
           </div>
         );
 
       case 'analytics':
         return (
-          <div className="space-y-2">
+          <div className="space-y-3">
             <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
               <div className="text-center">
                 <BarChart3 size={48} className="text-gray-400 mx-auto mb-2" />
-                <p className="text-sm text-gray-600">{data.subType === 'funnel' ? 'Conversion Funnel' : data.subType === 'heatmap' ? 'Heatmap Analysis' : 'Analytics Dashboard'}</p>
+                <p className="text-sm text-gray-600">
+                  {data.subType === 'funnel' ? 'Conversion Funnel' : 
+                   data.subType === 'heatmap' ? 'Heatmap Analysis' : 
+                   'Analytics Dashboard'}
+                </p>
                 <p className="text-xs text-gray-500 mt-1">Data Visualization</p>
               </div>
             </div>
             
-            {/* Sample metrics */}
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="bg-gray-50 p-2 rounded text-center">
-                <div className="font-semibold text-green-600">+24%</div>
-                <div className="text-gray-500">Conversion Rate</div>
-              </div>
-              <div className="bg-gray-50 p-2 rounded text-center">
-                <div className="font-semibold text-blue-600">2.3s</div>
-                <div className="text-gray-500">Avg. Time</div>
-              </div>
-            </div>
+            {/* Live Analytics Component */}
+            <AnalyticsMetrics nodeId={id} subType={data.subType} />
           </div>
         );
 
@@ -433,9 +412,9 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
             
             {/* Action metrics */}
             {data.metadata?.conversionRate && (
-              <div className="bg-gray-50 p-2 rounded text-center text-xs">
-                <div className="font-semibold text-green-600">{data.metadata.conversionRate}</div>
-                <div className="text-gray-500">Conversion Rate</div>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+                <div className="text-lg font-bold text-green-900">{data.metadata.conversionRate}</div>
+                <div className="text-xs text-green-700">Conversion Rate</div>
               </div>
             )}
           </div>

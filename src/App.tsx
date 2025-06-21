@@ -16,6 +16,7 @@ import DashboardPage from './pages/DashboardPage';
 import ProjectsPage from './pages/ProjectsPage';
 import AppsPage from './pages/AppsPage';
 import JasperIQPage from './pages/JasperIQPage';
+import IntegrationsPage from './pages/IntegrationsPage';
 import ProjectEditorPage from './pages/ProjectEditorPage';
 import NotFoundPage from './pages/NotFoundPage';
 
@@ -80,6 +81,17 @@ function App() {
                 }
               >
                 <Route index element={<JasperIQPage />} />
+              </Route>
+
+              <Route 
+                path="/integrations" 
+                element={
+                  <ProtectedRoute>
+                    <DashboardLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<IntegrationsPage />} />
               </Route>
 
               {/* Project editor - full screen without sidebar */}

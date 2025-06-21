@@ -1,9 +1,8 @@
 import React, { memo, useState, useRef, useImperativeHandle, forwardRef, useEffect, useCallback } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
-import { FileText, Image, BarChart3, Video, Copy, Trash2, Edit3, Save, X, Send, Bold, Italic, Underline, List, Link2 } from 'lucide-react';
+import { FileText, Image, BarChart3, Video, Copy, Trash2, Bold, Italic, Underline, List, Link2, Send } from 'lucide-react';
 import { toast } from 'react-toastify';
 import ReactMarkdown from 'react-markdown';
-import { Button } from '../../ui/Button';
 
 export interface ContentNodeData {
   title: string;
@@ -19,34 +18,13 @@ export interface ContentNodeData {
 
 const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, selected, id }, ref) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [editedContent, setEditedContent] = useState(data.content || '');
   const [showToolbar, setShowToolbar] = useState(false);
   const [toolbarPosition, setToolbarPosition] = useState({ top: 0, left: 0 });
   const [selectedText, setSelectedText] = useState('');
   const contentRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
-
-  // Update content when data changes
-  useEffect(() => {
-    setEditedContent(data.content || '');
-  }, [data.content]);
-
-  // Set node as non-draggable when editing
-  useEffect(() => {
-    if (nodeRef.current) {
-      const nodeElement = nodeRef.current.closest('.react-flow__node');
-      if (nodeElement) {
-        if (isEditing) {
-          nodeElement.classList.add('nodrag');
-          (nodeElement as HTMLElement).style.cursor = 'default';
-        } else {
-          nodeElement.classList.remove('nodrag');
-          (nodeElement as HTMLElement).style.cursor = 'grab';
-        }
-      }
-    }
-  }, [isEditing]);
+  const lastSavedContent = useRef(data.content);
 
   // Handle text selection for toolbar
   useEffect(() => {
@@ -94,31 +72,21 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
     }
   }, [showToolbar]);
 
-  // Save on click-out functionality - IMPROVED: Immediate state update
+  // Set node as non-draggable when editing
   useEffect(() => {
-    if (!isEditing) return;
-
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      
-      // Check if click is outside both the node and the toolbar
-      const isOutsideNode = nodeRef.current && !nodeRef.current.contains(target);
-      const isOutsideToolbar = toolbarRef.current && !toolbarRef.current.contains(target);
-      
-      if (isOutsideNode && isOutsideToolbar) {
-        console.log('Click detected outside content node, saving changes');
-        saveContent();
+    if (nodeRef.current) {
+      const nodeElement = nodeRef.current.closest('.react-flow__node');
+      if (nodeElement) {
+        if (isEditing) {
+          nodeElement.classList.add('nodrag');
+          nodeElement.style.cursor = 'default';
+        } else {
+          nodeElement.classList.remove('nodrag');
+          nodeElement.style.cursor = 'grab';
+        }
       }
-    };
-
-    // Add event listener to document
-    document.addEventListener('mousedown', handleClickOutside);
-    
-    // Cleanup function
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isEditing]); // Only re-run when isEditing changes
+    }
+  }, [isEditing]);
 
   const getIcon = () => {
     switch (data.type) {
@@ -164,46 +132,57 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
   };
 
   const startEditing = () => {
-    if (data.type === 'text') {
+    if (data.type === 'text' && !isEditing) {
       setIsEditing(true);
+      lastSavedContent.current = data.content;
       setTimeout(() => {
-        contentRef.current?.focus();
+        if (contentRef.current) {
+          contentRef.current.innerHTML = data.content || '';
+          contentRef.current.focus();
+        }
       }, 0);
     }
   };
 
-  // FIXED: Remove premature toast - only update state and call onContentUpdate
   const saveContent = () => {
-    if (contentRef.current) {
+    if (contentRef.current && isEditing) {
       const newContent = contentRef.current.innerHTML
         .replace(/<div>/g, '\n')
         .replace(/<\/div>/g, '')
         .replace(/<br>/g, '\n')
         .replace(/<[^>]*>/g, '');
       
-      // Update editing state IMMEDIATELY before calling onContentUpdate
+      // Only save if content actually changed
+      if (newContent !== lastSavedContent.current) {
+        data.onContentUpdate?.(id, newContent);
+        lastSavedContent.current = newContent;
+        // Don't show toast for auto-save to avoid being annoying
+      }
+      
       setIsEditing(false);
       setShowToolbar(false);
-      
-      // Call the update function - toast will be shown in ProjectCanvas after successful save
-      data.onContentUpdate?.(id, newContent);
     }
   };
 
-  const cancelEdit = () => {
-    if (contentRef.current) {
-      contentRef.current.innerHTML = data.content || '';
+  const handleContentBlur = (e: React.FocusEvent) => {
+    // Check if the blur is moving to something within the node
+    const relatedTarget = e.relatedTarget as HTMLElement;
+    const isWithinNode = nodeRef.current?.contains(relatedTarget);
+    
+    // Only save if we're truly leaving the content area
+    if (!isWithinNode) {
+      saveContent();
     }
-    setIsEditing(false);
-    setShowToolbar(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
-      cancelEdit();
-    } else if (e.key === 'Enter' && e.ctrlKey) {
-      e.preventDefault();
-      saveContent();
+      // Restore original content and exit without saving
+      if (contentRef.current) {
+        contentRef.current.innerHTML = lastSavedContent.current;
+      }
+      setIsEditing(false);
+      setShowToolbar(false);
     }
   };
 
@@ -228,19 +207,6 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
     }
   };
 
-  // Prevent React Flow dragging when editing
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (isEditing) {
-      e.stopPropagation();
-    }
-  }, [isEditing]);
-
-  const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    if (isEditing) {
-      e.stopPropagation();
-    }
-  }, [isEditing]);
-
   return (
     <div 
       ref={nodeRef}
@@ -250,14 +216,24 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
         ${selected ? 'border-indigo-400 shadow-xl ring-2 ring-indigo-200' : `${getTypeColor()} hover:shadow-xl`}
         ${isEditing ? 'editing nodrag' : ''}
       `}
-      onMouseDown={handleMouseDown}
-      onPointerDown={handlePointerDown}
+      onMouseDown={(e) => {
+        // Prevent node dragging when editing or clicking on editable content
+        if (isEditing || (e.target as HTMLElement).getAttribute('contenteditable') === 'true') {
+          e.stopPropagation();
+        }
+      }}
+      onPointerDown={(e) => {
+        // Also prevent pointer events for touch devices
+        if (isEditing || (e.target as HTMLElement).getAttribute('contenteditable') === 'true') {
+          e.stopPropagation();
+        }
+      }}
     >
       {/* Floating Toolbar */}
       {showToolbar && isEditing && (
         <div
           ref={toolbarRef}
-          className="absolute z-10 bg-gray-800 text-white rounded-lg shadow-xl p-1 flex items-center gap-1 floating-toolbar"
+          className="absolute z-10 bg-gray-800 text-white rounded-lg shadow-xl p-1 flex items-center gap-1"
           style={{
             top: `${toolbarPosition.top}px`,
             left: `${toolbarPosition.left}px`,
@@ -267,6 +243,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
           <button
             className="p-2 hover:bg-gray-700 rounded transition-colors"
             onClick={() => applyFormat('bold')}
+            onMouseDown={(e) => e.preventDefault()}
             title="Bold"
           >
             <Bold size={14} />
@@ -274,6 +251,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
           <button
             className="p-2 hover:bg-gray-700 rounded transition-colors"
             onClick={() => applyFormat('italic')}
+            onMouseDown={(e) => e.preventDefault()}
             title="Italic"
           >
             <Italic size={14} />
@@ -281,6 +259,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
           <button
             className="p-2 hover:bg-gray-700 rounded transition-colors"
             onClick={() => applyFormat('underline')}
+            onMouseDown={(e) => e.preventDefault()}
             title="Underline"
           >
             <Underline size={14} />
@@ -289,6 +268,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
           <button
             className="p-2 hover:bg-gray-700 rounded transition-colors"
             onClick={() => applyFormat('insertUnorderedList')}
+            onMouseDown={(e) => e.preventDefault()}
             title="Bullet List"
           >
             <List size={14} />
@@ -299,6 +279,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
               const url = prompt('Enter URL:');
               if (url) applyFormat('createLink', url);
             }}
+            onMouseDown={(e) => e.preventDefault()}
             title="Add Link"
           >
             <Link2 size={14} />
@@ -309,6 +290,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
               <button
                 className="p-2 hover:bg-gray-700 rounded transition-colors flex items-center gap-1"
                 onClick={sendSelectedToAI}
+                onMouseDown={(e) => e.preventDefault()}
                 title="Send to AI"
               >
                 <Send size={14} />
@@ -319,7 +301,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
         </div>
       )}
 
-      {/* Node Header - Double-click to focus */}
+      {/* Node Header */}
       <div 
         className={`px-4 py-3 border-b rounded-t-xl ${getHeaderColor()} cursor-pointer hover:bg-opacity-80 transition-colors`}
         onDoubleClick={handleHeaderDoubleClick}
@@ -331,7 +313,6 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
             <span className="text-sm font-semibold text-gray-900 truncate">
               {data.title}
             </span>
-            {/* IMPROVED: Editing badge only shows when actually editing */}
             {isEditing && (
               <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
                 Editing
@@ -340,50 +321,20 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
           </div>
           {selected && (
             <div className="flex items-center gap-1 ml-2">
-              {!isEditing ? (
-                <>
-                  <button
-                    onClick={copyToClipboard}
-                    className="p-1.5 rounded-md text-gray-500 hover:text-gray-700 hover:bg-white/50 transition-colors"
-                    title="Copy content"
-                  >
-                    <Copy size={12} />
-                  </button>
-                  {data.type === 'text' && (
-                    <button
-                      onClick={startEditing}
-                      className="p-1.5 rounded-md text-gray-500 hover:text-gray-700 hover:bg-white/50 transition-colors"
-                      title="Edit content"
-                    >
-                      <Edit3 size={12} />
-                    </button>
-                  )}
-                  <button
-                    onClick={handleDelete}
-                    className="p-1.5 rounded-md text-red-500 hover:text-red-700 hover:bg-white/50 transition-colors"
-                    title="Delete"
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={saveContent}
-                    className="p-1.5 rounded-md text-green-500 hover:text-green-700 hover:bg-white/50 transition-colors"
-                    title="Save changes (Ctrl+Enter)"
-                  >
-                    <Save size={12} />
-                  </button>
-                  <button
-                    onClick={cancelEdit}
-                    className="p-1.5 rounded-md text-gray-500 hover:text-gray-700 hover:bg-white/50 transition-colors"
-                    title="Cancel (Esc)"
-                  >
-                    <X size={12} />
-                  </button>
-                </>
-              )}
+              <button
+                onClick={copyToClipboard}
+                className="p-1.5 rounded-md text-gray-500 hover:text-gray-700 hover:bg-white/50 transition-colors"
+                title="Copy content"
+              >
+                <Copy size={12} />
+              </button>
+              <button
+                onClick={handleDelete}
+                className="p-1.5 rounded-md text-red-500 hover:text-red-700 hover:bg-white/50 transition-colors"
+                title="Delete"
+              >
+                <Trash2 size={12} />
+              </button>
             </div>
           )}
         </div>
@@ -399,7 +350,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
                 contentEditable
                 className="prose prose-sm max-w-none text-gray-700 outline-none min-h-[100px] p-2 rounded-lg bg-gray-50 border border-gray-200 focus:border-indigo-300 focus:bg-white transition-colors"
                 onKeyDown={handleKeyDown}
-                dangerouslySetInnerHTML={{ __html: editedContent }}
+                onBlur={handleContentBlur}
                 onMouseDown={(e) => e.stopPropagation()}
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => e.stopPropagation()}
@@ -420,7 +371,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
             )}
             {isEditing && (
               <div className="mt-2 text-xs text-gray-500">
-                Tip: Press Ctrl+Enter to save, Esc to cancel, or click outside to save. Select text to see formatting options.
+                Click outside to save • Press Esc to cancel
               </div>
             )}
           </>

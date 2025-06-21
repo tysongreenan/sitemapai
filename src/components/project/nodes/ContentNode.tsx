@@ -72,6 +72,30 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
     }
   }, [showToolbar]);
 
+  // Focus the editor after it renders
+  useEffect(() => {
+    if (isEditing && contentRef.current) {
+      // Small delay to ensure DOM is ready
+      const timer = setTimeout(() => {
+        contentRef.current?.focus();
+        // Place cursor at end
+        const range = document.createRange();
+        const selection = window.getSelection();
+        if (contentRef.current.childNodes.length > 0) {
+          range.selectNodeContents(contentRef.current);
+          range.collapse(false);
+        } else {
+          range.setStart(contentRef.current, 0);
+          range.setEnd(contentRef.current, 0);
+        }
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+      }, 50);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isEditing]);
+
   // Set node as non-draggable when editing
   useEffect(() => {
     if (nodeRef.current) {
@@ -133,42 +157,25 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
 
   const startEditing = () => {
     if (data.type === 'text' && !isEditing) {
-      console.log('🟡 Starting edit mode for node:', id);
-      console.log('🟡 Current data.content:', data.content);
-      
       setIsEditing(true);
       lastSavedContent.current = data.content;
-      
-      setTimeout(() => {
-        if (contentRef.current) {
-          contentRef.current.innerHTML = data.content || '';
-          console.log('🟡 Set contentRef.innerHTML to:', data.content);
-          contentRef.current.focus();
-        }
-      }, 0);
+      // Don't set innerHTML here - let React handle it through the render
     }
   };
 
   const saveContent = () => {
     if (contentRef.current && isEditing) {
-      console.log('🔵 saveContent called');
-      console.log('🔵 contentRef.innerHTML before processing:', contentRef.current.innerHTML);
-      console.log('🔵 lastSavedContent.current:', lastSavedContent.current);
-      
-      // PRESERVE HTML FORMATTING - Don't strip HTML tags
-      const newContent = contentRef.current.innerHTML;
-      
-      console.log('🔵 newContent after processing (HTML preserved):', newContent);
-      console.log('🔵 Content changed?', newContent !== lastSavedContent.current);
+      const newContent = contentRef.current.innerHTML
+        .replace(/<div>/g, '\n')
+        .replace(/<\/div>/g, '')
+        .replace(/<br>/g, '\n')
+        .replace(/<[^>]*>/g, '');
       
       // Only save if content actually changed
       if (newContent !== lastSavedContent.current) {
-        console.log('🔵 Calling onContentUpdate with:', newContent);
         data.onContentUpdate?.(id, newContent);
         lastSavedContent.current = newContent;
-        console.log('🔵 Updated lastSavedContent.current to:', lastSavedContent.current);
-      } else {
-        console.log('🔵 No changes detected, skipping save');
+        // Don't show toast for auto-save to avoid being annoying
       }
       
       setIsEditing(false);
@@ -177,30 +184,21 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
   };
 
   const handleContentBlur = (e: React.FocusEvent) => {
-    console.log('🟠 handleContentBlur triggered');
-    
     // Check if the blur is moving to something within the node
     const relatedTarget = e.relatedTarget as HTMLElement;
     const isWithinNode = nodeRef.current?.contains(relatedTarget);
     
-    console.log('🟠 Blur target within node?', isWithinNode);
-    
     // Only save if we're truly leaving the content area
     if (!isWithinNode) {
-      console.log('🟠 Blur is leaving node, calling saveContent');
       saveContent();
-    } else {
-      console.log('🟠 Blur is within node, not saving');
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
-      console.log('🔴 Escape pressed, canceling edit');
       // Restore original content and exit without saving
       if (contentRef.current) {
         contentRef.current.innerHTML = lastSavedContent.current;
-        console.log('🔴 Restored content to:', lastSavedContent.current);
       }
       setIsEditing(false);
       setShowToolbar(false);
@@ -377,6 +375,11 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
                 onClick={(e) => e.stopPropagation()}
                 onDoubleClick={(e) => e.stopPropagation()}
                 suppressContentEditableWarning={true}
+                dangerouslySetInnerHTML={{ __html: data.content || '' }}
+                onInput={(e) => {
+                  // Prevent double rendering by not updating state during input
+                  e.stopPropagation();
+                }}
               />
             ) : (
               <div 
@@ -384,7 +387,7 @@ const ContentNode = memo(forwardRef<any, NodeProps<ContentNodeData>>(({ data, se
                 onClick={startEditing}
               >
                 {data.content ? (
-                  <div dangerouslySetInnerHTML={{ __html: data.content }} />
+                  <ReactMarkdown>{data.content}</ReactMarkdown>
                 ) : (
                   <p className="text-gray-400 italic">Click to add content...</p>
                 )}

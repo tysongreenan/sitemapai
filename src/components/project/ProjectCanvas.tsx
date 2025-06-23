@@ -51,24 +51,24 @@ interface ProjectCanvasProps {
   onItemSelect?: (item: CanvasItem | null) => void;
   selectedItem?: CanvasItem | null;
   onSendTextToChat?: (text: string) => void;
+  aiSettings: AIContextSettings;
+  onAISettingsChange: (settings: AIContextSettings) => void;
 }
 
-const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem, onSendTextToChat }: ProjectCanvasProps) => {
+const ProjectCanvasInner = ({ 
+  projectId, 
+  onItemSelect, 
+  selectedItem, 
+  onSendTextToChat,
+  aiSettings,
+  onAISettingsChange
+}: ProjectCanvasProps) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
   const [showMiniMap, setShowMiniMap] = useState(true);
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [aiContextOpen, setAiContextOpen] = useState(false);
-  const [aiSettings, setAiSettings] = useState<AIContextSettings>({
-    brandVoiceId: undefined,
-    audienceId: undefined,
-    knowledgeIds: [],
-    customInstructions: '',
-    temperature: 0.7,
-    outputFormat: 'professional',
-    language: 'en'
-  });
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   
   // Add initialization flag to prevent continuous re-loading
@@ -79,21 +79,6 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem, onSendTextT
 
   // Get React Flow instance for focus functionality
   const reactFlow = useReactFlow();
-
-  // Load saved AI settings for this project
-  useEffect(() => {
-    fetchProjectAISettings();
-  }, [projectId]);
-
-  const fetchProjectAISettings = async () => {
-    try {
-      // Mock API call - replace with actual implementation
-      console.log('Loading AI settings for project:', projectId);
-      // For now, use default settings
-    } catch (error) {
-      console.error('Failed to load AI settings');
-    }
-  };
 
   // Handle double-click to focus on node - FIXED: Zoom to top of content node
   const handleNodeDoubleClick = useCallback((nodeId: string) => {
@@ -647,7 +632,7 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem, onSendTextT
             <AIContextSettingsDropdown
               projectId={projectId}
               currentSettings={aiSettings}
-              onSettingsChange={setAiSettings}
+              onSettingsChange={onAISettingsChange}
               isOpen={aiContextOpen}
               onToggle={() => setAiContextOpen(!aiContextOpen)}
             />

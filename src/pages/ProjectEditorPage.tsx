@@ -8,6 +8,7 @@ import { LoadingScreen } from '../components/layout/LoadingScreen';
 import { Button } from '../components/ui/Button';
 import { ProjectCanvas } from '../components/project/ProjectCanvas';
 import { AIChatbot, AIChatbotRef } from '../components/project/AIChatbot';
+import { AIContextSettings } from '../components/project/AIContextSettings';
 
 export default function ProjectEditorPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -15,6 +16,15 @@ export default function ProjectEditorPage() {
   const { user } = useAuth();
   const { projects, currentProject, setCurrentProject, loading, saveStatus } = useProject();
   const [selectedCanvasItem, setSelectedCanvasItem] = useState(null);
+  const [aiSettings, setAiSettings] = useState<AIContextSettings>({
+    brandVoiceId: undefined,
+    audienceId: undefined,
+    knowledgeIds: [],
+    customInstructions: '',
+    temperature: 0.7,
+    outputFormat: 'professional',
+    language: 'en'
+  });
   const chatbotRef = useRef<AIChatbotRef>(null);
 
   // Set current project based on URL parameter
@@ -49,6 +59,38 @@ export default function ProjectEditorPage() {
       fetchProject();
     }
   }, [projectId, projects, navigate, setCurrentProject, loading]);
+
+  // Load AI settings for this project
+  useEffect(() => {
+    if (projectId) {
+      fetchProjectAISettings();
+    }
+  }, [projectId]);
+
+  const fetchProjectAISettings = async () => {
+    try {
+      // Mock API call - replace with actual implementation
+      console.log('Loading AI settings for project:', projectId);
+      
+      // For now, check if there are any saved settings in localStorage
+      const savedSettings = localStorage.getItem(`ai-settings-${projectId}`);
+      if (savedSettings) {
+        const parsedSettings = JSON.parse(savedSettings);
+        setAiSettings(parsedSettings);
+      }
+    } catch (error) {
+      console.error('Failed to load AI settings:', error);
+    }
+  };
+
+  const handleAISettingsChange = (newSettings: AIContextSettings) => {
+    setAiSettings(newSettings);
+    
+    // Save to localStorage for persistence (replace with actual API call)
+    localStorage.setItem(`ai-settings-${projectId}`, JSON.stringify(newSettings));
+    
+    console.log('AI settings updated:', newSettings);
+  };
 
   // Function to handle sending text to AI chatbot
   const handleSendTextToChat = (text: string) => {
@@ -149,14 +191,15 @@ export default function ProjectEditorPage() {
           onItemSelect={setSelectedCanvasItem}
           selectedItem={selectedCanvasItem}
           onSendTextToChat={handleSendTextToChat}
+          aiSettings={aiSettings}
+          onAISettingsChange={handleAISettingsChange}
         />
 
         {/* AI Chatbot Sidebar */}
         <AIChatbot
           ref={chatbotRef}
           projectId={projectId!}
-          brandVoice="Professional and friendly"
-          audience="Marketing professionals"
+          aiSettings={aiSettings}
         />
       </div>
 
@@ -171,6 +214,13 @@ export default function ProjectEditorPage() {
           <span>User: {user?.email}</span>
           <span>•</span>
           <span>Canvas items: {selectedCanvasItem ? '1 selected' : '0 selected'}</span>
+          {/* AI Context Indicator */}
+          {(aiSettings.brandVoiceId || aiSettings.audienceId || aiSettings.knowledgeIds.length > 0) && (
+            <>
+              <span>•</span>
+              <span className="text-indigo-600 font-medium">AI Context Active</span>
+            </>
+          )}
         </div>
       </div>
     </div>

@@ -18,10 +18,11 @@ import ReactFlow, {
   EdgeChange
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Plus, Download, Share, Maximize2, Grid, Layers, ZoomIn, ZoomOut, Link2, FileDown, Wifi, WifiOff, RefreshCw } from 'lucide-react';
+import { Plus, Download, Share, Maximize2, Grid, Layers, ZoomIn, ZoomOut, Link2, FileDown, Wifi, WifiOff, RefreshCw, Settings, Sparkles } from 'lucide-react';
 import { Button } from '../ui/Button';
 import ContentNode, { ContentNodeData } from './nodes/ContentNode';
 import { AddContentMenu } from './AddContentMenu';
+import { AIContextSettingsDropdown, AIContextSettings } from './AIContextSettings';
 import { useProject } from '../../context/ProjectContext';
 import { debounce } from '../../lib/utils';
 import { nanoid } from 'nanoid';
@@ -58,6 +59,16 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem, onSendTextT
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
   const [showMiniMap, setShowMiniMap] = useState(true);
   const [showAddMenu, setShowAddMenu] = useState(false);
+  const [aiContextOpen, setAiContextOpen] = useState(false);
+  const [aiSettings, setAiSettings] = useState<AIContextSettings>({
+    brandVoiceId: undefined,
+    audienceId: undefined,
+    knowledgeIds: [],
+    customInstructions: '',
+    temperature: 0.7,
+    outputFormat: 'professional',
+    language: 'en'
+  });
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   
   // Add initialization flag to prevent continuous re-loading
@@ -68,6 +79,21 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem, onSendTextT
 
   // Get React Flow instance for focus functionality
   const reactFlow = useReactFlow();
+
+  // Load saved AI settings for this project
+  useEffect(() => {
+    fetchProjectAISettings();
+  }, [projectId]);
+
+  const fetchProjectAISettings = async () => {
+    try {
+      // Mock API call - replace with actual implementation
+      console.log('Loading AI settings for project:', projectId);
+      // For now, use default settings
+    } catch (error) {
+      console.error('Failed to load AI settings');
+    }
+  };
 
   // Handle double-click to focus on node - FIXED: Zoom to top of content node
   const handleNodeDoubleClick = useCallback((nodeId: string) => {
@@ -616,6 +642,23 @@ const ProjectCanvasInner = ({ projectId, onItemSelect, selectedItem, onSendTextT
                 <Layers size={16} />
               </Button>
             </div>
+
+            {/* AI Context Settings */}
+            <AIContextSettingsDropdown
+              projectId={projectId}
+              currentSettings={aiSettings}
+              onSettingsChange={setAiSettings}
+              isOpen={aiContextOpen}
+              onToggle={() => setAiContextOpen(!aiContextOpen)}
+            />
+
+            {/* Visual Indicator of Active Context */}
+            {(aiSettings.brandVoiceId || aiSettings.audienceId || aiSettings.knowledgeIds.length > 0) && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-lg shadow-sm">
+                <Sparkles size={14} className="text-indigo-500" />
+                <span className="text-xs text-gray-600">AI Context Active</span>
+              </div>
+            )}
           </Panel>
 
           {/* Connection Status and Action Buttons */}

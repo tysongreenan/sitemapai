@@ -32,8 +32,8 @@ export default function FooterSection() {
         { name: "About", href: "#" },
         { name: "Careers", href: "#" },
         { name: "Contact", href: "#" },
-        { name: "Privacy Policy", href: "#" },
-        { name: "Terms of Service", href: "#" }
+        { name: "Privacy Policy", href: "/privacy-policy" },
+        { name: "Terms of Service", href: "/terms-of-service" }
       ]
     }
   ];
@@ -72,12 +72,21 @@ export default function FooterSection() {
               <ul className="space-y-3">
                 {column.links.map((link, linkIndex) => (
                   <li key={linkIndex}>
-                    <a 
-                      href={link.href} 
-                      className="text-gray-400 hover:text-white transition-colors"
-                    >
-                      {link.name}
-                    </a>
+                    {link.href.startsWith('/') ? (
+                      <Link 
+                        to={link.href} 
+                        className="text-gray-400 hover:text-white transition-colors"
+                      >
+                        {link.name}
+                      </Link>
+                    ) : (
+                      <a 
+                        href={link.href} 
+                        className="text-gray-400 hover:text-white transition-colors"
+                      >
+                        {link.name}
+                      </a>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -90,12 +99,12 @@ export default function FooterSection() {
             &copy; {currentYear} SiteMapAI. All rights reserved.
           </p>
           <div className="flex space-x-6">
-            <a href="#" className="text-gray-400 hover:text-white transition-colors text-sm">
+            <Link to="/privacy-policy" className="text-gray-400 hover:text-white transition-colors text-sm">
               Privacy Policy
-            </a>
-            <a href="#" className="text-gray-400 hover:text-white transition-colors text-sm">
+            </Link>
+            <Link to="/terms-of-service" className="text-gray-400 hover:text-white transition-colors text-sm">
               Terms of Service
-            </a>
+            </Link>
             <a href="#" className="text-gray-400 hover:text-white transition-colors text-sm">
               Cookies
             </a>

@@ -400,9 +400,9 @@ export const FullScreenSignin = () => {
 
             <div className="text-xs text-gray-500 text-center leading-relaxed">
               By signing in, you agree to our{" "}
-              <a href="#" className="text-indigo-600 hover:text-indigo-800">Terms of Service</a>{" "}
+              <Link to="/terms-of-service" className="text-indigo-600 hover:text-indigo-800">Terms of Service</Link>{" "}
               and{" "}
-              <a href="#" className="text-indigo-600 hover:text-indigo-800">Privacy Policy</a>
+              <Link to="/privacy-policy" className="text-indigo-600 hover:text-indigo-800">Privacy Policy</Link>
             </div>
           </form>
         </div>

@@ -18,6 +18,8 @@ import AppsPage from './pages/AppsPage';
 import JasperIQPage from './pages/JasperIQPage';
 import IntegrationsPage from './pages/IntegrationsPage';
 import ProjectEditorPage from './pages/ProjectEditorPage';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
+import TermsOfServicePage from './pages/TermsOfServicePage';
 import NotFoundPage from './pages/NotFoundPage';
 
 // Layout components
@@ -37,6 +39,8 @@ function App() {
               <Route path="/signup" element={<SignUpPage />} />
               <Route path="/signin" element={<SignInPage />} />
               <Route path="/verify-email" element={<VerifyEmailPage />} />
+              <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+              <Route path="/terms-of-service" element={<TermsOfServicePage />} />
               
               {/* Protected routes with dashboard layout */}
               <Route 

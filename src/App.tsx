@@ -21,6 +21,8 @@ import ProjectEditorPage from './pages/ProjectEditorPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import TermsOfServicePage from './pages/TermsOfServicePage';
 import UserDataDeletionPage from './pages/UserDataDeletionPage';
+import FacebookCallbackPage from './pages/auth/FacebookCallbackPage';
+import GoogleCallbackPage from './pages/auth/GoogleCallbackPage';
 import NotFoundPage from './pages/NotFoundPage';
 
 // Layout components
@@ -43,6 +45,10 @@ function App() {
               <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
               <Route path="/terms-of-service" element={<TermsOfServicePage />} />
               <Route path="/delete-my-data" element={<UserDataDeletionPage />} />
+              
+              {/* OAuth callback routes */}
+              <Route path="/auth/facebook/callback" element={<FacebookCallbackPage />} />
+              <Route path="/auth/google/callback" element={<GoogleCallbackPage />} />
               
               {/* Protected routes with dashboard layout */}
               <Route 

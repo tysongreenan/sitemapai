@@ -35,6 +35,16 @@ export default function FooterSection() {
         { name: "Privacy Policy", href: "/privacy-policy" },
         { name: "Terms of Service", href: "/terms-of-service" }
       ]
+    },
+    {
+      title: "Legal",
+      links: [
+        { name: "Data Protection", href: "/privacy-policy" },
+        { name: "Cookie Policy", href: "#" },
+        { name: "Delete My Data", href: "/delete-my-data" },
+        { name: "GDPR Compliance", href: "/privacy-policy" },
+        { name: "Contact DPO", href: "mailto:dpo@sitemapai.com" }
+      ]
     }
   ];
 
@@ -42,7 +52,7 @@ export default function FooterSection() {
     <footer className="bg-gray-900 text-white">
       <div className="container mx-auto px-4 sm:px-6 pt-16 pb-8">
         <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-8 mb-8">
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-1">
             <Link to="/" className="flex items-center mb-4">
               <Globe className="h-8 w-8 text-indigo-400" />
               <span className="ml-2 text-xl font-bold">SiteMapAI</span>
@@ -79,6 +89,13 @@ export default function FooterSection() {
                       >
                         {link.name}
                       </Link>
+                    ) : link.href.startsWith('mailto:') ? (
+                      <a 
+                        href={link.href} 
+                        className="text-gray-400 hover:text-white transition-colors"
+                      >
+                        {link.name}
+                      </a>
                     ) : (
                       <a 
                         href={link.href} 
@@ -98,12 +115,15 @@ export default function FooterSection() {
           <p className="text-gray-400 mb-4 md:mb-0">
             &copy; {currentYear} SiteMapAI. All rights reserved.
           </p>
-          <div className="flex space-x-6">
+          <div className="flex flex-wrap justify-center md:justify-end gap-4 md:gap-6">
             <Link to="/privacy-policy" className="text-gray-400 hover:text-white transition-colors text-sm">
               Privacy Policy
             </Link>
             <Link to="/terms-of-service" className="text-gray-400 hover:text-white transition-colors text-sm">
               Terms of Service
+            </Link>
+            <Link to="/delete-my-data" className="text-gray-400 hover:text-white transition-colors text-sm">
+              Delete My Data
             </Link>
             <a href="#" className="text-gray-400 hover:text-white transition-colors text-sm">
               Cookies

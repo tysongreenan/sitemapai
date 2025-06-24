@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Trash2, AlertTriangle, CheckCircle, Mail, Shield, Clock } from 'lucide-react';
+import { ArrowLeft, Trash2, AlertTriangle, CheckCircle, Mail, Shield, Clock, Home } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Textarea } from '../components/ui/Textarea';
@@ -68,10 +68,16 @@ export default function UserDataDeletionPage() {
         {/* Header */}
         <div className="bg-white border-b border-gray-200">
           <div className="max-w-4xl mx-auto px-6 py-4">
-            <Link to="/" className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 transition-colors">
-              <ArrowLeft size={20} />
-              <span className="font-medium">Back to Home</span>
-            </Link>
+            <div className="flex items-center justify-between">
+              <Link to="/" className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 transition-colors">
+                <Home size={20} />
+                <span className="font-medium">Back to Home</span>
+              </Link>
+              <div className="flex items-center gap-2">
+                <CheckCircle size={20} className="text-green-600" />
+                <span className="text-sm text-gray-600">Request Submitted</span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -156,7 +162,7 @@ export default function UserDataDeletionPage() {
         <div className="max-w-4xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 transition-colors">
-              <ArrowLeft size={20} />
+              <Home size={20} />
               <span className="font-medium">Back to Home</span>
             </Link>
             <div className="flex items-center gap-2">

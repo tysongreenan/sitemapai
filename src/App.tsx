@@ -20,6 +20,7 @@ import IntegrationsPage from './pages/IntegrationsPage';
 import ProjectEditorPage from './pages/ProjectEditorPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import TermsOfServicePage from './pages/TermsOfServicePage';
+import UserDataDeletionPage from './pages/UserDataDeletionPage';
 import NotFoundPage from './pages/NotFoundPage';
 
 // Layout components
@@ -41,6 +42,7 @@ function App() {
               <Route path="/verify-email" element={<VerifyEmailPage />} />
               <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
               <Route path="/terms-of-service" element={<TermsOfServicePage />} />
+              <Route path="/delete-my-data" element={<UserDataDeletionPage />} />
               
               {/* Protected routes with dashboard layout */}
               <Route 

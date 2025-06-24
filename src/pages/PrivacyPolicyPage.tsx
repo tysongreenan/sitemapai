@@ -137,6 +137,19 @@ export default function PrivacyPolicyPage() {
               <li>Withdraw consent</li>
             </ul>
 
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 my-6">
+              <h4 className="font-semibold text-red-900 mb-2">Request Data Deletion</h4>
+              <p className="text-red-800 text-sm mb-3">
+                You have the right to request deletion of your personal data. This will permanently remove all your information from our systems.
+              </p>
+              <Link 
+                to="/delete-my-data" 
+                className="inline-flex items-center px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Request Data Deletion
+              </Link>
+            </div>
+
             <h2>8. International Data Transfers</h2>
             
             <p>Your information may be transferred to and processed in countries other than your own. We ensure appropriate safeguards are in place to protect your data in accordance with applicable laws.</p>
@@ -175,6 +188,9 @@ export default function PrivacyPolicyPage() {
               <div className="flex gap-3">
                 <Button variant="outline" as={Link} to="/terms-of-service">
                   View Terms of Service
+                </Button>
+                <Button variant="outline" as={Link} to="/delete-my-data">
+                  Delete My Data
                 </Button>
                 <Button variant="primary" as={Link} to="/signup">
                   Get Started

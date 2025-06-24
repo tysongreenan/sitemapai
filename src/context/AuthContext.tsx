@@ -39,9 +39,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (error) {
           console.error('Auth session error:', error);
-          AppErrorHandler.handle(error, { context: 'AuthContext initial getSession' });
-          setSession(null);
-          setUser(null);
+          
+          // Check for invalid refresh token errors
+          const isInvalidRefreshToken = 
+            error.message?.includes('Invalid Refresh Token: Refresh Token Not Found') ||
+            error.message?.includes('refresh_token_not_found') ||
+            error.message?.includes('Refresh Token Not Found') ||
+            (error as any)?.code === 'refresh_token_not_found';
+          
+          if (isInvalidRefreshToken) {
+            console.warn('Invalid refresh token detected, clearing local auth data');
+            
+            // Clear all local auth data
+            localStorage.removeItem('supabase.auth.token');
+            await supabase.auth.signOut({ scope: 'local' });
+            
+            setSession(null);
+            setUser(null);
+          } else {
+            AppErrorHandler.handle(error, { context: 'AuthContext initial getSession' });
+            setSession(null);
+            setUser(null);
+          }
         } else {
           setSession(session);
           setUser(session?.user ?? null);
@@ -53,9 +72,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (error) {
         if (!mounted) return;
         console.error('Auth initialization error:', error);
-        AppErrorHandler.handle(error, { context: 'AuthContext getSession catch' });
-        setSession(null);
-        setUser(null);
+        
+        // Check if the caught error is also a refresh token error
+        const errorMessage = (error as any)?.message || '';
+        const isInvalidRefreshToken = 
+          errorMessage.includes('Invalid Refresh Token: Refresh Token Not Found') ||
+          errorMessage.includes('refresh_token_not_found') ||
+          errorMessage.includes('Refresh Token Not Found');
+        
+        if (isInvalidRefreshToken) {
+          console.warn('Invalid refresh token in catch block, clearing local auth data');
+          
+          // Clear all local auth data
+          localStorage.removeItem('supabase.auth.token');
+          await supabase.auth.signOut({ scope: 'local' });
+          
+          setSession(null);
+          setUser(null);
+        } else {
+          AppErrorHandler.handle(error, { context: 'AuthContext getSession catch' });
+          setSession(null);
+          setUser(null);
+        }
       } finally {
         if (mounted) {
           setLoading(false);

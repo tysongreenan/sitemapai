@@ -12,11 +12,6 @@ interface ChatMessage {
   content: string;
   timestamp: Date;
   suggestions?: string[];
-  generatedContent?: {
-    type: 'text' | 'image' | 'chart' | 'video';
-    title: string;
-    content: string;
-  };
 }
 
 interface AIChatbotProps {
@@ -299,47 +294,10 @@ export const AIChatbot = forwardRef<AIChatbotRef, AIChatbotProps>(({ projectId, 
         }, 500 + (index * 300)); // Stagger creation
       });
 
-      // Generate AI response for campaign using OpenAI
-      try {
-        const aiContent = await OpenAIService.generateCampaignContent(userRequest, aiSettings);
-        
-        const aiResponse: ChatMessage = {
-          id: `ai_${Date.now()}`,
-          type: 'ai',
-          content: aiContent,
-          timestamp: new Date(),
-          suggestions: [
-            'Organize into Journey View',
-            'Create additional variations',
-            'Generate supporting content',
-            'Add performance metrics'
-          ]
-        };
-        
-        setMessages(prev => [...prev, aiResponse]);
-        
-        // Show success message
-        setTimeout(() => {
-          const successMessage: ChatMessage = {
-            id: `ai_success_${Date.now()}`,
-            type: 'ai',
-            content: generatePersonaSuccessMessage(),
-            timestamp: new Date(),
-            suggestions: [
-              'Organize into Journey View',
-              'Create additional variations',
-              'Generate supporting content',
-              'Add performance metrics'
-            ]
-          };
-          setMessages(prev => [...prev, successMessage]);
-        }, 2000);
-        
-      } catch (error) {
-        console.error('Error generating campaign response:', error);
-        // Fallback to mock response if OpenAI fails
-        const fallbackResponse: ChatMessage = {
-          id: `ai_${Date.now()}`,
+      // Show success message
+      setTimeout(() => {
+        const successMessage: ChatMessage = {
+          id: `ai_success_${Date.now()}`,
           type: 'ai',
           content: generatePersonaSuccessMessage(),
           timestamp: new Date(),
@@ -350,24 +308,14 @@ export const AIChatbot = forwardRef<AIChatbotRef, AIChatbotProps>(({ projectId, 
             'Add performance metrics'
           ]
         };
-        setMessages(prev => [...prev, fallbackResponse]);
-      } finally {
-        setIsTyping(false);
-      }
+        setMessages(prev => [...prev, successMessage]);
+      }, 2000);
+      
+      setIsTyping(false);
     } else {
-      // Generate AI response based on the request
+      // Generate AI response and add directly to canvas
       try {
-        const aiResponse = await generateAIResponse(userRequest);
-        setMessages(prev => [...prev, aiResponse]);
-        
-        // Add content to canvas if generated
-        if (aiResponse.generatedContent && (window as any).addCanvasItem) {
-          (window as any).addCanvasItem(
-            aiResponse.generatedContent.type,
-            aiResponse.generatedContent.content,
-            aiResponse.generatedContent.title
-          );
-        }
+        await generateAndAddToCanvas(userRequest);
       } catch (error) {
         console.error('Error generating AI response:', error);
       } finally {
@@ -392,34 +340,28 @@ export const AIChatbot = forwardRef<AIChatbotRef, AIChatbotProps>(({ projectId, 
     }
   };
 
-  // Enhanced AI response generation using OpenAI
-  const generateAIResponse = async (userMessage: string): Promise<ChatMessage> => {
-    const messageId = `ai_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
+  // NEW: Generate content and add directly to canvas without showing in chat
+  const generateAndAddToCanvas = async (userMessage: string) => {
     try {
-      // Get ACTUAL AI response from OpenAI
-      const aiContent = await OpenAIService.generateMarketingContent(userMessage, aiSettings);
-      
-      // Detect what type of content was requested and determine if it should be added to canvas
+      // Check if this is content that should be generated
       const lowerMessage = userMessage.toLowerCase();
-      let generatedContent = undefined;
-      
-      // Check if this is content that should be added to canvas
-      const shouldAddToCanvas = lowerMessage.includes('write') || 
-                               lowerMessage.includes('create') || 
-                               lowerMessage.includes('generate') ||
-                               lowerMessage.includes('landing page') || 
-                               lowerMessage.includes('email') || 
-                               lowerMessage.includes('social media') ||
-                               lowerMessage.includes('blog') ||
-                               lowerMessage.includes('copy') ||
-                               lowerMessage.includes('content') ||
-                               lowerMessage.includes('post') ||
-                               lowerMessage.includes('campaign') ||
-                               lowerMessage.includes('ad');
-      
-      if (shouldAddToCanvas) {
-        // Create a more descriptive title based on the request
+      const isContentRequest = lowerMessage.includes('write') || 
+                              lowerMessage.includes('create') || 
+                              lowerMessage.includes('generate') ||
+                              lowerMessage.includes('landing page') || 
+                              lowerMessage.includes('email') || 
+                              lowerMessage.includes('social media') ||
+                              lowerMessage.includes('blog') ||
+                              lowerMessage.includes('copy') ||
+                              lowerMessage.includes('content') ||
+                              lowerMessage.includes('post') ||
+                              lowerMessage.includes('ad');
+
+      if (isContentRequest) {
+        // Generate content using OpenAI
+        const aiContent = await OpenAIService.generateMarketingContent(userMessage, aiSettings);
+        
+        // Create a descriptive title based on the request
         let title = `📝 ${userMessage.slice(0, 50)}`;
         if (userMessage.length > 50) title += '...';
         
@@ -432,415 +374,78 @@ export const AIChatbot = forwardRef<AIChatbotRef, AIChatbotProps>(({ projectId, 
         } else if (lowerMessage.includes('video')) {
           contentType = 'video';
         }
-        
-        generatedContent = {
-          type: contentType,
-          title: title,
-          content: aiContent
-        };
-      }
 
-      return {
-        id: messageId,
-        type: 'ai',
-        content: aiContent, // Use the ACTUAL AI response
-        timestamp: new Date(),
-        generatedContent,
-        suggestions: [
-          'Make it more persuasive',
-          'Create A/B test variation',
-          'Adapt for social media',
-          'Generate email version'
-        ]
-      };
-      
+        // Add content directly to canvas
+        if ((window as any).addCanvasItem) {
+          (window as any).addCanvasItem(contentType, aiContent, title);
+        }
+
+        // Show brief confirmation message in chat
+        const confirmationMessage: ChatMessage = {
+          id: `ai_${Date.now()}`,
+          type: 'ai',
+          content: generateContentCreatedMessage(title),
+          timestamp: new Date(),
+          suggestions: [
+            'Create a variation',
+            'Make it more persuasive',
+            'Adapt for different platform',
+            'Generate supporting content'
+          ]
+        };
+        
+        setMessages(prev => [...prev, confirmationMessage]);
+      } else {
+        // For non-content requests (questions, conversations), show normal response
+        const aiResponse = await OpenAIService.generateMarketingContent(userMessage, aiSettings);
+        
+        const responseMessage: ChatMessage = {
+          id: `ai_${Date.now()}`,
+          type: 'ai',
+          content: aiResponse,
+          timestamp: new Date(),
+          suggestions: [
+            'Write a blog post',
+            'Create social media content',
+            'Generate email campaign',
+            'Design marketing visuals'
+          ]
+        };
+        
+        setMessages(prev => [...prev, responseMessage]);
+      }
     } catch (error) {
-      console.error('Error generating AI response:', error);
+      console.error('Error generating content:', error);
       
       // Fallback to mock response if OpenAI fails
-      return generateMockAIResponse(userMessage);
-    }
-  };
-
-  // Fallback mock response function
-  const generateMockAIResponse = (userMessage: string): ChatMessage => {
-    const messageId = `ai_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    // Determine response type based on user input
-    const lowerMessage = userMessage.toLowerCase();
-    
-    // Check if this is a rewrite request
-    if (lowerMessage.includes('rewrite') || lowerMessage.includes('please rewrite this text:')) {
-      const textToRewrite = userMessage.replace(/please rewrite this text:\s*["']?/i, '').replace(/["']?$/, '');
-      
-      return {
-        id: messageId,
+      const fallbackMessage: ChatMessage = {
+        id: `ai_${Date.now()}`,
         type: 'ai',
-        content: generateContextualRewrite(textToRewrite),
+        content: 'I apologize, but I encountered an error generating content. Please make sure the OpenAI API key is configured and try again.',
         timestamp: new Date(),
-        suggestions: [
-          'Make it more casual',
-          'Make it more professional', 
-          'Make it shorter',
-          'Add more detail'
-        ]
+        suggestions: ['Try again', 'Check API settings']
       };
-    }
-    
-    // Check for blog post requests and extract topic
-    if (lowerMessage.includes('blog') || lowerMessage.includes('article') || lowerMessage.includes('post')) {
-      const topic = extractTopicFromMessage(userMessage);
       
-      return {
-        id: messageId,
-        type: 'ai',
-        content: generateContextualBlogResponse(topic),
-        timestamp: new Date(),
-        generatedContent: {
-          type: 'text',
-          title: generateBlogTitle(topic),
-          content: generateContextualBlogContent(topic)
-        },
-        suggestions: [
-          'Create social media posts for this blog',
-          `Generate email campaign about ${topic}`,
-          `Design infographic about ${topic}`,
-          'Write a follow-up article'
-        ]
-      };
+      setMessages(prev => [...prev, fallbackMessage]);
     }
-    
-    // Default response for any other request
-    return {
-      id: messageId,
-      type: 'ai',
-      content: generateContextualDefaultResponse(userMessage),
-      timestamp: new Date(),
-      suggestions: [
-        'Write a blog post',
-        'Create social media content',
-        'Generate email campaign',
-        'Design marketing visuals'
-      ]
-    };
   };
 
-  // Generate blog title based on topic
-  const generateBlogTitle = (topic: string): string => {
-    const titleTemplates = [
-      `The Ultimate Guide to ${topic}`,
-      `Everything You Need to Know About ${topic}`,
-      `${topic}: A Comprehensive Guide`,
-      `Mastering ${topic}: Tips and Strategies`,
-      `The Complete ${topic} Handbook`,
-      `${topic} Made Simple: A Step-by-Step Guide`
-    ];
+  // Generate persona-specific content creation confirmation
+  const generateContentCreatedMessage = (title: string) => {
+    const baseMessage = `✅ **Content created and added to canvas!**\n\n**${title}**`;
     
-    // Capitalize first letter of topic
-    const capitalizedTopic = topic.charAt(0).toUpperCase() + topic.slice(1);
-    
-    // Select a random template and replace topic
-    const randomTemplate = titleTemplates[Math.floor(Math.random() * titleTemplates.length)];
-    return randomTemplate.replace(topic, capitalizedTopic);
-  };
-
-  // Generate contextual rewrite based on AI settings
-  const generateContextualRewrite = (originalText: string) => {
-    let rewrittenText = originalText;
-    
-    // Apply persona-specific rewriting
-    if (aiSettings.persona) {
-      switch (aiSettings.persona) {
-        case 'seth_rogen':
-          rewrittenText = originalText.replace(/\b(very)\b/g, 'super')
-                                     .replace(/\b(excellent)\b/g, 'awesome')
-                                     .replace(/\./g, ', eh?')
-                                     .replace(/!/g, ', dude!');
-          break;
-        case 'alex_hormozi':
-          rewrittenText = originalText.replace(/\b(good)\b/g, 'profitable')
-                                     .replace(/\b(nice)\b/g, 'effective')
-                                     .replace(/\b(great)\b/g, 'game-changing');
-          break;
-        case 'gary_vaynerchuk':
-          rewrittenText = originalText.replace(/\b(good)\b/g, 'AMAZING')
-                                     .replace(/\b(nice)\b/g, 'INCREDIBLE')
-                                     .replace(/\./g, '!')
-                                     .toUpperCase();
-          break;
-        case 'oprah_winfrey':
-          rewrittenText = originalText.replace(/\b(good)\b/g, 'beautiful')
-                                     .replace(/\b(nice)\b/g, 'wonderful')
-                                     .replace(/\b(great)\b/g, 'magnificent');
-          break;
-        default:
-          // Apply tone based on output format
-          if (aiSettings.outputFormat === 'casual') {
-            rewrittenText = originalText.replace(/\b(utilize|implement|facilitate)\b/g, 'use')
-                                       .replace(/\b(commence|initiate)\b/g, 'start')
-                                       .replace(/\./g, '!')
-                                       .replace(/\b(very)\b/g, 'super');
-          } else if (aiSettings.outputFormat === 'professional') {
-            rewrittenText = originalText.replace(/\b(use)\b/g, 'utilize')
-                                       .replace(/\b(start)\b/g, 'commence')
-                                       .replace(/!/g, '.');
-          } else if (aiSettings.outputFormat === 'creative') {
-            rewrittenText = originalText.replace(/\b(good)\b/g, 'amazing')
-                                       .replace(/\b(nice)\b/g, 'fantastic')
-                                       .replace(/\b(big)\b/g, 'massive');
-          }
-      }
+    switch (aiSettings.persona) {
+      case 'seth_rogen':
+        return `${baseMessage}\n\nDude, that turned out awesome! Check it out on your canvas - you can edit it, move it around, whatever you need. This is gonna work great for you!`;
+      case 'alex_hormozi':
+        return `${baseMessage}\n\nDone. Content is live on your canvas and ready to convert. Review it, optimize if needed, then deploy. This will drive results.`;
+      case 'gary_vaynerchuk':
+        return `${baseMessage}\n\nBOOM! Content is LIVE on your canvas! This is going to absolutely CRUSH IT! Go check it out and let's keep building!`;
+      case 'oprah_winfrey':
+        return `${baseMessage}\n\nBeautiful! Your content is now ready on the canvas, crafted with intention and purpose. Take a moment to review this gift and see how it can touch lives.`;
+      default:
+        return `${baseMessage}\n\nYour content has been generated and added to the canvas. You can now edit, customize, or use it as-is in your marketing campaigns.`;
     }
-
-    const personaNote = aiSettings.persona && aiSettings.persona !== 'default' 
-      ? `in ${aiSettings.persona.replace('_', ' ')} style` 
-      : `using your **${aiSettings.outputFormat}** tone and **${aiSettings.temperature < 0.4 ? 'focused' : aiSettings.temperature > 0.7 ? 'creative' : 'balanced'}** creativity level`;
-
-    return `I've rewritten the selected text ${personaNote}!
-
-**Original text:** "${originalText}"
-
-**Rewritten version:** "${rewrittenText}"
-
-${aiSettings.brandVoiceId ? 'This version aligns with your selected brand voice and ' : ''}maintains the original meaning while enhancing ${aiSettings.outputFormat === 'casual' ? 'approachability and friendliness' : aiSettings.outputFormat === 'professional' ? 'authority and credibility' : 'creativity and engagement'}.
-
-Would you like me to try a different approach or style?`;
-  };
-
-  // Generate contextual blog response
-  const generateContextualBlogResponse = (topic: string) => {
-    const brandVoiceNote = aiSettings.brandVoiceId ? 'using your selected brand voice and ' : '';
-    const audienceNote = aiSettings.audienceId ? 'tailored for your target audience' : 'optimized for engagement';
-    const knowledgeNote = aiSettings.knowledgeIds.length > 0 ? ` I've incorporated insights from your ${aiSettings.knowledgeIds.length} knowledge sources.` : '';
-    
-    let response = `Perfect! I've created a comprehensive blog post about **${topic}** ${brandVoiceNote}${audienceNote}.${knowledgeNote}`;
-
-    // Add persona-specific response
-    if (aiSettings.persona && aiSettings.persona !== 'default') {
-      switch (aiSettings.persona) {
-        case 'seth_rogen':
-          response = `Dude, this blog post about **${topic}** is gonna be so good! I made it super engaging and fun to read. Your audience is gonna love it!`;
-          break;
-        case 'alex_hormozi':
-          response = `Blog post about **${topic}** is done. Every word is designed to educate, build authority, and drive action. This will position you as the expert in your space.`;
-          break;
-        case 'gary_vaynerchuk':
-          response = `YES! Just created an INCREDIBLE blog post about **${topic}** that's going to absolutely CRUSH it! This content is going to build your brand and drive MASSIVE engagement!`;
-          break;
-        case 'oprah_winfrey':
-          response = `I've lovingly crafted a beautiful blog post about **${topic}** that will inspire and empower your readers. Every word is chosen to uplift and transform lives.`;
-          break;
-      }
-    }
-
-    response += `
-
-**Key features of your blog post:**
-- ${aiSettings.outputFormat === 'professional' ? 'Professional and authoritative' : aiSettings.outputFormat === 'casual' ? 'Conversational and approachable' : 'Creative and engaging'} tone
-- SEO-optimized structure focused on "${topic}"
-- ${aiSettings.temperature > 0.7 ? 'Creative and unique' : aiSettings.temperature < 0.4 ? 'Focused and precise' : 'Balanced and practical'} insights
-- Reader-friendly formatting
-
-The content has been added to your canvas where you can further edit and customize it. You can double-click the content node to edit it directly, or highlight specific sections and send them back to me for rewriting!`;
-
-    return response;
-  };
-
-  // Generate contextual blog content based on topic
-  const generateContextualBlogContent = (topic: string) => {
-    const title = generateBlogTitle(topic);
-    const capitalizedTopic = topic.charAt(0).toUpperCase() + topic.slice(1);
-    
-    let baseContent = `# ${title}
-
-${capitalizedTopic} has become increasingly important in today's rapidly evolving landscape. Whether you're a beginner looking to understand the fundamentals or an expert seeking advanced strategies, this comprehensive guide will provide you with valuable insights and actionable advice.
-
-## Understanding ${capitalizedTopic}
-
-${capitalizedTopic} encompasses various aspects that are crucial for success. Let's explore the key components that make up this important topic.
-
-### Why ${capitalizedTopic} Matters
-
-In today's competitive environment, understanding ${topic} is essential for:
-- Achieving better results
-- Staying ahead of the competition
-- Making informed decisions
-- Maximizing efficiency and effectiveness
-
-## Key Strategies for ${capitalizedTopic}
-
-### 1. Foundation Building
-Start with a solid understanding of the fundamentals. This includes:
-- Learning the basic principles
-- Understanding common terminology
-- Identifying key stakeholders
-- Setting clear objectives
-
-### 2. Implementation Best Practices
-When implementing ${topic} strategies:
-- Start with small, manageable steps
-- Monitor progress regularly
-- Adjust your approach based on results
-- Seek feedback from experts and peers
-
-### 3. Advanced Techniques
-Once you've mastered the basics, consider these advanced approaches:
-- Leveraging technology and automation
-- Implementing data-driven decision making
-- Building strategic partnerships
-- Continuous improvement processes
-
-## Common Challenges and Solutions
-
-### Challenge 1: Getting Started
-Many people struggle with where to begin. The solution is to:
-- Break down the topic into smaller, manageable pieces
-- Set realistic goals and timelines
-- Seek guidance from experienced professionals
-- Start with proven methods before experimenting
-
-### Challenge 2: Staying Current
-${capitalizedTopic} is constantly evolving. To stay current:
-- Follow industry leaders and publications
-- Attend conferences and workshops
-- Join professional communities
-- Regularly review and update your strategies
-
-## Measuring Success
-
-To ensure your ${topic} efforts are effective, track these key metrics:
-- Performance indicators relevant to your goals
-- Return on investment (ROI)
-- User satisfaction and feedback
-- Long-term sustainability
-
-## Future Trends in ${capitalizedTopic}
-
-Looking ahead, several trends are shaping the future of ${topic}:
-- Increased automation and AI integration
-- Greater focus on personalization
-- Enhanced data analytics capabilities
-- Improved user experience design
-
-## Conclusion
-
-${capitalizedTopic} is a multifaceted topic that requires careful planning, consistent execution, and continuous learning. By following the strategies outlined in this guide, you'll be well-equipped to achieve success in your ${topic} endeavors.
-
-Remember that mastery takes time, so be patient with yourself as you develop your skills. Stay curious, keep learning, and don't hesitate to seek help when needed.
-
----
-
-*Ready to take your ${topic} to the next level? Start implementing these strategies today and watch your results improve!*`;
-
-    // Modify content based on persona
-    if (aiSettings.persona) {
-      switch (aiSettings.persona) {
-        case 'seth_rogen':
-          baseContent = baseContent
-            .replace(/encompasses various aspects/g, 'covers lots of different things')
-            .replace(/crucial for success/g, 'super important for winning')
-            .replace(/fundamental principles/g, 'basic stuff you need to know')
-            .replace(/implementing/g, 'putting into action')
-            .replace(/leveraging/g, 'using')
-            .replace(/multifaceted topic/g, 'topic with many sides');
-          break;
-        case 'alex_hormozi':
-          baseContent = baseContent
-            .replace(/has become increasingly important/g, 'directly impacts your bottom line')
-            .replace(/comprehensive guide/g, 'profit-focused blueprint')
-            .replace(/valuable insights/g, 'money-making strategies')
-            .replace(/actionable advice/g, 'proven tactics that work')
-            .replace(/competitive environment/g, 'marketplace where winners take all');
-          break;
-        case 'gary_vaynerchuk':
-          baseContent = baseContent
-            .replace(/has become increasingly important/g, 'has emerged as a game-changing force')
-            .replace(/comprehensive guide/g, 'ultimate roadmap to SUCCESS')
-            .replace(/valuable insights/g, 'GOLDEN nuggets of wisdom')
-            .replace(/actionable advice/g, 'power-packed strategies')
-            .replace(/competitive environment/g, 'battlefield of HUSTLE and GRIND');
-          break;
-        case 'oprah_winfrey':
-          baseContent = baseContent
-            .replace(/has become increasingly important/g, 'has emerged as a beautiful opportunity for growth')
-            .replace(/comprehensive guide/g, 'loving guide to transformation')
-            .replace(/valuable insights/g, 'precious wisdom')
-            .replace(/actionable advice/g, 'empowering guidance')
-            .replace(/competitive environment/g, 'world where we can all shine together');
-          break;
-      }
-    } else if (aiSettings.outputFormat === 'casual') {
-      baseContent = baseContent
-        .replace(/encompasses various aspects/g, 'covers lots of different things')
-        .replace(/crucial for success/g, 'super important for winning')
-        .replace(/fundamental principles/g, 'basic stuff you need to know')
-        .replace(/implementing/g, 'putting into action')
-        .replace(/leveraging/g, 'using')
-        .replace(/multifaceted topic/g, 'topic with many sides');
-    } else if (aiSettings.outputFormat === 'creative') {
-      baseContent = baseContent
-        .replace(/has become increasingly important/g, 'has emerged as a game-changing force')
-        .replace(/comprehensive guide/g, 'ultimate roadmap to success')
-        .replace(/valuable insights/g, 'golden nuggets of wisdom')
-        .replace(/actionable advice/g, 'power-packed strategies')
-        .replace(/competitive environment/g, 'battlefield of innovation');
-    }
-
-    return baseContent;
-  };
-
-  // Generate contextual default response
-  const generateContextualDefaultResponse = (userMessage: string) => {
-    const contextInfo = [];
-    
-    if (aiSettings.brandVoiceId) {
-      contextInfo.push('your selected brand voice');
-    }
-    if (aiSettings.audienceId) {
-      contextInfo.push('your target audience preferences');
-    }
-    if (aiSettings.knowledgeIds.length > 0) {
-      contextInfo.push(`insights from your ${aiSettings.knowledgeIds.length} knowledge sources`);
-    }
-
-    const contextText = contextInfo.length > 0 
-      ? ` I'll incorporate ${contextInfo.join(', ')} to ensure the content aligns perfectly with your brand and goals.`
-      : '';
-
-    let response = `I understand you'd like help with **"${userMessage}"**. I can assist you with creating various types of marketing content including:
-
-• **Blog posts and articles** - SEO-optimized, engaging content in ${aiSettings.outputFormat || 'professional'} tone
-• **Social media content** - Posts, captions, and hashtags  
-• **Email campaigns** - Subject lines, sequences, and newsletters
-• **Marketing copy** - Landing pages, ads, and sales materials
-• **Visual concepts** - Image ideas and design briefs
-• **Video scripts** - YouTube, TikTok, and promotional videos
-
-${contextText}
-
-**💡 Pro tip:** You can also highlight text in any content node on the canvas and send it to me for rewriting or improvement!
-
-What specific type of content would you like me to create for your project?`;
-
-    // Add persona-specific response
-    if (aiSettings.persona && aiSettings.persona !== 'default') {
-      switch (aiSettings.persona) {
-        case 'seth_rogen':
-          response = `Oh cool, you want help with **"${userMessage}"**! I'm totally down to help you create some awesome content. I can make blog posts, social stuff, emails - whatever you need, man! Just tell me what you're thinking and I'll make it happen!`;
-          break;
-        case 'alex_hormozi':
-          response = `You want **"${userMessage}"**? Here's what I can build for you: High-converting sales copy, email sequences that actually sell, content that positions you as the authority, and marketing materials that drive revenue. What's the goal?`;
-          break;
-        case 'gary_vaynerchuk':
-          response = `YES! **"${userMessage}"** - I LOVE IT! I can create CRUSHING content for you - blogs that BUILD your brand, social posts that get ENGAGEMENT, emails that CONVERT! What are we building today? Let's GO!`;
-          break;
-        case 'oprah_winfrey':
-          response = `Beautiful! You want to work on **"${userMessage}"** - I'm so excited to help you create content that will touch hearts and inspire action. Whether it's blog posts that empower, social content that uplifts, or emails that connect - let's create something meaningful together!`;
-          break;
-      }
-    }
-
-    return response;
   };
 
   // Handle sending message
@@ -855,24 +460,12 @@ What specific type of content would you like me to create for your project?`;
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const currentInput = inputValue;
     setInputValue('');
     setIsTyping(true);
 
     try {
-      const aiResponse = await generateAIResponse(inputValue);
-      setMessages(prev => [...prev, aiResponse]);
-      
-      // FIXED: Add content to canvas immediately after generating the response
-      if (aiResponse.generatedContent && (window as any).addCanvasItem) {
-        // Add a small delay to ensure the message is rendered first
-        setTimeout(() => {
-          (window as any).addCanvasItem(
-            aiResponse.generatedContent!.type,
-            aiResponse.generatedContent!.content,
-            aiResponse.generatedContent!.title
-          );
-        }, 100);
-      }
+      await generateAndAddToCanvas(currentInput);
     } catch (error) {
       console.error('Error generating AI response:', error);
     } finally {
@@ -985,48 +578,6 @@ What specific type of content would you like me to create for your project?`;
                     <div className="whitespace-pre-wrap">{message.content}</div>
                   )}
                 </div>
-
-                {/* Generated Content */}
-                {message.generatedContent && (
-                  <div className="mt-4 p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        {message.generatedContent.type === 'text' && <FileText size={16} className="text-blue-600" />}
-                        {message.generatedContent.type === 'image' && <Image size={16} className="text-green-600" />}
-                        {message.generatedContent.type === 'chart' && <BarChart3 size={16} className="text-purple-600" />}
-                        {message.generatedContent.type === 'video' && <Video size={16} className="text-orange-600" />}
-                        <span className="text-sm font-semibold text-gray-900">
-                          {message.generatedContent.title}
-                        </span>
-                      </div>
-                      <button
-                        onClick={() => copyToClipboard(message.generatedContent!.content)}
-                        className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
-                        title="Copy to clipboard"
-                      >
-                        <Copy size={14} />
-                      </button>
-                    </div>
-                    <div className="text-xs text-gray-600 bg-gray-50 p-3 rounded-lg max-h-32 overflow-y-auto">
-                      {message.generatedContent.content.length > 200 
-                        ? `${message.generatedContent.content.substring(0, 200)}...`
-                        : message.generatedContent.content
-                      }
-                    </div>
-                    <div className="flex items-center gap-3 mt-3">
-                      <div className="flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">
-                        <span>✓</span>
-                        <span>Added to Canvas</span>
-                      </div>
-                      <button className="p-1 text-gray-400 hover:text-green-600 transition-colors">
-                        <ThumbsUp size={12} />
-                      </button>
-                      <button className="p-1 text-gray-400 hover:text-red-600 transition-colors">
-                        <ThumbsDown size={12} />
-                      </button>
-                    </div>
-                  </div>
-                )}
 
                 {/* Suggestions */}
                 {message.suggestions && (

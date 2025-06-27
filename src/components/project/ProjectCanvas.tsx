@@ -85,26 +85,28 @@ const ProjectCanvasInner = forwardRef<ProjectCanvasRef, ProjectCanvasProps>(({
   // Get React Flow instance for focus functionality
   const reactFlow = useReactFlow();
 
-  // FIXED: Handle node content update with proper logging and state management
+  // CRITICAL FIX: Handle node content update with proper state management
   const handleNodeContentUpdate = useCallback((nodeId: string, newContent: string) => {
-    console.log('🟢 handleNodeContentUpdate called');
-    console.log('🟢 nodeId:', nodeId);
-    console.log('🟢 newContent received:', newContent);
-    console.log('🟢 Current nodes before update:', nodes.map(n => ({ id: n.id, title: n.data.title, content: n.data.content })));
+    console.log('🔥 CRITICAL: handleNodeContentUpdate called');
+    console.log('🔥 nodeId:', nodeId);
+    console.log('🔥 newContent:', newContent);
     
+    // Use functional update to ensure we have the latest state
     setNodes((currentNodes) => {
+      console.log('🔥 Current nodes in state update:', currentNodes.length);
+      
       const updatedNodes = currentNodes.map((node) => {
         if (node.id === nodeId) {
-          console.log('🟢 Found matching node, updating content');
-          console.log('🟢 Old content:', node.data.content);
-          console.log('🟢 New content:', newContent);
+          console.log('🔥 FOUND MATCHING NODE - UPDATING CONTENT');
+          console.log('🔥 Old content:', node.data.content);
+          console.log('🔥 New content:', newContent);
           
-          return {
+          const updatedNode = {
             ...node,
             data: {
               ...node.data,
               content: newContent,
-              // Ensure all callback functions are preserved
+              // Preserve all callback functions
               onDelete: handleDeleteNode,
               onContentUpdate: handleNodeContentUpdate,
               onMetadataUpdate: handleNodeMetadataUpdate,
@@ -112,30 +114,38 @@ const ProjectCanvasInner = forwardRef<ProjectCanvasRef, ProjectCanvasProps>(({
               onNodeDoubleClick: handleNodeDoubleClick,
             }
           };
+          
+          console.log('🔥 Updated node data:', updatedNode.data);
+          return updatedNode;
         }
         return node;
       });
       
-      console.log('🟢 Updated nodes after content change:', updatedNodes.map(n => ({ id: n.id, title: n.data.title, content: n.data.content })));
+      console.log('🔥 Returning updated nodes array');
       
       // Trigger save after state update
       if (initializedRef.current) {
-        console.log('🟢 Triggering debounced save with updated nodes');
         setTimeout(() => {
+          console.log('🔥 Triggering save after content update');
           debouncedSave(updatedNodes, edges);
-        }, 0);
+        }, 100);
       }
       
       return updatedNodes;
     });
     
-    toast.success('Content updated successfully!');
-  }, [edges, onSendTextToChat]);
+    toast.success('✅ Content updated successfully!');
+  }, [onSendTextToChat]);
 
   // Expose updateNodeContent method to parent
   useImperativeHandle(ref, () => ({
-    updateNodeContent: handleNodeContentUpdate
-  }));
+    updateNodeContent: (nodeId: string, newContent: string) => {
+      console.log('🎯 updateNodeContent called from parent');
+      console.log('🎯 nodeId:', nodeId);
+      console.log('🎯 newContent:', newContent);
+      handleNodeContentUpdate(nodeId, newContent);
+    }
+  }), [handleNodeContentUpdate]);
 
   // Auto-arrange campaign assets function
   const autoArrangeCampaignAssets = useCallback(() => {
@@ -367,7 +377,7 @@ const ProjectCanvasInner = forwardRef<ProjectCanvasRef, ProjectCanvasProps>(({
       
       const { nodes: savedNodes = [], edges: savedEdges = [] } = currentProject.sitemap_data;
       
-      // Convert saved nodes to React Flow format
+      // Convert saved nodes to React Flow format with proper callbacks
       const flowNodes = savedNodes.map((node: any) => ({
         id: node.id,
         type: 'contentNode',
@@ -379,6 +389,9 @@ const ProjectCanvasInner = forwardRef<ProjectCanvasRef, ProjectCanvasProps>(({
           subType: node.data?.subType,
           metadata: node.data?.metadata || {},
           createdAt: node.data?.createdAt ? new Date(node.data.createdAt) : new Date(),
+          onDelete: handleDeleteNode,
+          onContentUpdate: handleNodeContentUpdate,
+          onMetadataUpdate: handleNodeMetadataUpdate,
           onSendTextToChat,
           onNodeDoubleClick: handleNodeDoubleClick,
         },
@@ -391,7 +404,7 @@ const ProjectCanvasInner = forwardRef<ProjectCanvasRef, ProjectCanvasProps>(({
       initializedRef.current = true;
       currentProjectIdRef.current = projectId;
     }
-  }, [currentProject, projectId, setNodes, setEdges, onSendTextToChat, handleNodeDoubleClick]);
+  }, [currentProject, projectId, setNodes, setEdges, onSendTextToChat, handleNodeDoubleClick, handleNodeContentUpdate]);
 
   // Enhanced debounced save function with connection checking
   const debouncedSave = useCallback(

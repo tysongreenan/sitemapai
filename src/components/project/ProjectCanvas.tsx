@@ -85,6 +85,53 @@ const ProjectCanvasInner = forwardRef<ProjectCanvasRef, ProjectCanvasProps>(({
   // Get React Flow instance for focus functionality
   const reactFlow = useReactFlow();
 
+  // FIXED: Handle node content update with proper logging and state management
+  const handleNodeContentUpdate = useCallback((nodeId: string, newContent: string) => {
+    console.log('🟢 handleNodeContentUpdate called');
+    console.log('🟢 nodeId:', nodeId);
+    console.log('🟢 newContent received:', newContent);
+    console.log('🟢 Current nodes before update:', nodes.map(n => ({ id: n.id, title: n.data.title, content: n.data.content })));
+    
+    setNodes((currentNodes) => {
+      const updatedNodes = currentNodes.map((node) => {
+        if (node.id === nodeId) {
+          console.log('🟢 Found matching node, updating content');
+          console.log('🟢 Old content:', node.data.content);
+          console.log('🟢 New content:', newContent);
+          
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              content: newContent,
+              // Ensure all callback functions are preserved
+              onDelete: handleDeleteNode,
+              onContentUpdate: handleNodeContentUpdate,
+              onMetadataUpdate: handleNodeMetadataUpdate,
+              onSendTextToChat,
+              onNodeDoubleClick: handleNodeDoubleClick,
+            }
+          };
+        }
+        return node;
+      });
+      
+      console.log('🟢 Updated nodes after content change:', updatedNodes.map(n => ({ id: n.id, title: n.data.title, content: n.data.content })));
+      
+      // Trigger save after state update
+      if (initializedRef.current) {
+        console.log('🟢 Triggering debounced save with updated nodes');
+        setTimeout(() => {
+          debouncedSave(updatedNodes, edges);
+        }, 0);
+      }
+      
+      return updatedNodes;
+    });
+    
+    toast.success('Content updated successfully!');
+  }, [edges, onSendTextToChat]);
+
   // Expose updateNodeContent method to parent
   useImperativeHandle(ref, () => ({
     updateNodeContent: handleNodeContentUpdate
@@ -464,31 +511,6 @@ const ProjectCanvasInner = forwardRef<ProjectCanvasRef, ProjectCanvasProps>(({
     setReactFlowInstance(instance);
   };
 
-  // Handle node content update with immediate save and detailed logging
-  const handleNodeContentUpdate = useCallback((nodeId: string, newContent: string) => {
-    console.log('🟢 handleNodeContentUpdate called');
-    console.log('🟢 nodeId:', nodeId);
-    console.log('🟢 newContent received:', newContent);
-    console.log('🟢 Current nodes array before update:', nodes.map(n => ({ id: n.id, content: n.data.content })));
-    
-    const updatedNodes = nodes.map((node) => 
-      node.id === nodeId 
-        ? { ...node, data: { ...node.data, content: newContent } }
-        : node
-    );
-    
-    console.log('🟢 Updated nodes array after local update:', updatedNodes.map(n => ({ id: n.id, content: n.data.content })));
-    
-    setNodes(updatedNodes);
-    
-    if (initializedRef.current) {
-      console.log('🟢 Triggering debounced save with updated nodes');
-      debouncedSave(updatedNodes, edges);
-    }
-    
-    toast.success('Content updated successfully!');
-  }, [setNodes, nodes, edges, debouncedSave]);
-
   // Handle node metadata update with immediate save
   const handleNodeMetadataUpdate = useCallback((nodeId: string, metadata: any) => {
     const updatedNodes = nodes.map((node) => 
@@ -681,7 +703,7 @@ const ProjectCanvasInner = forwardRef<ProjectCanvasRef, ProjectCanvasProps>(({
     };
   }, [addItem]);
 
-  // Update node selection state and pass callbacks
+  // Update node selection state and pass callbacks with proper content update function
   const updatedNodes = nodes.map(node => ({
     ...node,
     data: {

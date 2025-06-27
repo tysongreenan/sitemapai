@@ -968,7 +968,10 @@ const ProjectCanvasInner = ({
       <AddContentMenu
         isOpen={showAddMenu}
         onClose={() => setShowAddMenu(false)}
-        onAddContent={addItem}
+        onAddContent={(type: string, subType?: string, metadata?: any) => {
+          const title = metadata?.title || `New ${type}`;
+          addItem(type, '', title);
+        }}
       />
     </>
   );

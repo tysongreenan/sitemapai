@@ -64,8 +64,16 @@ export const FullScreenSignup = () => {
         toast.success("Account created successfully! Welcome to SiteMapAI!");
         navigate("/dashboard");
       }
-    } catch (error) {
-      AppErrorHandler.handle(error, { context: 'FullScreenSignup.handleSubmit' });
+    } catch (error: any) {
+      // Handle specific "User already registered" error
+      if (error?.message === "User already registered" || 
+          (error?.code === "user_already_exists")) {
+        toast.error("An account with this email already exists. Please sign in instead.");
+        setEmailError("This email is already registered");
+      } else {
+        // Handle all other errors through the error handler
+        AppErrorHandler.handle(error, { context: 'FullScreenSignup.handleSubmit' });
+      }
     } finally {
       setIsLoading(false);
     }

@@ -3,7 +3,7 @@ import {
   Settings, ChevronDown, Plus, Check, X, Search, 
   Sparkles, Users, FileText, Link2, Upload, 
   Mic, Target, Globe, Brain, Lightbulb, Shield,
-  BookOpen, Hash, AlertCircle
+  BookOpen, Hash, AlertCircle, User
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { toast } from 'react-toastify';
@@ -45,6 +45,7 @@ interface AIContextSettings {
   temperature?: number;
   outputFormat?: 'casual' | 'professional' | 'creative';
   language?: string;
+  persona?: string; // New persona field
 }
 
 interface AIContextSettingsDropdownProps {
@@ -70,6 +71,40 @@ export function AIContextSettingsDropdown({
   const [activeTab, setActiveTab] = useState<'brand' | 'audience' | 'knowledge' | 'advanced'>('brand');
   const [showCreateModal, setShowCreateModal] = useState<'brand' | 'audience' | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Available AI personas
+  const personas = [
+    {
+      id: 'default',
+      name: 'Default AI',
+      description: 'Professional and balanced AI assistant',
+      style: 'Clear, informative, and professional tone'
+    },
+    {
+      id: 'seth_rogen',
+      name: 'Seth Rogen',
+      description: 'Casual, funny, and relatable comedian style',
+      style: 'Conversational, humorous, and down-to-earth with Canadian charm'
+    },
+    {
+      id: 'alex_hormozi',
+      name: 'Alex Hormozi',
+      description: 'Direct, business-focused entrepreneur style',
+      style: 'No-nonsense, value-driven, and results-oriented business advice'
+    },
+    {
+      id: 'gary_vaynerchuk',
+      name: 'Gary Vaynerchuk',
+      description: 'High-energy, motivational entrepreneur',
+      style: 'Passionate, direct, and motivational with hustle mentality'
+    },
+    {
+      id: 'oprah_winfrey',
+      name: 'Oprah Winfrey',
+      description: 'Inspirational and empowering media personality',
+      style: 'Warm, inspiring, and empowering with focus on personal growth'
+    }
+  ];
 
   useEffect(() => {
     if (isOpen) {
@@ -175,6 +210,7 @@ export function AIContextSettingsDropdown({
   const getSelectedBrandVoice = () => brandVoices.find(v => v.id === settings.brandVoiceId);
   const getSelectedAudience = () => audiences.find(a => a.id === settings.audienceId);
   const getSelectedKnowledge = () => knowledgeBase.filter(k => settings.knowledgeIds.includes(k.id));
+  const getSelectedPersona = () => personas.find(p => p.id === settings.persona) || personas[0];
 
   if (!isOpen) {
     return (
@@ -184,11 +220,12 @@ export function AIContextSettingsDropdown({
       >
         <Settings size={16} />
         <span className="text-sm font-medium">AI Context</span>
-        {(settings.brandVoiceId || settings.audienceId || settings.knowledgeIds.length > 0) && (
+        {(settings.brandVoiceId || settings.audienceId || settings.knowledgeIds.length > 0 || settings.persona) && (
           <div className="flex items-center gap-1">
             {settings.brandVoiceId && <div className="w-2 h-2 bg-blue-500 rounded-full" />}
             {settings.audienceId && <div className="w-2 h-2 bg-green-500 rounded-full" />}
             {settings.knowledgeIds.length > 0 && <div className="w-2 h-2 bg-purple-500 rounded-full" />}
+            {settings.persona && settings.persona !== 'default' && <div className="w-2 h-2 bg-orange-500 rounded-full" />}
           </div>
         )}
         <ChevronDown size={14} />
@@ -467,6 +504,36 @@ export function AIContextSettingsDropdown({
             {/* Advanced Tab */}
             {activeTab === 'advanced' && (
               <div className="space-y-4">
+                {/* AI Persona Selection */}
+                <div>
+                  <label className="text-sm font-medium text-gray-700">AI Persona</label>
+                  <p className="text-xs text-gray-500 mt-1 mb-3">Choose how the AI communicates and writes content</p>
+                  
+                  <div className="space-y-2">
+                    {personas.map((persona) => (
+                      <button
+                        key={persona.id}
+                        onClick={() => setSettings({ ...settings, persona: persona.id })}
+                        className={`w-full text-left p-3 rounded-lg border transition-all ${
+                          (settings.persona || 'default') === persona.id 
+                            ? 'border-orange-500 bg-orange-50' 
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <User size={16} className="text-gray-400" />
+                            <span className="text-sm font-medium">{persona.name}</span>
+                          </div>
+                          {(settings.persona || 'default') === persona.id && <Check size={16} className="text-orange-600" />}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">{persona.description}</p>
+                        <p className="text-xs text-gray-400 mt-1 italic">{persona.style}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Output Format */}
                 <div>
                   <label className="text-sm font-medium text-gray-700">Output Format</label>
@@ -563,6 +630,12 @@ export function AIContextSettingsDropdown({
               <div className="flex items-center gap-1 text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
                 <BookOpen size={12} />
                 {settings.knowledgeIds.length} sources
+              </div>
+            )}
+            {settings.persona && settings.persona !== 'default' && (
+              <div className="flex items-center gap-1 text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">
+                <User size={12} />
+                {getSelectedPersona().name}
               </div>
             )}
           </div>

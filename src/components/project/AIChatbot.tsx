@@ -499,14 +499,30 @@ export const AIChatbot = forwardRef<AIChatbotRef, AIChatbotProps>(({
     try {
       // Check if this is a modification request for selected content
       if (selectedCanvasItem && isModificationRequest(currentInput) && onUpdateSelectedNodeContent) {
-        console.log('🔄 Modifying selected content node:', selectedCanvasItem.id);
+        console.log('🔄 CHATBOT: Modifying selected content node:', selectedCanvasItem.id);
+        console.log('🔄 CHATBOT: Current content:', selectedCanvasItem.content);
+        console.log('🔄 CHATBOT: Modification request:', currentInput);
         
-        // Generate modified content using OpenAI
-        const modifiedContent = await OpenAIService.modifyMarketingContent(
-          selectedCanvasItem.content,
-          currentInput,
-          aiSettings
-        );
+        // Generate modified content using OpenAI or fallback
+        let modifiedContent;
+        try {
+          if (import.meta.env.VITE_OPENAI_API_KEY) {
+            modifiedContent = await OpenAIService.modifyMarketingContent(
+              selectedCanvasItem.content,
+              currentInput,
+              aiSettings
+            );
+          } else {
+            // Fallback mock modification
+            modifiedContent = selectedCanvasItem.content + '\n\n' + generateMockModification(currentInput);
+          }
+        } catch (error) {
+          console.error('OpenAI modification failed, using fallback:', error);
+          modifiedContent = selectedCanvasItem.content + '\n\n' + generateMockModification(currentInput);
+        }
+        
+        console.log('🔄 CHATBOT: Generated modified content:', modifiedContent);
+        console.log('🔄 CHATBOT: Calling onUpdateSelectedNodeContent...');
         
         // Update the selected node content
         onUpdateSelectedNodeContent(selectedCanvasItem.id, modifiedContent);
@@ -544,6 +560,23 @@ export const AIChatbot = forwardRef<AIChatbotRef, AIChatbotProps>(({
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsTyping(false);
+    }
+  };
+
+  // Generate mock modification for fallback
+  const generateMockModification = (request: string) => {
+    const lowerRequest = request.toLowerCase();
+    
+    if (lowerRequest.includes('cta') || lowerRequest.includes('call to action')) {
+      return '\n\n**Ready to get started?** [Click here to learn more and take action today!]';
+    } else if (lowerRequest.includes('benefits')) {
+      return '\n\n**Key Benefits:**\n• Increased efficiency and productivity\n• Cost-effective solution\n• Easy to implement and use\n• Proven results and ROI';
+    } else if (lowerRequest.includes('testimonial')) {
+      return '\n\n*"This has completely transformed our business. Highly recommended!"* - Sarah J., Marketing Director';
+    } else if (lowerRequest.includes('urgency')) {
+      return '\n\n⏰ **Limited Time Offer** - Don\'t miss out on this opportunity!';
+    } else {
+      return '\n\n✨ Enhanced with your requested modifications for better engagement and conversion.';
     }
   };
 

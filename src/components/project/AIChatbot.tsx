@@ -254,6 +254,31 @@ export const AIChatbot = forwardRef<AIChatbotRef, AIChatbotProps>(({ projectId, 
       };
     }
     
+    // Check for social media requests
+    if (lowerMessage.includes('social media') || lowerMessage.includes('instagram') || 
+        lowerMessage.includes('twitter') || lowerMessage.includes('linkedin') || 
+        lowerMessage.includes('facebook') || lowerMessage.includes('social post')) {
+      const topic = extractTopicFromMessage(userMessage);
+      
+      return {
+        id: messageId,
+        type: 'ai',
+        content: generateSocialMediaResponse(topic),
+        timestamp: new Date(),
+        generatedContent: {
+          type: 'text',
+          title: `Social Media Content Pack - ${topic}`,
+          content: generateContextualSocialMediaContent(topic)
+        },
+        suggestions: [
+          'Create more platform-specific content',
+          'Generate hashtag strategies',
+          'Write captions for different audiences',
+          'Create a content calendar'
+        ]
+      };
+    }
+    
     // Check for blog post requests and extract topic
     if (lowerMessage.includes('blog') || lowerMessage.includes('article') || lowerMessage.includes('post')) {
       const topic = extractTopicFromMessage(userMessage);
@@ -273,6 +298,30 @@ export const AIChatbot = forwardRef<AIChatbotRef, AIChatbotProps>(({ projectId, 
           `Generate email campaign about ${topic}`,
           `Design infographic about ${topic}`,
           'Write a follow-up article'
+        ]
+      };
+    }
+
+    // Check for email marketing requests
+    if (lowerMessage.includes('email') || lowerMessage.includes('newsletter') || 
+        lowerMessage.includes('campaign') || lowerMessage.includes('sequence')) {
+      const topic = extractTopicFromMessage(userMessage);
+      
+      return {
+        id: messageId,
+        type: 'ai',
+        content: generateEmailResponse(topic),
+        timestamp: new Date(),
+        generatedContent: {
+          type: 'text',
+          title: `Email Campaign - ${topic}`,
+          content: generateContextualEmailContent(topic)
+        },
+        suggestions: [
+          'Create follow-up email sequence',
+          'Generate subject line variations',
+          'Write welcome email series',
+          'Create promotional email templates'
         ]
       };
     }
@@ -300,7 +349,10 @@ export const AIChatbot = forwardRef<AIChatbotRef, AIChatbotProps>(({ projectId, 
       `${topic}: A Comprehensive Guide`,
       `Mastering ${topic}: Tips and Strategies`,
       `The Complete ${topic} Handbook`,
-      `${topic} Made Simple: A Step-by-Step Guide`
+      `${topic} Made Simple: A Step-by-Step Guide`,
+      `10 Essential ${topic} Strategies for Success`,
+      `How to Excel at ${topic} in 2024`,
+      `The Future of ${topic}: Trends and Insights`
     ];
     
     // Capitalize first letter of topic
@@ -308,7 +360,7 @@ export const AIChatbot = forwardRef<AIChatbotRef, AIChatbotProps>(({ projectId, 
     
     // Select a random template and replace topic
     const randomTemplate = titleTemplates[Math.floor(Math.random() * titleTemplates.length)];
-    return randomTemplate.replace(topic, capitalizedTopic);
+    return randomTemplate.replace(new RegExp(topic, 'gi'), capitalizedTopic);
   };
 
   // Generate contextual rewrite based on AI settings
@@ -342,6 +394,40 @@ ${aiSettings.brandVoiceId ? 'This version aligns with your selected brand voice 
 Would you like me to try a different approach or style?`;
   };
 
+  // Generate social media response
+  const generateSocialMediaResponse = (topic: string) => {
+    const brandVoiceNote = aiSettings.brandVoiceId ? 'using your selected brand voice and ' : '';
+    const audienceNote = aiSettings.audienceId ? 'tailored for your target audience' : 'optimized for engagement';
+    const knowledgeNote = aiSettings.knowledgeIds.length > 0 ? ` I've incorporated insights from your ${aiSettings.knowledgeIds.length} knowledge sources.` : '';
+    
+    return `Perfect! I've created a comprehensive social media content pack about **${topic}** ${brandVoiceNote}${audienceNote}.${knowledgeNote}
+
+**Your social media pack includes:**
+- Platform-specific posts for Instagram, Twitter, LinkedIn, and Facebook
+- ${aiSettings.outputFormat === 'professional' ? 'Professional and authoritative' : aiSettings.outputFormat === 'casual' ? 'Conversational and approachable' : 'Creative and engaging'} tone
+- Relevant hashtags and engagement strategies
+- ${aiSettings.temperature > 0.7 ? 'Creative and unique' : aiSettings.temperature < 0.4 ? 'Focused and precise' : 'Balanced and practical'} messaging
+
+The content has been added to your canvas where you can further customize it. Each platform has content optimized for its specific audience and format requirements!`;
+  };
+
+  // Generate email response
+  const generateEmailResponse = (topic: string) => {
+    const brandVoiceNote = aiSettings.brandVoiceId ? 'using your selected brand voice and ' : '';
+    const audienceNote = aiSettings.audienceId ? 'tailored for your target audience' : 'optimized for conversions';
+    
+    return `Excellent! I've created a complete email campaign about **${topic}** ${brandVoiceNote}${audienceNote}.
+
+**Your email campaign includes:**
+- Compelling subject lines with high open rates
+- ${aiSettings.outputFormat === 'professional' ? 'Professional and trustworthy' : aiSettings.outputFormat === 'casual' ? 'Friendly and personal' : 'Creative and memorable'} messaging
+- Clear call-to-action buttons
+- Mobile-optimized formatting
+- Follow-up sequence suggestions
+
+The campaign has been added to your canvas for further customization. You can adjust the messaging, timing, and personalization elements as needed!`;
+  };
+
   // Generate contextual blog response
   const generateContextualBlogResponse = (topic: string) => {
     const brandVoiceNote = aiSettings.brandVoiceId ? 'using your selected brand voice and ' : '';
@@ -354,9 +440,138 @@ Would you like me to try a different approach or style?`;
 - ${aiSettings.outputFormat === 'professional' ? 'Professional and authoritative' : aiSettings.outputFormat === 'casual' ? 'Conversational and approachable' : 'Creative and engaging'} tone
 - SEO-optimized structure focused on "${topic}"
 - ${aiSettings.temperature > 0.7 ? 'Creative and unique' : aiSettings.temperature < 0.4 ? 'Focused and precise' : 'Balanced and practical'} insights
-- Reader-friendly formatting
+- Reader-friendly formatting with headers and bullet points
+- Actionable takeaways and next steps
 
 The content has been added to your canvas where you can further edit and customize it. You can double-click the content node to edit it directly, or highlight specific sections and send them back to me for rewriting!`;
+  };
+
+  // Generate contextual social media content
+  const generateContextualSocialMediaContent = (topic: string) => {
+    const capitalizedTopic = topic.charAt(0).toUpperCase() + topic.slice(1);
+    
+    let baseContent = `# Social Media Content Pack: ${capitalizedTopic}
+
+## 📱 Instagram Post
+**Caption:**
+${aiSettings.outputFormat === 'casual' ? '🔥' : aiSettings.outputFormat === 'creative' ? '✨' : '💡'} Ready to dive deep into ${topic}? Here's what we've discovered:
+
+${aiSettings.outputFormat === 'casual' ? 
+  `• It's way more important than you think!\n• Small changes = BIG results\n• Anyone can master this (yes, even you!)\n\nWhat's your biggest challenge with ${topic}? Drop it in the comments! 👇` :
+  aiSettings.outputFormat === 'professional' ?
+  `• Strategic implementation drives measurable results\n• Industry leaders prioritize this approach\n• Data-driven insights reveal significant opportunities\n\nShare your experience with ${topic} in the comments below.` :
+  `• The secret sauce everyone's talking about\n• Transform your approach in just 3 steps\n• Mind-blowing results await!\n\nWhat's your ${topic} superpower? Tell us below! ⚡`
+}
+
+**Hashtags:** #${topic.replace(/\s+/g, '')} #Marketing #Strategy #Growth #Business #Success #Tips #Innovation
+
+---
+
+## 🐦 Twitter/X Post
+${aiSettings.outputFormat === 'casual' ? 
+  `Hot take: ${capitalizedTopic} isn't just a trend—it's the future! 🚀\n\nHere's why everyone's talking about it:\n→ Game-changing results\n→ Easy to implement\n→ Massive ROI potential\n\nWhat's your take? 🤔` :
+  aiSettings.outputFormat === 'professional' ?
+  `${capitalizedTopic} continues to drive significant value across industries.\n\nKey insights:\n→ 73% improvement in efficiency\n→ Reduced operational costs\n→ Enhanced customer satisfaction\n\nHow are you leveraging ${topic}?` :
+  `🌟 ${capitalizedTopic} is absolutely REVOLUTIONARY!\n\nWhy it's changing everything:\n→ Unleashes hidden potential\n→ Creates magical transformations\n→ Delivers extraordinary outcomes\n\nReady to join the revolution? ✨`
+}
+
+---
+
+## 💼 LinkedIn Post
+**Professional Insight on ${capitalizedTopic}**
+
+${aiSettings.outputFormat === 'casual' ?
+  `After working with dozens of companies on ${topic}, I've noticed something interesting...\n\nThe most successful teams don't just implement ${topic}—they make it part of their culture.\n\nHere's what separates the winners:\n\n1. They start small but think big\n2. They measure everything that matters\n3. They're not afraid to experiment\n\nThe result? Consistent growth and happier teams.\n\nWhat's been your experience with ${topic}? I'd love to hear your thoughts in the comments.` :
+  aiSettings.outputFormat === 'professional' ?
+  `Recent analysis of ${topic} implementation across Fortune 500 companies reveals compelling insights.\n\nKey findings:\n\n• 67% reported improved operational efficiency\n• 54% saw measurable ROI within 6 months\n• 89% plan to expand their ${topic} initiatives\n\nThe data suggests that organizations prioritizing ${topic} are positioning themselves for sustained competitive advantage.\n\nHow is your organization approaching ${topic}? What challenges and opportunities have you identified?` :
+  `🚀 ${capitalizedTopic} isn't just changing the game—it's creating an entirely new playing field!\n\nAfter diving deep into this fascinating world, here's what blew my mind:\n\n✨ The possibilities are literally endless\n🎯 Every industry can benefit (yes, even yours!)\n💡 The best part? We're just getting started\n\nThe future belongs to those who embrace ${topic} today.\n\nWhat's your boldest prediction for the future of ${topic}?`
+} #${topic.replace(/\s+/g, '')} #Leadership #Innovation #Strategy
+
+---
+
+## 📘 Facebook Post
+${aiSettings.outputFormat === 'casual' ?
+  `Friends, let's talk about ${topic}! 🗣️\n\nI've been diving deep into this lately, and WOW—the results speak for themselves.\n\nHere's what I've learned:\n• It's not as complicated as it seems\n• Small steps lead to big changes\n• The community around this is AMAZING\n\nIf you're curious about ${topic}, drop a comment below. I'd love to share what's working and connect with others on this journey!\n\nP.S. - Who else is excited about the possibilities? 🙌` :
+  aiSettings.outputFormat === 'professional' ?
+  `Sharing insights on ${capitalizedTopic} and its impact on business growth.\n\nRecent research indicates that organizations implementing ${topic} strategies are experiencing:\n\n• Enhanced operational efficiency\n• Improved customer satisfaction scores\n• Stronger competitive positioning\n• Measurable ROI improvements\n\nFor business leaders considering ${topic} initiatives, the evidence suggests now is an optimal time to begin implementation.\n\nWhat has been your organization's experience with ${topic}?` :
+  `🌟 Mind = BLOWN by the incredible world of ${topic}! 🌟\n\nJust discovered some absolutely fascinating insights that I HAD to share:\n\n🎨 The creative possibilities are infinite\n🚀 Innovation is happening at lightning speed\n💫 The community is full of brilliant minds\n🔥 The potential for transformation is HUGE\n\nThis is just the beginning of an amazing journey!\n\nWho else is ready to explore the magical world of ${topic}? Let's connect and share our adventures! ✨`
+}
+
+---
+
+## 📊 Content Performance Tips:
+- **Best posting times:** Instagram (11am-1pm), Twitter (9am-10am), LinkedIn (8am-10am), Facebook (1pm-3pm)
+- **Engagement strategy:** Ask questions, use relevant hashtags, respond to comments within 2 hours
+- **Visual recommendations:** Use high-quality images, maintain brand colors, include your logo
+- **Cross-platform adaptation:** Adjust tone and length for each platform's audience expectations`;
+
+    return baseContent;
+  };
+
+  // Generate contextual email content
+  const generateContextualEmailContent = (topic: string) => {
+    const capitalizedTopic = topic.charAt(0).toUpperCase() + topic.slice(1);
+    
+    let baseContent = `# Email Campaign: ${capitalizedTopic}
+
+## 📧 Email #1: Introduction & Value Proposition
+
+**Subject Line Options:**
+${aiSettings.outputFormat === 'casual' ? 
+  `• "Hey [Name], let's talk about ${topic}!"\n• "This ${topic} tip will blow your mind 🤯"\n• "Quick question about your ${topic} goals..."` :
+  aiSettings.outputFormat === 'professional' ?
+  `• "Strategic insights on ${topic} for [Company]"\n• "Optimizing your ${topic} approach: Key considerations"\n• "Industry analysis: ${capitalizedTopic} trends and opportunities"` :
+  `• "✨ The ${topic} secret everyone's talking about"\n• "🚀 Transform your ${topic} in 5 minutes"\n• "The magical world of ${topic} awaits you!"`
+}
+
+**Email Body:**
+
+${aiSettings.outputFormat === 'casual' ?
+  `Hi [Name],\n\nHope you're having an awesome day!\n\nI wanted to reach out because I've been diving deep into ${topic} lately, and the results have been incredible.\n\nHere's the thing—most people think ${topic} is complicated, but it's actually pretty straightforward once you know the right approach.\n\nI've put together some insights that I think you'll find super helpful:\n\n• The #1 mistake people make (and how to avoid it)\n• A simple 3-step process that actually works\n• Real examples from companies seeing amazing results\n\nWant to check it out? Just hit reply and let me know!\n\nTalk soon,\n[Your Name]` :
+  aiSettings.outputFormat === 'professional' ?
+  `Dear [Name],\n\nI hope this message finds you well.\n\nI'm writing to share some strategic insights regarding ${topic} that may be valuable for your organization's continued growth and success.\n\nOur recent analysis indicates that companies implementing effective ${topic} strategies are experiencing:\n\n• Improved operational efficiency by an average of 34%\n• Enhanced customer satisfaction scores\n• Stronger competitive positioning in their respective markets\n• Measurable ROI improvements within the first quarter\n\nI would be pleased to discuss how these insights might apply to your specific situation and objectives.\n\nPlease feel free to schedule a brief consultation at your convenience.\n\nBest regards,\n[Your Name]` :
+  `Hello Beautiful Human! ✨\n\nI'm practically bouncing with excitement to share something AMAZING with you!\n\nHave you ever wondered what makes ${topic} so absolutely magical? Well, buckle up because I'm about to take you on an incredible journey!\n\n🌟 Picture this: What if I told you that ${topic} could completely transform your world?\n🚀 What if the secret to extraordinary results was simpler than you ever imagined?\n💫 What if today could be the day everything changes?\n\nI've discovered some mind-blowing insights that I simply MUST share with you:\n\n✨ The hidden power that most people never discover\n🎯 A revolutionary approach that's changing everything\n🔥 Real-world magic happening right now\n\nReady to dive into this amazing adventure together?\n\nWith sparkles and excitement,\n[Your Name] 🌈`
+}
+
+---
+
+## 📧 Email #2: Educational Content
+
+**Subject Line:** ${aiSettings.outputFormat === 'casual' ? `"The ${topic} mistake I see everywhere"` : aiSettings.outputFormat === 'professional' ? `"${capitalizedTopic} best practices: Implementation guide"` : `"🎯 The ${topic} breakthrough you've been waiting for"`}
+
+**Email Body:**
+
+${aiSettings.outputFormat === 'casual' ?
+  `Hey [Name],\n\nQuick story for you...\n\nLast week, I was talking to a friend who was struggling with ${topic}. Sound familiar?\n\nThey were doing everything "right" but still not seeing the results they wanted.\n\nTurns out, they were making the same mistake I see everywhere:\n\n❌ Trying to do everything at once\n\nHere's what actually works:\n\n✅ Start with ONE thing\n✅ Master it completely\n✅ Then move to the next\n\nSimple, right?\n\nThis approach has helped hundreds of people finally crack the ${topic} code.\n\nWant the full breakdown? I've got a detailed guide that walks you through each step.\n\nJust reply with "GUIDE" and I'll send it over!\n\nCheers,\n[Your Name]` :
+  `Dear [Name],\n\nFollowing up on our previous communication regarding ${topic}, I wanted to provide you with some practical implementation guidance.\n\nBased on extensive research and industry best practices, successful ${topic} implementation typically follows this framework:\n\n1. **Assessment Phase**\n   - Current state analysis\n   - Stakeholder alignment\n   - Resource evaluation\n\n2. **Strategic Planning**\n   - Objective definition\n   - Timeline development\n   - Success metrics establishment\n\n3. **Implementation**\n   - Phased rollout approach\n   - Regular progress monitoring\n   - Continuous optimization\n\nCompanies following this structured approach report 67% higher success rates compared to ad-hoc implementations.\n\nI would be happy to discuss how this framework might be adapted to your specific requirements.\n\nBest regards,\n[Your Name]` :
+  `My Wonderful Friend! 🌟\n\nOMG, I have the most INCREDIBLE story to share with you!\n\nSo there I was, completely mesmerized by the most beautiful example of ${topic} in action...\n\nIt was like watching pure magic unfold before my eyes! ✨\n\nAnd then it hit me—THIS is what everyone needs to see!\n\nThe secret isn't in complicated strategies or fancy techniques...\n\nIt's in understanding the beautiful simplicity that makes ${topic} so powerful:\n\n🎨 The art of seeing possibilities everywhere\n💫 The science of turning dreams into reality\n🌈 The magic of connecting with what truly matters\n\nI've captured this entire revelation in a special guide that I'm calling "The ${capitalizedTopic} Awakening" 🦋\n\nWant to experience this magic for yourself?\n\nWith love and stardust,\n[Your Name] ✨`
+}
+
+---
+
+## 📧 Email #3: Call to Action
+
+**Subject Line:** ${aiSettings.outputFormat === 'casual' ? `"Ready to level up your ${topic}?"` : aiSettings.outputFormat === 'professional' ? `"Next steps for your ${topic} initiative"` : `"🚀 Your ${topic} transformation starts NOW!"`}
+
+**Email Body:**
+
+${aiSettings.outputFormat === 'casual' ?
+  `Hey [Name],\n\nSo we've covered a lot about ${topic} over the past few days.\n\nYou've learned:\n✅ The biggest mistakes to avoid\n✅ The step-by-step approach that works\n✅ Real examples of success\n\nNow here's the question: What's next?\n\nI get it—information is great, but action is what creates results.\n\nThat's why I want to invite you to a free 30-minute strategy session where we can:\n\n• Review your specific ${topic} goals\n• Identify the best starting point for you\n• Create a simple action plan\n• Answer any questions you have\n\nNo sales pitch, just genuine help.\n\nInterested? Just reply with "YES" and I'll send you a link to book a time that works for you.\n\nLooking forward to helping you succeed!\n\n[Your Name]` :
+  `Dear [Name],\n\nThank you for your engagement with our ${topic} insights series.\n\nAs we conclude this educational sequence, I wanted to extend an invitation for a strategic consultation to discuss your organization's specific ${topic} objectives.\n\nDuring this complimentary session, we will:\n\n• Conduct a comprehensive assessment of your current ${topic} capabilities\n• Identify strategic opportunities for improvement\n• Develop a customized implementation roadmap\n• Address any questions or concerns you may have\n\nThis consultation is designed to provide immediate value regardless of any future engagement.\n\nTo schedule your session, please reply with your preferred time frame, and my assistant will coordinate the details.\n\nI look forward to supporting your ${topic} success.\n\nBest regards,\n[Your Name]` :
+  `My Amazing Friend! 🌟\n\nCan you feel it? The energy? The excitement? The pure MAGIC in the air?\n\nWe've been on this incredible ${topic} journey together, and now...\n\nNow it's time for the most exciting part of all! 🎉\n\nYour transformation awaits! ✨\n\nI'm so thrilled to offer you something absolutely SPECTACULAR:\n\nA magical 30-minute ${topic} breakthrough session where we'll:\n\n🌈 Discover your unique ${topic} superpower\n✨ Unlock the secrets hiding in plain sight\n🚀 Create your personalized transformation plan\n💫 Sprinkle some extra magic on your goals\n\nThis isn't just a consultation—it's a celebration of your amazing potential!\n\nReady to step into your ${topic} greatness?\n\nSimply reply with "I'M READY!" and let's make magic happen!\n\nWith infinite love and excitement,\n[Your Name] 🦋✨🌟`
+}
+
+---
+
+## 📊 Campaign Performance Metrics:
+- **Open Rate Target:** 25-35%
+- **Click-Through Rate Target:** 3-8%
+- **Conversion Rate Target:** 2-5%
+- **Best Send Times:** Tuesday-Thursday, 10am-2pm
+- **A/B Testing:** Subject lines, send times, call-to-action buttons
+- **Personalization:** Use recipient's name, company, and relevant details`;
+
+    return baseContent;
   };
 
   // Generate contextual blog content based on topic
@@ -375,77 +590,148 @@ ${capitalizedTopic} encompasses various aspects that are crucial for success. Le
 ### Why ${capitalizedTopic} Matters
 
 In today's competitive environment, understanding ${topic} is essential for:
-- Achieving better results
+- Achieving better results and measurable outcomes
 - Staying ahead of the competition
-- Making informed decisions
+- Making informed, data-driven decisions
 - Maximizing efficiency and effectiveness
+- Building sustainable competitive advantages
 
 ## Key Strategies for ${capitalizedTopic}
 
 ### 1. Foundation Building
 Start with a solid understanding of the fundamentals. This includes:
-- Learning the basic principles
-- Understanding common terminology
-- Identifying key stakeholders
-- Setting clear objectives
+- Learning the basic principles and core concepts
+- Understanding common terminology and industry language
+- Identifying key stakeholders and decision makers
+- Setting clear, measurable objectives
+- Establishing baseline metrics for success
 
 ### 2. Implementation Best Practices
 When implementing ${topic} strategies:
-- Start with small, manageable steps
-- Monitor progress regularly
-- Adjust your approach based on results
-- Seek feedback from experts and peers
+- Start with small, manageable steps to build momentum
+- Monitor progress regularly with key performance indicators
+- Adjust your approach based on real-world results
+- Seek feedback from experts and peers in the field
+- Document lessons learned for future reference
 
 ### 3. Advanced Techniques
 Once you've mastered the basics, consider these advanced approaches:
-- Leveraging technology and automation
-- Implementing data-driven decision making
-- Building strategic partnerships
-- Continuous improvement processes
+- Leveraging technology and automation for scale
+- Implementing data-driven decision making processes
+- Building strategic partnerships and collaborations
+- Continuous improvement and optimization processes
+- Innovation and experimentation with new methods
 
 ## Common Challenges and Solutions
 
 ### Challenge 1: Getting Started
-Many people struggle with where to begin. The solution is to:
+Many people struggle with where to begin their ${topic} journey. The solution is to:
 - Break down the topic into smaller, manageable pieces
-- Set realistic goals and timelines
+- Set realistic goals and achievable timelines
 - Seek guidance from experienced professionals
 - Start with proven methods before experimenting
+- Build confidence through early wins
 
 ### Challenge 2: Staying Current
-${capitalizedTopic} is constantly evolving. To stay current:
-- Follow industry leaders and publications
-- Attend conferences and workshops
-- Join professional communities
+${capitalizedTopic} is constantly evolving with new trends and technologies. To stay current:
+- Follow industry leaders and thought leaders
+- Attend conferences, workshops, and webinars
+- Join professional communities and networks
 - Regularly review and update your strategies
+- Invest in continuous learning and development
+
+### Challenge 3: Measuring Success
+Determining the effectiveness of your ${topic} efforts can be challenging. Focus on:
+- Establishing clear success metrics from the beginning
+- Using both quantitative and qualitative measures
+- Regular review and analysis of performance data
+- Adjusting strategies based on measurement insights
+- Celebrating wins and learning from setbacks
 
 ## Measuring Success
 
 To ensure your ${topic} efforts are effective, track these key metrics:
-- Performance indicators relevant to your goals
-- Return on investment (ROI)
-- User satisfaction and feedback
-- Long-term sustainability
+- Performance indicators relevant to your specific goals
+- Return on investment (ROI) and cost-effectiveness
+- User satisfaction and feedback scores
+- Long-term sustainability and growth metrics
+- Competitive positioning and market share
 
 ## Future Trends in ${capitalizedTopic}
 
 Looking ahead, several trends are shaping the future of ${topic}:
-- Increased automation and AI integration
-- Greater focus on personalization
-- Enhanced data analytics capabilities
-- Improved user experience design
+- Increased automation and AI integration across all processes
+- Greater focus on personalization and customization
+- Enhanced data analytics capabilities and insights
+- Improved user experience design and interface
+- Sustainability and environmental considerations
+- Remote and hybrid work adaptations
+
+## Real-World Applications
+
+### Case Study 1: Small Business Success
+A local business implemented ${topic} strategies and saw:
+- 40% increase in customer engagement
+- 25% improvement in operational efficiency
+- 60% growth in online presence
+- Significant cost savings through optimization
+
+### Case Study 2: Enterprise Implementation
+A Fortune 500 company's ${topic} initiative resulted in:
+- $2M annual cost savings
+- 50% reduction in processing time
+- 90% employee satisfaction improvement
+- Industry recognition and awards
+
+## Getting Started: Your Action Plan
+
+Ready to begin your ${topic} journey? Follow this step-by-step action plan:
+
+### Week 1-2: Foundation
+- Research and understand the basics
+- Identify your specific goals and objectives
+- Assess your current situation and resources
+- Create a preliminary timeline and budget
+
+### Week 3-4: Planning
+- Develop a detailed implementation strategy
+- Identify necessary tools and resources
+- Build your team or identify key stakeholders
+- Create measurement and tracking systems
+
+### Month 2-3: Implementation
+- Begin with pilot projects or small-scale tests
+- Monitor progress and gather feedback
+- Make adjustments based on early results
+- Scale successful approaches
+
+### Ongoing: Optimization
+- Continuously monitor and measure results
+- Stay updated with industry trends and best practices
+- Refine and improve your approach
+- Share learnings and best practices with others
 
 ## Conclusion
 
-${capitalizedTopic} is a multifaceted topic that requires careful planning, consistent execution, and continuous learning. By following the strategies outlined in this guide, you'll be well-equipped to achieve success in your ${topic} endeavors.
+${capitalizedTopic} represents a significant opportunity for forward-thinking organizations and individuals. By following the strategies outlined in this guide and maintaining a commitment to continuous learning and improvement, you can achieve remarkable results.
 
-Remember that mastery takes time, so be patient with yourself as you develop your skills. Stay curious, keep learning, and don't hesitate to seek help when needed.
+Remember that mastery takes time, so be patient with yourself as you develop your skills. Stay curious, keep learning, and don't hesitate to seek help when needed. The investment you make in understanding and implementing ${topic} will pay dividends for years to come.
+
+The key to success lies not just in understanding the concepts, but in taking consistent action and adapting based on results. Start where you are, use what you have, and do what you can. Your ${topic} journey begins now.
 
 ---
 
-*Ready to take your ${topic} to the next level? Start implementing these strategies today and watch your results improve!*`;
+## Additional Resources
 
-    // Modify content based on output format
+- **Books:** [Recommended reading list for ${topic}]
+- **Courses:** [Online learning platforms and certification programs]
+- **Communities:** [Professional networks and discussion forums]
+- **Tools:** [Software and platforms to support your ${topic} efforts]
+- **Experts:** [Thought leaders and consultants to follow]
+
+*Ready to implement these strategies? Start with one small step today and build momentum from there. Your future self will thank you for taking action now!*`;
+
+    // Modify content based on output format and creativity level
     if (aiSettings.outputFormat === 'casual') {
       baseContent = baseContent
         .replace(/encompasses various aspects/g, 'covers lots of different things')
@@ -453,14 +739,48 @@ Remember that mastery takes time, so be patient with yourself as you develop you
         .replace(/fundamental principles/g, 'basic stuff you need to know')
         .replace(/implementing/g, 'putting into action')
         .replace(/leveraging/g, 'using')
-        .replace(/multifaceted topic/g, 'topic with many sides');
+        .replace(/multifaceted topic/g, 'topic with many sides')
+        .replace(/In today's competitive environment/g, 'In today\'s crazy competitive world')
+        .replace(/significant opportunity/g, 'huge opportunity')
+        .replace(/forward-thinking organizations/g, 'smart companies');
     } else if (aiSettings.outputFormat === 'creative') {
       baseContent = baseContent
         .replace(/has become increasingly important/g, 'has emerged as a game-changing force')
         .replace(/comprehensive guide/g, 'ultimate roadmap to success')
         .replace(/valuable insights/g, 'golden nuggets of wisdom')
         .replace(/actionable advice/g, 'power-packed strategies')
-        .replace(/competitive environment/g, 'battlefield of innovation');
+        .replace(/competitive environment/g, 'battlefield of innovation')
+        .replace(/remarkable results/g, 'extraordinary, mind-blowing results')
+        .replace(/significant opportunity/g, 'magical opportunity');
+    }
+
+    // Adjust complexity based on temperature (creativity level)
+    if (aiSettings.temperature > 0.7) {
+      // High creativity - add more innovative examples and bold predictions
+      baseContent = baseContent.replace(
+        /Future Trends in[\s\S]*?environmental considerations/,
+        `Future Trends in ${capitalizedTopic}
+
+Looking ahead, revolutionary changes are reshaping the future of ${topic}:
+- AI-powered automation that thinks and adapts like humans
+- Hyper-personalization that predicts needs before they're expressed
+- Quantum-enhanced analytics revealing hidden patterns
+- Immersive virtual reality experiences transforming user interaction
+- Blockchain-secured transparency and trust systems
+- Sustainable, carbon-negative operational models`
+      );
+    } else if (aiSettings.temperature < 0.4) {
+      // Low creativity - focus on proven, practical approaches
+      baseContent = baseContent.replace(
+        /Advanced Techniques[\s\S]*?new methods/,
+        `Advanced Techniques
+Once you've mastered the basics, focus on these proven approaches:
+- Systematic process optimization and standardization
+- Evidence-based decision making with clear metrics
+- Established best practices from industry leaders
+- Incremental improvements with measured results
+- Risk-managed implementation strategies`
+      );
     }
 
     return baseContent;
@@ -484,18 +804,51 @@ Remember that mastery takes time, so be patient with yourself as you develop you
       ? ` I'll incorporate ${contextInfo.join(', ')} to ensure the content aligns perfectly with your brand and goals.`
       : '';
 
-    return `I understand you'd like help with **"${userMessage}"**. I can assist you with creating various types of marketing content including:
+    // More intelligent response based on user input
+    const lowerMessage = userMessage.toLowerCase();
+    let specificResponse = '';
 
+    if (lowerMessage.includes('help') || lowerMessage.includes('how')) {
+      specificResponse = `I can see you're looking for guidance! `;
+    } else if (lowerMessage.includes('create') || lowerMessage.includes('generate') || lowerMessage.includes('write')) {
+      specificResponse = `Perfect! You want to create something amazing. `;
+    } else if (lowerMessage.includes('improve') || lowerMessage.includes('better') || lowerMessage.includes('optimize')) {
+      specificResponse = `Great thinking! Optimization is key to success. `;
+    } else if (lowerMessage.includes('strategy') || lowerMessage.includes('plan')) {
+      specificResponse = `Strategic thinking - I love it! `;
+    }
+
+    return `${specificResponse}I understand you'd like help with **"${userMessage}"**. I can assist you with creating various types of marketing content including:
+
+## 📝 **Content Creation**
 • **Blog posts and articles** - SEO-optimized, engaging content in ${aiSettings.outputFormat || 'professional'} tone
-• **Social media content** - Posts, captions, and hashtags  
-• **Email campaigns** - Subject lines, sequences, and newsletters
-• **Marketing copy** - Landing pages, ads, and sales materials
-• **Visual concepts** - Image ideas and design briefs
-• **Video scripts** - YouTube, TikTok, and promotional videos
+• **Social media content** - Platform-specific posts, captions, and hashtag strategies
+• **Email campaigns** - Subject lines, sequences, newsletters, and automation
+• **Marketing copy** - Landing pages, ads, sales materials, and CTAs
+
+## 🎨 **Creative Assets**
+• **Visual concepts** - Image ideas, design briefs, and creative direction
+• **Video scripts** - YouTube, TikTok, promotional videos, and tutorials
+• **Infographic content** - Data visualization and educational graphics
+• **Brand messaging** - Taglines, value propositions, and brand stories
+
+## 📊 **Strategic Content**
+• **Marketing strategies** - Campaign planning and audience targeting
+• **Content calendars** - Scheduling and content planning
+• **Competitive analysis** - Market research and positioning
+• **Performance optimization** - A/B testing and conversion improvement
 
 ${contextText}
 
-**💡 Pro tip:** You can also highlight text in any content node on the canvas and send it to me for rewriting or improvement!
+**💡 Pro tip:** Be specific about what you want to create! For example:
+- "Write a blog post about sustainable marketing practices"
+- "Create Instagram posts for a product launch"
+- "Generate email subject lines for a newsletter"
+
+**🎯 Quick Start Options:**
+- Type "blog about [topic]" for instant blog content
+- Type "social media for [topic]" for platform-specific posts
+- Type "email campaign about [topic]" for complete email sequences
 
 What specific type of content would you like me to create for your project?`;
   };

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import ReactFlow, {
   Node,
   Edge,
@@ -55,14 +55,19 @@ interface ProjectCanvasProps {
   onAISettingsChange: (settings: AIContextSettings) => void;
 }
 
-const ProjectCanvasInner = ({ 
+// Expose methods to parent component
+export interface ProjectCanvasRef {
+  updateNodeContent: (nodeId: string, newContent: string) => void;
+}
+
+const ProjectCanvasInner = forwardRef<ProjectCanvasRef, ProjectCanvasProps>(({ 
   projectId, 
   onItemSelect, 
   selectedItem, 
   onSendTextToChat,
   aiSettings,
   onAISettingsChange
-}: ProjectCanvasProps) => {
+}, ref) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
@@ -79,6 +84,11 @@ const ProjectCanvasInner = ({
 
   // Get React Flow instance for focus functionality
   const reactFlow = useReactFlow();
+
+  // Expose updateNodeContent method to parent
+  useImperativeHandle(ref, () => ({
+    updateNodeContent: handleNodeContentUpdate
+  }));
 
   // Auto-arrange campaign assets function
   const autoArrangeCampaignAssets = useCallback(() => {
@@ -975,7 +985,9 @@ const ProjectCanvasInner = ({
       />
     </>
   );
-};
+});
+
+ProjectCanvasInner.displayName = 'ProjectCanvasInner';
 
 export function ProjectCanvas(props: ProjectCanvasProps) {
   return (

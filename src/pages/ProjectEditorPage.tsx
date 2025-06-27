@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { LoadingScreen } from '../components/layout/LoadingScreen';
 import { Button } from '../components/ui/Button';
-import { ProjectCanvas } from '../components/project/ProjectCanvas';
+import { ProjectCanvas, ProjectCanvasRef } from '../components/project/ProjectCanvas';
 import { AIChatbot, AIChatbotRef } from '../components/project/AIChatbot';
 import { AIContextSettings } from '../components/project/AIContextSettings';
 
@@ -23,9 +23,11 @@ export default function ProjectEditorPage() {
     customInstructions: '',
     temperature: 0.7,
     outputFormat: 'professional',
-    language: 'en'
+    language: 'en',
+    persona: 'default'
   });
   const chatbotRef = useRef<AIChatbotRef>(null);
+  const canvasRef = useRef<ProjectCanvasRef>(null);
 
   // Set current project based on URL parameter
   useEffect(() => {
@@ -96,6 +98,13 @@ export default function ProjectEditorPage() {
   const handleSendTextToChat = (text: string) => {
     if (chatbotRef.current) {
       chatbotRef.current.setInputValueFromOutside(text);
+    }
+  };
+
+  // Function to handle updating selected node content
+  const handleUpdateSelectedNodeContent = (nodeId: string, newContent: string) => {
+    if (canvasRef.current) {
+      canvasRef.current.updateNodeContent(nodeId, newContent);
     }
   };
 
@@ -187,6 +196,7 @@ export default function ProjectEditorPage() {
       <div className="flex-1 flex overflow-hidden">
         {/* Canvas Area */}
         <ProjectCanvas
+          ref={canvasRef}
           projectId={projectId!}
           onItemSelect={setSelectedCanvasItem}
           selectedItem={selectedCanvasItem}
@@ -200,6 +210,8 @@ export default function ProjectEditorPage() {
           ref={chatbotRef}
           projectId={projectId!}
           aiSettings={aiSettings}
+          selectedCanvasItem={selectedCanvasItem}
+          onUpdateSelectedNodeContent={handleUpdateSelectedNodeContent}
         />
       </div>
 

@@ -95,6 +95,90 @@ Always write in a persuasive, engaging style optimized for conversions.`;
     }
   }
 
+  static async modifyMarketingContent(
+    originalContent: string,
+    userRequest: string,
+    context: any = {}
+  ) {
+    if (!OPENAI_API_KEY) {
+      throw new Error('OpenAI API key not configured');
+    }
+
+    // Build system prompt for content modification
+    let systemPrompt = `You are an expert content editor. Your job is to modify existing marketing content based on user requests.
+
+CRITICAL INSTRUCTIONS:
+- ONLY modify the provided content, do not create entirely new content
+- Preserve the original structure and intent unless specifically asked to change it
+- Make the requested changes while maintaining quality and coherence
+- Return ONLY the modified content, no explanations or additional text
+- Maintain the original formatting and style unless asked to change it`;
+
+    // Add persona-specific modification style
+    if (context.persona && context.persona !== 'default') {
+      switch (context.persona) {
+        case 'seth_rogen':
+          systemPrompt += `\n\nModify the content in Seth Rogen's casual, friendly style while keeping the core message intact.`;
+          break;
+        case 'alex_hormozi':
+          systemPrompt += `\n\nModify the content with Alex Hormozi's direct, results-focused approach while preserving the original intent.`;
+          break;
+        case 'gary_vaynerchuk':
+          systemPrompt += `\n\nModify the content with Gary Vaynerchuk's high-energy, motivational style while maintaining the core message.`;
+          break;
+        case 'oprah_winfrey':
+          systemPrompt += `\n\nModify the content with Oprah Winfrey's warm, inspiring approach while keeping the original purpose.`;
+          break;
+      }
+    }
+
+    // Add context about brand voice and audience
+    if (context.brandVoiceId) {
+      systemPrompt += `\n\nMaintain consistency with the established brand voice while making the requested changes.`;
+    }
+
+    if (context.audienceId) {
+      systemPrompt += `\n\nEnsure modifications remain appropriate for the target audience.`;
+    }
+
+    const userMessage = `Original content:
+${originalContent}
+
+Modification request:
+${userRequest}
+
+Please modify the content according to the request above.`;
+
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${OPENAI_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-3.5-turbo',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userMessage }
+          ],
+          temperature: context.temperature || 0.7,
+          max_tokens: 2000,
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.choices[0].message.content;
+    } catch (error) {
+      console.error('OpenAI API error:', error);
+      throw error;
+    }
+  }
+
   static async generateCampaignContent(
     userRequest: string,
     context: any = {}

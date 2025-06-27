@@ -4,6 +4,7 @@ import { Send, Sparkles, User, Bot, Lightbulb, FileText, Image, BarChart3, Video
 import { Button } from '../ui/Button';
 import ReactMarkdown from 'react-markdown';
 import { AIContextSettings } from './AIContextSettings';
+import { OpenAIService } from '../../lib/openai';
 
 interface ChatMessage {
   id: string;
@@ -298,9 +299,23 @@ export const AIChatbot = forwardRef<AIChatbotRef, AIChatbotProps>(({ projectId, 
         }, 500 + (index * 300)); // Stagger creation
       });
 
-      // Generate AI response for campaign
+      // Generate AI response for campaign using OpenAI
       try {
-        const aiResponse = await generateAIResponse(userRequest);
+        const aiContent = await OpenAIService.generateCampaignContent(userRequest, aiSettings);
+        
+        const aiResponse: ChatMessage = {
+          id: `ai_${Date.now()}`,
+          type: 'ai',
+          content: aiContent,
+          timestamp: new Date(),
+          suggestions: [
+            'Organize into Journey View',
+            'Create additional variations',
+            'Generate supporting content',
+            'Add performance metrics'
+          ]
+        };
+        
         setMessages(prev => [...prev, aiResponse]);
         
         // Show success message
@@ -322,6 +337,20 @@ export const AIChatbot = forwardRef<AIChatbotRef, AIChatbotProps>(({ projectId, 
         
       } catch (error) {
         console.error('Error generating campaign response:', error);
+        // Fallback to mock response if OpenAI fails
+        const fallbackResponse: ChatMessage = {
+          id: `ai_${Date.now()}`,
+          type: 'ai',
+          content: generatePersonaSuccessMessage(),
+          timestamp: new Date(),
+          suggestions: [
+            'Organize into Journey View',
+            'Create additional variations',
+            'Generate supporting content',
+            'Add performance metrics'
+          ]
+        };
+        setMessages(prev => [...prev, fallbackResponse]);
       } finally {
         setIsTyping(false);
       }
@@ -363,11 +392,57 @@ export const AIChatbot = forwardRef<AIChatbotRef, AIChatbotProps>(({ projectId, 
     }
   };
 
-  // Enhanced AI response generation that considers context settings
+  // Enhanced AI response generation using OpenAI
   const generateAIResponse = async (userMessage: string): Promise<ChatMessage> => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
+    const messageId = `ai_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    try {
+      // Get ACTUAL AI response from OpenAI
+      const aiContent = await OpenAIService.generateMarketingContent(userMessage, aiSettings);
+      
+      // Detect what type of content was requested
+      const lowerMessage = userMessage.toLowerCase();
+      let generatedContent = undefined;
+      
+      // If it's marketing content, add it to canvas
+      if (lowerMessage.includes('landing page') || 
+          lowerMessage.includes('email') || 
+          lowerMessage.includes('social media') ||
+          lowerMessage.includes('blog') ||
+          lowerMessage.includes('write') ||
+          lowerMessage.includes('create')) {
+        
+        generatedContent = {
+          type: 'text' as const,
+          title: `📝 ${userMessage.slice(0, 50)}...`,
+          content: aiContent
+        };
+      }
 
+      return {
+        id: messageId,
+        type: 'ai',
+        content: aiContent, // Use the ACTUAL AI response
+        timestamp: new Date(),
+        generatedContent,
+        suggestions: [
+          'Make it more persuasive',
+          'Create A/B test variation',
+          'Adapt for social media',
+          'Generate email version'
+        ]
+      };
+      
+    } catch (error) {
+      console.error('Error generating AI response:', error);
+      
+      // Fallback to mock response if OpenAI fails
+      return generateMockAIResponse(userMessage);
+    }
+  };
+
+  // Fallback mock response function
+  const generateMockAIResponse = (userMessage: string): ChatMessage => {
     const messageId = `ai_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
     // Determine response type based on user input
@@ -996,7 +1071,7 @@ What specific type of content would you like me to create for your project?`;
         </div>
         <div className="flex items-center justify-between mt-3">
           <p className="text-xs text-gray-500">
-            AI can make mistakes. Verify important information.
+            {import.meta.env.VITE_OPENAI_API_KEY ? 'Powered by OpenAI GPT' : 'AI can make mistakes. Verify important information.'}
           </p>
           {/* Context Status */}
           {(aiSettings.brandVoiceId || aiSettings.audienceId || aiSettings.knowledgeIds.length > 0 || (aiSettings.persona && aiSettings.persona !== 'default')) && (

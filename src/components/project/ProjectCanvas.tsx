@@ -514,11 +514,9 @@ const ProjectCanvasInner = ({
     toast.success('Content removed from canvas');
   }, [nodes, setNodes, selectedItem, onItemSelect, edges, debouncedSave]);
 
-  // Add new item to canvas with immediate save
-  const addItem = useCallback((type: string, subType?: string, metadata?: any) => {
-    console.log('Adding new item to canvas:', { type, subType, metadata });
-    
-    const title = metadata?.title || `New ${type}`;
+  // FIXED: Add new item to canvas with proper parameter handling
+  const addItem = useCallback((type: string, content: string, title: string) => {
+    console.log('🔵 addItem called with:', { type, content, title });
     
     const newNode: Node<ContentNodeData> = {
       id: nanoid(),
@@ -528,11 +526,11 @@ const ProjectCanvasInner = ({
         y: Math.random() * 300 + 100,
       },
       data: {
-        title,
-        content: type === 'text' ? '' : '',
+        title: title || `New ${type}`,
+        content: content || '',
         type: type as any,
-        subType: subType as any,
-        metadata: metadata || {},
+        subType: undefined,
+        metadata: {},
         createdAt: new Date(),
         onDelete: handleDeleteNode,
         onContentUpdate: handleNodeContentUpdate,
@@ -542,11 +540,13 @@ const ProjectCanvasInner = ({
       },
     };
     
+    console.log('🔵 Created new node:', newNode);
+    
     const updatedNodes = [...nodes, newNode];
     setNodes(updatedNodes);
     
     if (initializedRef.current) {
-      console.log('New item added to canvas, triggering save');
+      console.log('🔵 New item added to canvas, triggering save');
       debouncedSave(updatedNodes, edges);
     }
     
@@ -554,8 +554,8 @@ const ProjectCanvasInner = ({
     const canvasItem: CanvasItem = {
       id: newNode.id,
       type: type as any,
-      title,
-      content: '',
+      title: title || `New ${type}`,
+      content: content || '',
       x: newNode.position.x,
       y: newNode.position.y,
       width: 320,
@@ -564,7 +564,7 @@ const ProjectCanvasInner = ({
     };
     
     onItemSelect?.(canvasItem);
-    toast.success(`${title} added to canvas`);
+    toast.success(`${title || `New ${type}`} added to canvas`);
   }, [setNodes, nodes, edges, onItemSelect, handleNodeContentUpdate, handleNodeMetadataUpdate, handleDeleteNode, onSendTextToChat, handleNodeDoubleClick, debouncedSave]);
 
   // Handle node selection
@@ -663,7 +663,7 @@ const ProjectCanvasInner = ({
     toast.success('Project exported successfully!');
   }, [reactFlowInstance, projectId, currentProject, nodes, edges]);
 
-  // Expose addItem function globally
+  // Expose addItem function globally with correct parameter order
   useEffect(() => {
     (window as any).addCanvasItem = addItem;
     return () => {

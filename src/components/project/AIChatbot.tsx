@@ -137,53 +137,49 @@ export const AIChatbot = forwardRef<AIChatbotRef, AIChatbotProps>(({ projectId, 
     return 'marketing strategies';
   };
 
-  // Generate contextual welcome message based on AI settings and persona
+  // Generate contextual welcome message based on AI settings
   const generateContextualWelcomeMessage = (userRequest?: string) => {
-    const persona = aiSettings.persona || 'default';
-    
-    let message = '';
-    
-    // Generate persona-specific welcome messages
-    switch (persona) {
-      case 'seth_rogen':
-        message = userRequest 
-          ? `Hey there! So you want to work on "${userRequest}"? Dude, that's awesome! Let me whip up some content for you that's gonna be *chef's kiss* perfect. I'm thinking we make this fun and relatable, you know?`
-          : `What's up! I'm your AI buddy here to help you create some killer content. Think of me as that friend who's really good with words and has way too much time on their hands. What are we cooking up today?`;
-        break;
-        
-      case 'alex_hormozi':
-        message = userRequest 
-          ? `Alright, let's get straight to business. You want "${userRequest}" - I'm going to deliver content that converts. No fluff, no BS, just value that makes your audience take action. Ready to dominate?`
-          : `Listen up. I'm here to help you create content that actually moves the needle. Not pretty words that sound nice - content that gets results. What's your goal? Let's build something that makes money.`;
-        break;
-        
-      case 'gary_vaynerchuk':
-        message = userRequest 
-          ? `YO! "${userRequest}" - I LOVE IT! We're gonna crush this content creation, and I mean CRUSH IT! This is your moment to provide massive value and build that authentic connection with your audience. LET'S GOOOOO!`
-          : `What's good, what's good! Your boy Gary V here ready to help you create content that MATTERS! We're not just making content - we're building relationships, providing value, and changing lives. What are we attacking today?`;
-        break;
-        
-      case 'oprah_winfrey':
-        message = userRequest 
-          ? `Oh honey, "${userRequest}" - what a beautiful intention! Let's create content that not only informs but truly transforms. We're going to touch hearts, open minds, and inspire action. This is your moment to shine your light!`
-          : `Welcome, beautiful soul! I'm here to help you create content that uplifts, inspires, and empowers. Every word we craft together has the power to change someone's day - maybe even their life. What story are we telling today?`;
-        break;
-        
-      default:
-        message = userRequest 
-          ? `Hi! I'm your AI marketing assistant. I can see you want to work on: **"${userRequest}"**. Let me create that content for you right away!`
-          : `Hi! I'm your AI marketing assistant. I'm here to help you create amazing content for your project. I can generate blog posts, social media content, marketing copy, images, and more!`;
+    let message = userRequest 
+      ? `Hi! I'm your AI marketing assistant. I can see you want to work on: **"${userRequest}"**. Let me create that content for you right away!`
+      : `Hi! I'm your AI marketing assistant. I'm here to help you create amazing content for your project. I can generate blog posts, social media content, marketing copy, images, and more!`;
+
+    // Add persona-specific greeting
+    if (aiSettings.persona && aiSettings.persona !== 'default') {
+      switch (aiSettings.persona) {
+        case 'seth_rogen':
+          message = userRequest 
+            ? `Hey there! Seth here. So you wanna work on "${userRequest}"? Dude, that's awesome! Let me whip up some content that's gonna be *chef's kiss* perfect. This is gonna be fun!`
+            : `Hey! Seth Rogen here, ready to help you create some killer content! I'm like your creative buddy who happens to know a thing or two about marketing. Let's make some magic happen, eh?`;
+          break;
+        case 'alex_hormozi':
+          message = userRequest 
+            ? `Listen up. You want "${userRequest}"? Here's the deal - I'm going to create content that actually converts. No fluff, no BS, just results-driven material that makes you money. Let's get to work.`
+            : `Alex Hormozi here. I don't do participation trophies. I create content that sells, converts, and builds real businesses. Tell me what you need and I'll give you the blueprint to dominate your market.`;
+          break;
+        case 'gary_vaynerchuk':
+          message = userRequest 
+            ? `YO! Gary V here and I'm PUMPED about "${userRequest}"! This is going to be FIRE! I'm about to create content that's going to absolutely CRUSH it for you. Let's GO GO GO!`
+            : `What's up! Gary Vee in the house! I'm here to create content that's going to SMASH your competition! No excuses, no BS - just pure HUSTLE and results. What are we building today?`;
+          break;
+        case 'oprah_winfrey':
+          message = userRequest 
+            ? `Hello, beautiful soul! I'm so excited to help you with "${userRequest}". This is going to be a journey of discovery and empowerment. Let's create content that not only informs but truly transforms lives!`
+            : `Welcome, dear friend! I'm here to help you create content that doesn't just reach people - it touches their hearts and changes their lives. Together, we'll craft messages that inspire and empower. What's calling to your heart today?`;
+          break;
+      }
     }
 
     // Add context information based on active settings
     const contextParts = [];
     
     if (aiSettings.brandVoiceId) {
+      // Mock brand voice data - in real app, fetch from API
       const brandVoiceName = aiSettings.brandVoiceId === '1' ? 'Professional & Friendly' : 'Casual & Creative';
       contextParts.push(`I'll use your **"${brandVoiceName}"** brand voice`);
     }
     
     if (aiSettings.audienceId) {
+      // Mock audience data - in real app, fetch from API
       const audienceName = aiSettings.audienceId === '1' ? 'Marketing Professionals' : 'Small Business Owners';
       contextParts.push(`target your **"${audienceName}"** audience`);
     }
@@ -192,88 +188,55 @@ export const AIChatbot = forwardRef<AIChatbotRef, AIChatbotProps>(({ projectId, 
       contextParts.push(`reference your ${aiSettings.knowledgeIds.length} knowledge sources`);
     }
 
-    if (contextParts.length > 0) {
-      const contextText = persona === 'alex_hormozi' ? 
-        `\n\n🎯 **Here's the game plan:** I'll ${contextParts.join(', ')}.` :
-        persona === 'seth_rogen' ?
-        `\n\n🎯 **Just so you know:** I'll ${contextParts.join(', ')} to make sure this hits just right.` :
-        persona === 'gary_vaynerchuk' ?
-        `\n\n🎯 **THE STRATEGY:** I'll ${contextParts.join(', ')} because CONTEXT IS EVERYTHING!` :
-        persona === 'oprah_winfrey' ?
-        `\n\n🎯 **With intention:** I'll ${contextParts.join(', ')} to ensure our message resonates deeply.` :
-        `\n\n🎯 **Active Context:** I'll ${contextParts.join(', ')}.`;
-      
-      message += contextText;
-    } else {
-      const setupText = persona === 'alex_hormozi' ?
-        '\n\nSet up your brand voice and target audience in AI Context settings for laser-focused content that converts.' :
-        persona === 'seth_rogen' ?
-        '\n\nPro tip: Set up your brand voice and target audience in the AI Context settings - it\'ll make the content way more "you", you know?' :
-        persona === 'gary_vaynerchuk' ?
-        '\n\nLISTEN - set up your brand voice and target audience in AI Context settings. CONTEXT IS KING!' :
-        persona === 'oprah_winfrey' ?
-        '\n\nDarling, take a moment to set up your brand voice and target audience in AI Context settings for more personalized, meaningful content.' :
-        '\n\nSet up your brand voice and target audience in AI Context settings for more personalized content.';
-      
-      message += setupText;
+    if (contextParts.length > 0 && aiSettings.persona === 'default') {
+      message += `\n\n🎯 **Active Context:** I'll ${contextParts.join(', ')}.`;
+    } else if (contextParts.length > 0) {
+      // Persona-specific context messages
+      switch (aiSettings.persona) {
+        case 'seth_rogen':
+          message += `\n\nOh, and I've got all your brand stuff loaded up - your voice, audience, the whole nine yards. This is gonna be so dialed in!`;
+          break;
+        case 'alex_hormozi':
+          message += `\n\nI've analyzed your brand voice, audience data, and knowledge base. Everything I create will be laser-focused on your specific market.`;
+          break;
+        case 'gary_vaynerchuk':
+          message += `\n\nI've got ALL your brand intel locked and loaded! Your voice, your audience, your knowledge - we're going to create content that's 100% YOU!`;
+          break;
+        case 'oprah_winfrey':
+          message += `\n\nI've taken the time to understand your beautiful brand voice and the wonderful people you serve. Every word will be crafted with intention and love.`;
+          break;
+      }
+    } else if (aiSettings.persona === 'default') {
+      message += '\n\nSet up your brand voice and target audience in AI Context settings for more personalized content.';
     }
 
-    // Add output format information with persona flair
-    if (aiSettings.outputFormat) {
+    // Add output format information
+    if (aiSettings.outputFormat && aiSettings.persona === 'default') {
       const formatDescriptions = {
-        casual: persona === 'alex_hormozi' ? 'conversational but direct' : 'casual and conversational',
-        professional: persona === 'seth_rogen' ? 'professional (but still cool)' : 'professional and formal',
-        creative: persona === 'gary_vaynerchuk' ? 'CREATIVE AND BOLD' : 'creative and playful'
+        casual: 'casual and conversational',
+        professional: 'professional and formal',
+        creative: 'creative and playful'
       };
-      
-      const formatText = persona === 'alex_hormozi' ?
-        `\n\n📝 **Output Style:** ${formatDescriptions[aiSettings.outputFormat]} tone` :
-        persona === 'seth_rogen' ?
-        `\n\n📝 **Vibe Check:** ${formatDescriptions[aiSettings.outputFormat]} tone` :
-        persona === 'gary_vaynerchuk' ?
-        `\n\n📝 **THE ENERGY:** ${formatDescriptions[aiSettings.outputFormat]} tone` :
-        persona === 'oprah_winfrey' ?
-        `\n\n📝 **Our Voice:** ${formatDescriptions[aiSettings.outputFormat]} tone` :
-        `\n\n📝 **Output Style:** ${formatDescriptions[aiSettings.outputFormat]} tone`;
-      
-      message += formatText;
+      message += `\n\n📝 **Output Style:** ${formatDescriptions[aiSettings.outputFormat]} tone`;
     }
 
-    // Add creativity level with persona touch
-    if (aiSettings.temperature !== undefined) {
+    // Add creativity level
+    if (aiSettings.temperature !== undefined && aiSettings.persona === 'default') {
       const creativityLevel = aiSettings.temperature < 0.4 ? 'focused' : 
                              aiSettings.temperature > 0.7 ? 'creative' : 'balanced';
-      
-      const creativityText = persona === 'alex_hormozi' ?
-        ` with ${creativityLevel} execution` :
-        persona === 'seth_rogen' ?
-        ` with ${creativityLevel} vibes` :
-        persona === 'gary_vaynerchuk' ?
-        ` with ${creativityLevel.toUpperCase()} ENERGY` :
-        persona === 'oprah_winfrey' ?
-        ` with ${creativityLevel} intention` :
-        ` with ${creativityLevel} creativity`;
-      
-      message += creativityText;
+      message += ` with ${creativityLevel} creativity`;
     }
 
-    // Add final call to action based on persona
-    const finalCTA = persona === 'alex_hormozi' ?
-      `\n\n**What's the objective?**\n\n💡 **Remember:** You can highlight text in any content node and send it to me for optimization that converts.` :
-      persona === 'seth_rogen' ?
-      `\n\n**What would you like to create today?**\n\n💡 **Cool trick:** You can highlight text in any content node and send it to me for a rewrite. It's like having a writing buddy!` :
-      persona === 'gary_vaynerchuk' ?
-      `\n\n**WHAT ARE WE BUILDING TODAY?**\n\n💡 **PRO MOVE:** Highlight text in any content node and send it to me for a rewrite that POPS!` :
-      persona === 'oprah_winfrey' ?
-      `\n\n**What beautiful content shall we create together?**\n\n💡 **A gift for you:** You can highlight text in any content node and send it to me for a loving rewrite.` :
-      `\n\n**What would you like to create today?**\n\n💡 **Pro tip:** You can also highlight text in any content node and send it to me for rewriting!`;
+    if (aiSettings.persona === 'default') {
+      message += `\n\n**What would you like to create today?**
 
-    message += finalCTA;
+💡 **Pro tip:** You can also highlight text in any content node and send it to me for rewriting!`;
+    }
 
     return message;
   };
 
-  // Auto-generation function
+  // Auto-generation function with campaign detection
   const handleAutoGeneration = async (userRequest: string) => {
     setIsTyping(true);
     
@@ -287,33 +250,125 @@ export const AIChatbot = forwardRef<AIChatbotRef, AIChatbotProps>(({ projectId, 
     
     setMessages(prev => [...prev, userMessage]);
     
-    // Generate AI response based on the request
-    try {
-      const aiResponse = await generateAIResponse(userRequest);
-      setMessages(prev => [...prev, aiResponse]);
-      
-      // Add content to canvas if generated
-      if (aiResponse.generatedContent && (window as any).addCanvasItem) {
-        (window as any).addCanvasItem(
-          aiResponse.generatedContent.type,
-          aiResponse.generatedContent.content,
-          aiResponse.generatedContent.title
-        );
+    // Check if this is a campaign request
+    const isCampaign = userRequest.toLowerCase().includes('campaign') || 
+                       userRequest.toLowerCase().includes('launch') ||
+                       userRequest.toLowerCase().includes('promote');
+    
+    if (isCampaign) {
+      // Generate complete campaign assets
+      const campaignAssets = [
+        {
+          type: 'social_ad',
+          title: '📱 Facebook & Instagram Ads',
+          content: 'Eye-catching visuals with compelling copy for social media advertising'
+        },
+        {
+          type: 'text',
+          title: '📧 Email Welcome Series',
+          content: 'Day 1: Welcome\nDay 3: Value Proposition\nDay 7: Special Offer'
+        },
+        {
+          type: 'text',
+          title: '📝 Blog Post',
+          content: 'In-depth content establishing thought leadership'
+        },
+        {
+          type: 'text',
+          title: '🎯 Landing Page',
+          content: 'High-converting landing page with clear CTA'
+        },
+        {
+          type: 'text',
+          title: '🔄 Follow-up Email',
+          content: 'Post-purchase email sequence for customer retention'
+        }
+      ];
+
+      // Add all campaign assets to canvas with staggered timing
+      campaignAssets.forEach((asset, index) => {
+        setTimeout(() => {
+          if ((window as any).addCanvasItem) {
+            (window as any).addCanvasItem(
+              asset.type,
+              asset.content,
+              asset.title
+            );
+          }
+        }, 500 + (index * 300)); // Stagger creation
+      });
+
+      // Generate AI response for campaign
+      try {
+        const aiResponse = await generateAIResponse(userRequest);
+        setMessages(prev => [...prev, aiResponse]);
+        
+        // Show success message
+        setTimeout(() => {
+          const successMessage: ChatMessage = {
+            id: `ai_success_${Date.now()}`,
+            type: 'ai',
+            content: generatePersonaSuccessMessage(),
+            timestamp: new Date(),
+            suggestions: [
+              'Organize into Journey View',
+              'Create additional variations',
+              'Generate supporting content',
+              'Add performance metrics'
+            ]
+          };
+          setMessages(prev => [...prev, successMessage]);
+        }, 2000);
+        
+      } catch (error) {
+        console.error('Error generating campaign response:', error);
+      } finally {
+        setIsTyping(false);
       }
-    } catch (error) {
-      console.error('Error generating AI response:', error);
-    } finally {
-      setIsTyping(false);
+    } else {
+      // Generate AI response based on the request
+      try {
+        const aiResponse = await generateAIResponse(userRequest);
+        setMessages(prev => [...prev, aiResponse]);
+        
+        // Add content to canvas if generated
+        if (aiResponse.generatedContent && (window as any).addCanvasItem) {
+          (window as any).addCanvasItem(
+            aiResponse.generatedContent.type,
+            aiResponse.generatedContent.content,
+            aiResponse.generatedContent.title
+          );
+        }
+      } catch (error) {
+        console.error('Error generating AI response:', error);
+      } finally {
+        setIsTyping(false);
+      }
     }
   };
 
-  // Enhanced AI response generation that considers context settings and persona
+  // Generate persona-specific success message
+  const generatePersonaSuccessMessage = () => {
+    switch (aiSettings.persona) {
+      case 'seth_rogen':
+        return `🚀 Boom! Complete campaign created! That was like... *chef's kiss* beautiful, man! Now click that "✨ Journey View" button to see how it all flows together. It's gonna look so good!`;
+      case 'alex_hormozi':
+        return `🚀 Done. Complete campaign system deployed. Every piece is designed to move prospects through your funnel and convert. Click "✨ Journey View" to see the money-making machine we just built.`;
+      case 'gary_vaynerchuk':
+        return `🚀 BOOM! We just created a COMPLETE campaign that's going to CRUSH IT! This is FIRE! Hit that "✨ Journey View" button and watch your customer journey come to LIFE!`;
+      case 'oprah_winfrey':
+        return `🚀 Beautiful! We've created a complete campaign that will touch hearts and transform lives! Click "✨ Journey View" to see how each piece works together to create a meaningful customer experience.`;
+      default:
+        return `🚀 Complete campaign created! Click "✨ Journey View" button to see the flow!`;
+    }
+  };
+
+  // Enhanced AI response generation that considers context settings
   const generateAIResponse = async (userMessage: string): Promise<ChatMessage> => {
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
 
     const messageId = `ai_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const persona = aiSettings.persona || 'default';
     
     // Determine response type based on user input
     const lowerMessage = userMessage.toLowerCase();
@@ -374,614 +429,133 @@ export const AIChatbot = forwardRef<AIChatbotRef, AIChatbotProps>(({ projectId, 
     };
   };
 
-  // Generate blog title based on topic and persona
+  // Generate blog title based on topic
   const generateBlogTitle = (topic: string): string => {
-    const persona = aiSettings.persona || 'default';
+    const titleTemplates = [
+      `The Ultimate Guide to ${topic}`,
+      `Everything You Need to Know About ${topic}`,
+      `${topic}: A Comprehensive Guide`,
+      `Mastering ${topic}: Tips and Strategies`,
+      `The Complete ${topic} Handbook`,
+      `${topic} Made Simple: A Step-by-Step Guide`
+    ];
+    
+    // Capitalize first letter of topic
     const capitalizedTopic = topic.charAt(0).toUpperCase() + topic.slice(1);
     
-    const titleTemplates = {
-      default: [
-        `The Ultimate Guide to ${capitalizedTopic}`,
-        `Everything You Need to Know About ${capitalizedTopic}`,
-        `${capitalizedTopic}: A Comprehensive Guide`,
-        `Mastering ${capitalizedTopic}: Tips and Strategies`
-      ],
-      seth_rogen: [
-        `${capitalizedTopic}: Let's Break This Down (No BS)`,
-        `The Real Deal About ${capitalizedTopic}`,
-        `${capitalizedTopic} Explained (Like You're Talking to a Friend)`,
-        `Why ${capitalizedTopic} Actually Matters (And How to Not Mess It Up)`
-      ],
-      alex_hormozi: [
-        `How to Dominate ${capitalizedTopic} (Step-by-Step)`,
-        `The ${capitalizedTopic} Playbook That Actually Works`,
-        `${capitalizedTopic}: What They Don't Want You to Know`,
-        `How I Used ${capitalizedTopic} to 10X My Results`
-      ],
-      gary_vaynerchuk: [
-        `${capitalizedTopic}: The TRUTH About What Actually Works`,
-        `CRUSHING IT with ${capitalizedTopic}: My No-BS Guide`,
-        `${capitalizedTopic} is EVERYTHING: Here's Why You're Doing It Wrong`,
-        `The ${capitalizedTopic} Strategy That Will Change Your Life`
-      ],
-      oprah_winfrey: [
-        `Discovering the Power of ${capitalizedTopic}: A Journey of Growth`,
-        `${capitalizedTopic}: Transforming Your Life One Step at a Time`,
-        `The Beautiful Truth About ${capitalizedTopic}`,
-        `How ${capitalizedTopic} Can Unlock Your Greatest Potential`
-      ]
-    };
-    
-    const templates = titleTemplates[persona as keyof typeof titleTemplates] || titleTemplates.default;
-    return templates[Math.floor(Math.random() * templates.length)];
+    // Select a random template and replace topic
+    const randomTemplate = titleTemplates[Math.floor(Math.random() * titleTemplates.length)];
+    return randomTemplate.replace(topic, capitalizedTopic);
   };
 
-  // Generate contextual rewrite based on AI settings and persona
+  // Generate contextual rewrite based on AI settings
   const generateContextualRewrite = (originalText: string) => {
-    const persona = aiSettings.persona || 'default';
     let rewrittenText = originalText;
     
-    // Apply persona-specific transformations
-    switch (persona) {
-      case 'seth_rogen':
-        rewrittenText = originalText
-          .replace(/\b(utilize|implement|facilitate)\b/g, 'use')
-          .replace(/\b(commence|initiate)\b/g, 'start')
-          .replace(/\b(very)\b/g, 'super')
-          .replace(/\./g, (match, offset, string) => {
-            // Add casual interjections occasionally
-            return Math.random() > 0.7 ? ', you know?' : match;
-          });
-        break;
-        
-      case 'alex_hormozi':
-        rewrittenText = originalText
-          .replace(/\b(good)\b/g, 'profitable')
-          .replace(/\b(nice)\b/g, 'effective')
-          .replace(/\b(help)\b/g, 'get results for')
-          .replace(/\b(can)\b/g, 'will')
-          .replace(/\./g, '. Period.');
-        break;
-        
-      case 'gary_vaynerchuk':
-        rewrittenText = originalText
-          .replace(/\b(good)\b/g, 'AMAZING')
-          .replace(/\b(important)\b/g, 'CRUCIAL')
-          .replace(/\b(will)\b/g, 'WILL')
-          .toUpperCase()
-          .replace(/\./g, '!');
-        break;
-        
-      case 'oprah_winfrey':
-        rewrittenText = originalText
-          .replace(/\b(good)\b/g, 'beautiful')
-          .replace(/\b(nice)\b/g, 'wonderful')
-          .replace(/\b(big)\b/g, 'magnificent')
-          .replace(/\b(you)\b/g, 'you, dear');
-        break;
-        
-      default:
-        // Apply tone based on output format
-        if (aiSettings.outputFormat === 'casual') {
-          rewrittenText = originalText.replace(/\b(utilize|implement|facilitate)\b/g, 'use')
-                                     .replace(/\b(commence|initiate)\b/g, 'start');
-        } else if (aiSettings.outputFormat === 'professional') {
-          rewrittenText = originalText.replace(/\b(use)\b/g, 'utilize')
-                                     .replace(/\b(start)\b/g, 'commence');
-        }
+    // Apply persona-specific rewriting
+    if (aiSettings.persona) {
+      switch (aiSettings.persona) {
+        case 'seth_rogen':
+          rewrittenText = originalText.replace(/\b(very)\b/g, 'super')
+                                     .replace(/\b(excellent)\b/g, 'awesome')
+                                     .replace(/\./g, ', eh?')
+                                     .replace(/!/g, ', dude!');
+          break;
+        case 'alex_hormozi':
+          rewrittenText = originalText.replace(/\b(good)\b/g, 'profitable')
+                                     .replace(/\b(nice)\b/g, 'effective')
+                                     .replace(/\b(great)\b/g, 'game-changing');
+          break;
+        case 'gary_vaynerchuk':
+          rewrittenText = originalText.replace(/\b(good)\b/g, 'AMAZING')
+                                     .replace(/\b(nice)\b/g, 'INCREDIBLE')
+                                     .replace(/\./g, '!')
+                                     .toUpperCase();
+          break;
+        case 'oprah_winfrey':
+          rewrittenText = originalText.replace(/\b(good)\b/g, 'beautiful')
+                                     .replace(/\b(nice)\b/g, 'wonderful')
+                                     .replace(/\b(great)\b/g, 'magnificent');
+          break;
+        default:
+          // Apply tone based on output format
+          if (aiSettings.outputFormat === 'casual') {
+            rewrittenText = originalText.replace(/\b(utilize|implement|facilitate)\b/g, 'use')
+                                       .replace(/\b(commence|initiate)\b/g, 'start')
+                                       .replace(/\./g, '!')
+                                       .replace(/\b(very)\b/g, 'super');
+          } else if (aiSettings.outputFormat === 'professional') {
+            rewrittenText = originalText.replace(/\b(use)\b/g, 'utilize')
+                                       .replace(/\b(start)\b/g, 'commence')
+                                       .replace(/!/g, '.');
+          } else if (aiSettings.outputFormat === 'creative') {
+            rewrittenText = originalText.replace(/\b(good)\b/g, 'amazing')
+                                       .replace(/\b(nice)\b/g, 'fantastic')
+                                       .replace(/\b(big)\b/g, 'massive');
+          }
+      }
     }
 
-    // Generate persona-specific response
-    const responseIntros = {
-      default: `I've rewritten the selected text using your **${aiSettings.outputFormat}** tone and **${aiSettings.temperature < 0.4 ? 'focused' : aiSettings.temperature > 0.7 ? 'creative' : 'balanced'}** creativity level!`,
-      seth_rogen: `Alright, so I took your text and gave it a little makeover. Think of it like... you know when you take a good joke and make it even better? That's what we did here.`,
-      alex_hormozi: `Here's your rewrite. I cut the fluff, added value, and made it convert better. This version will actually get people to take action.`,
-      gary_vaynerchuk: `YO! I just TRANSFORMED your text! This new version has ENERGY, has PURPOSE, and will absolutely CRUSH IT with your audience!`,
-      oprah_winfrey: `Oh honey, I've lovingly transformed your words into something that will truly touch hearts and inspire action. Every word now carries intention and grace.`
-    };
+    const personaNote = aiSettings.persona && aiSettings.persona !== 'default' 
+      ? `in ${aiSettings.persona.replace('_', ' ')} style` 
+      : `using your **${aiSettings.outputFormat}** tone and **${aiSettings.temperature < 0.4 ? 'focused' : aiSettings.temperature > 0.7 ? 'creative' : 'balanced'}** creativity level`;
 
-    const responseIntro = responseIntros[persona as keyof typeof responseIntros] || responseIntros.default;
-
-    return `${responseIntro}
+    return `I've rewritten the selected text ${personaNote}!
 
 **Original text:** "${originalText}"
 
 **Rewritten version:** "${rewrittenText}"
 
-${aiSettings.brandVoiceId ? 'This version aligns with your selected brand voice and ' : ''}maintains the original meaning while enhancing ${
-  persona === 'seth_rogen' ? 'relatability and humor' :
-  persona === 'alex_hormozi' ? 'directness and conversion potential' :
-  persona === 'gary_vaynerchuk' ? 'energy and motivation' :
-  persona === 'oprah_winfrey' ? 'inspiration and emotional connection' :
-  aiSettings.outputFormat === 'casual' ? 'approachability and friendliness' : 
-  aiSettings.outputFormat === 'professional' ? 'authority and credibility' : 
-  'creativity and engagement'
-}.
+${aiSettings.brandVoiceId ? 'This version aligns with your selected brand voice and ' : ''}maintains the original meaning while enhancing ${aiSettings.outputFormat === 'casual' ? 'approachability and friendliness' : aiSettings.outputFormat === 'professional' ? 'authority and credibility' : 'creativity and engagement'}.
 
-${persona === 'alex_hormozi' ? 'Want me to make it even more direct?' :
-  persona === 'seth_rogen' ? 'Want me to try a different vibe?' :
-  persona === 'gary_vaynerchuk' ? 'Want me to pump up the ENERGY even more?' :
-  persona === 'oprah_winfrey' ? 'Would you like me to explore a different approach?' :
-  'Would you like me to try a different approach or style?'}`;
+Would you like me to try a different approach or style?`;
   };
 
-  // Generate contextual blog response with persona
+  // Generate contextual blog response
   const generateContextualBlogResponse = (topic: string) => {
-    const persona = aiSettings.persona || 'default';
     const brandVoiceNote = aiSettings.brandVoiceId ? 'using your selected brand voice and ' : '';
     const audienceNote = aiSettings.audienceId ? 'tailored for your target audience' : 'optimized for engagement';
     const knowledgeNote = aiSettings.knowledgeIds.length > 0 ? ` I've incorporated insights from your ${aiSettings.knowledgeIds.length} knowledge sources.` : '';
     
-    const responses = {
-      default: `Perfect! I've created a comprehensive blog post about **${topic}** ${brandVoiceNote}${audienceNote}.${knowledgeNote}`,
-      seth_rogen: `Dude, this blog post about **${topic}** is gonna be awesome! I made it ${brandVoiceNote}super relatable and ${audienceNote}.${knowledgeNote} It's like having a conversation with your smartest friend.`,
-      alex_hormozi: `Done. I've created a blog post about **${topic}** that will actually drive results. ${brandVoiceNote}${audienceNote}.${knowledgeNote} No fluff, just value that converts.`,
-      gary_vaynerchuk: `BOOM! Just created an INCREDIBLE blog post about **${topic}**! This content is ${brandVoiceNote}FIRE and ${audienceNote}.${knowledgeNote} Your audience is going to LOVE this!`,
-      oprah_winfrey: `What a beautiful topic! I've crafted a heartfelt blog post about **${topic}** that will truly resonate. ${brandVoiceNote}${audienceNote}.${knowledgeNote} This content will inspire and uplift your readers.`
-    };
+    let response = `Perfect! I've created a comprehensive blog post about **${topic}** ${brandVoiceNote}${audienceNote}.${knowledgeNote}`;
 
-    const response = responses[persona as keyof typeof responses] || responses.default;
+    // Add persona-specific response
+    if (aiSettings.persona && aiSettings.persona !== 'default') {
+      switch (aiSettings.persona) {
+        case 'seth_rogen':
+          response = `Dude, this blog post about **${topic}** is gonna be so good! I made it super engaging and fun to read. Your audience is gonna love it!`;
+          break;
+        case 'alex_hormozi':
+          response = `Blog post about **${topic}** is done. Every word is designed to educate, build authority, and drive action. This will position you as the expert in your space.`;
+          break;
+        case 'gary_vaynerchuk':
+          response = `YES! Just created an INCREDIBLE blog post about **${topic}** that's going to absolutely CRUSH it! This content is going to build your brand and drive MASSIVE engagement!`;
+          break;
+        case 'oprah_winfrey':
+          response = `I've lovingly crafted a beautiful blog post about **${topic}** that will inspire and empower your readers. Every word is chosen to uplift and transform lives.`;
+          break;
+      }
+    }
 
-    const features = {
-      default: [
-        `${aiSettings.outputFormat === 'professional' ? 'Professional and authoritative' : aiSettings.outputFormat === 'casual' ? 'Conversational and approachable' : 'Creative and engaging'} tone`,
-        `SEO-optimized structure focused on "${topic}"`,
-        `${aiSettings.temperature > 0.7 ? 'Creative and unique' : aiSettings.temperature < 0.4 ? 'Focused and precise' : 'Balanced and practical'} insights`,
-        'Reader-friendly formatting'
-      ],
-      seth_rogen: [
-        'Conversational and relatable tone (like talking to a friend)',
-        `Real talk about "${topic}" without the corporate BS`,
-        'Practical insights that actually make sense',
-        'Easy-to-read format that doesn\'t put people to sleep'
-      ],
-      alex_hormozi: [
-        'Direct, no-nonsense approach that gets to the point',
-        `Actionable strategies for "${topic}" that drive results`,
-        'Data-driven insights that convert readers into customers',
-        'Structured for maximum impact and ROI'
-      ],
-      gary_vaynerchuk: [
-        'HIGH-ENERGY tone that MOTIVATES and INSPIRES',
-        `CRUSHING insights about "${topic}" that provide MASSIVE value`,
-        'AUTHENTIC content that builds real relationships',
-        'FORMAT that keeps people ENGAGED and EXCITED'
-      ],
-      oprah_winfrey: [
-        'Warm, inspiring tone that touches the heart',
-        `Transformative insights about "${topic}" for personal growth`,
-        'Empowering content that uplifts and motivates',
-        'Beautiful formatting that honors the reader\'s journey'
-      ]
-    };
-
-    const featureList = features[persona as keyof typeof features] || features.default;
-
-    return `${response}
+    response += `
 
 **Key features of your blog post:**
-${featureList.map(feature => `- ${feature}`).join('\n')}
+- ${aiSettings.outputFormat === 'professional' ? 'Professional and authoritative' : aiSettings.outputFormat === 'casual' ? 'Conversational and approachable' : 'Creative and engaging'} tone
+- SEO-optimized structure focused on "${topic}"
+- ${aiSettings.temperature > 0.7 ? 'Creative and unique' : aiSettings.temperature < 0.4 ? 'Focused and precise' : 'Balanced and practical'} insights
+- Reader-friendly formatting
 
 The content has been added to your canvas where you can further edit and customize it. You can double-click the content node to edit it directly, or highlight specific sections and send them back to me for rewriting!`;
+
+    return response;
   };
 
-  // Generate contextual blog content based on topic and persona
+  // Generate contextual blog content based on topic
   const generateContextualBlogContent = (topic: string) => {
-    const persona = aiSettings.persona || 'default';
     const title = generateBlogTitle(topic);
     const capitalizedTopic = topic.charAt(0).toUpperCase() + topic.slice(1);
     
-    let baseContent = '';
-    
-    switch (persona) {
-      case 'seth_rogen':
-        baseContent = `# ${title}
-
-Okay, so let's talk about ${topic}. And I mean really talk about it - not that corporate buzzword nonsense you see everywhere else.
-
-Look, ${capitalizedTopic} is one of those things that everyone thinks they understand, but most people are just winging it. Which is fine! We're all winging it to some degree. But if you're gonna wing it, might as well wing it well, right?
-
-## The Real Deal About ${capitalizedTopic}
-
-Here's the thing nobody tells you: ${topic} isn't rocket science. It's more like... making a really good sandwich. You need the right ingredients, you need to know what goes where, and you need to not overthink it.
-
-### Why This Stuff Actually Matters
-
-I know, I know. Another person telling you why ${topic} is important. But hear me out:
-
-- It's not just about following trends (though trends can be fun)
-- It's about understanding what actually works for real people
-- It's about not making the same mistakes everyone else is making
-- It's about being genuine instead of trying to sound like a robot
-
-### The Practical Stuff (AKA The Good Parts)
-
-Alright, let's get into the meat and potatoes. Here's what you actually need to know:
-
-**Start Simple**
-Don't try to be fancy right out of the gate. Master the basics first. It's like learning to cook - you don't start with beef wellington, you start with scrambled eggs.
-
-**Pay Attention to What Works**
-Notice what's working for other people, but don't just copy them. Take the good ideas and make them your own. It's like sampling in music - you take something that works and build on it.
-
-**Don't Be Afraid to Mess Up**
-Seriously. Everyone messes up. The difference between people who succeed and people who don't is that successful people mess up faster and learn from it quicker.
-
-## Common Mistakes (That I've Definitely Made)
-
-Let me save you some time and embarrassment:
-
-- Overthinking everything (guilty as charged)
-- Trying to please everyone (spoiler alert: impossible)
-- Ignoring feedback because it hurts your feelings (also guilty)
-- Thinking you need to be perfect before you start (perfectionism is the enemy of done)
-
-## What Actually Works
-
-After years of trial and error (mostly error), here's what I've learned:
-
-1. **Be yourself** - I know it sounds cheesy, but people can smell fake from a mile away
-2. **Keep it simple** - Complexity is the enemy of clarity
-3. **Test things** - Don't assume, test
-4. **Listen to people** - Your audience will tell you what they want if you pay attention
-
-## The Bottom Line
-
-${capitalizedTopic} doesn't have to be complicated. Start where you are, use what you have, do what you can. And remember - everyone's making it up as they go along, some people are just better at pretending they know what they're doing.
-
-The goal isn't to be perfect. The goal is to be helpful, genuine, and maybe a little bit entertaining along the way.
-
-Now go forth and don't overthink it!
-
----
-
-*P.S. - If this helped you out, awesome. If not, that's cool too. We can't all like the same things, and that's what makes life interesting.*`;
-        break;
-
-      case 'alex_hormozi':
-        baseContent = `# ${title}
-
-Let me be direct with you. Most content about ${topic} is garbage. It's written by people who've never actually done it, for people who will never actually implement it.
-
-This isn't that.
-
-## The Truth About ${capitalizedTopic}
-
-${capitalizedTopic} isn't complicated. But it's not easy either. The difference between people who succeed and people who fail isn't intelligence. It's execution.
-
-Here's what actually matters:
-
-### The Foundation (Non-Negotiable)
-
-Before you do anything else, you need to understand this: ${topic} is about creating value. Period. Everything else is just tactics.
-
-**Value Creation Framework:**
-1. Identify the problem
-2. Create the solution
-3. Deliver the solution
-4. Measure the results
-5. Optimize and repeat
-
-### The Strategy That Actually Works
-
-I've tested this with hundreds of businesses. Here's the playbook:
-
-**Phase 1: Assessment**
-- Audit your current situation (be honest)
-- Identify the biggest bottlenecks
-- Calculate the cost of inaction
-- Set measurable goals
-
-**Phase 2: Implementation**
-- Focus on the 20% that drives 80% of results
-- Eliminate everything that doesn't directly contribute to your goal
-- Create systems, not just processes
-- Track everything
-
-**Phase 3: Optimization**
-- Measure what matters
-- Cut what doesn't work
-- Double down on what does
-- Scale systematically
-
-## The Mistakes That Kill Results
-
-I see the same mistakes over and over:
-
-1. **Perfectionism** - You're not building a spaceship. Ship it and improve it.
-2. **Shiny Object Syndrome** - Master one thing before moving to the next.
-3. **Analysis Paralysis** - Data without action is just expensive entertainment.
-4. **Lack of Systems** - If it's not systematized, it's not scalable.
-
-## The ROI Framework
-
-Every decision should be evaluated through this lens:
-
-- **Time Investment:** How much time will this take?
-- **Money Investment:** What's the real cost (including opportunity cost)?
-- **Expected Return:** What's the measurable outcome?
-- **Risk Assessment:** What's the worst-case scenario?
-
-If you can't answer these questions, don't do it.
-
-## Implementation Checklist
-
-Here's your action plan:
-
-□ Define your specific goal (not "improve ${topic}" but "increase X by Y% in Z timeframe")
-□ Identify the 3 highest-impact activities
-□ Create a daily/weekly execution schedule
-□ Set up measurement systems
-□ Schedule weekly review sessions
-□ Plan for obstacles (they will happen)
-
-## The Bottom Line
-
-${capitalizedTopic} isn't about being clever. It's about being consistent. It's not about having the best strategy. It's about executing a good strategy better than everyone else.
-
-Most people fail because they never start. Others fail because they start but never finish. Don't be either.
-
-Start today. Execute consistently. Measure relentlessly. Optimize continuously.
-
-That's how you win.
-
----
-
-*Want results? Stop reading and start doing. The market rewards action, not intention.*`;
-        break;
-
-      case 'gary_vaynerchuk':
-        baseContent = `# ${title}
-
-YO! Let's talk about ${topic} and let's talk about it REAL.
-
-Listen, I'm gonna give you the TRUTH about ${capitalizedTopic} because I'm tired of seeing people get it wrong. This isn't theory. This isn't some academic BS. This is REAL WORLD, PRACTICAL, GET-RESULTS content.
-
-## Why ${capitalizedTopic} is EVERYTHING Right Now
-
-Look, ${topic} isn't just important - it's CRUCIAL. And if you're not paying attention, you're getting LEFT BEHIND.
-
-Here's what's happening:
-
-### The Game Has Changed (And Most People Don't Know It)
-
-The old ways of doing ${topic}? DEAD. Gone. Finished.
-
-What works now:
-- **AUTHENTICITY** - People can smell fake from a MILE away
-- **VALUE FIRST** - Stop selling, start HELPING
-- **SPEED** - The fast eat the slow, PERIOD
-- **ATTENTION** - If you don't have it, you have NOTHING
-
-### The REAL Strategy
-
-Forget everything you think you know. Here's what ACTUALLY works:
-
-**1. PROVIDE MASSIVE VALUE**
-Don't ask what you can get. Ask what you can GIVE. The market will reward you for the value you provide. ALWAYS.
-
-**2. BE AUTHENTIC**
-Stop trying to be someone else. BE YOU. Your weird is your superpower. Your authenticity is your competitive advantage.
-
-**3. EXECUTE LIKE CRAZY**
-Ideas are WORTHLESS without execution. Everyone has ideas. Winners EXECUTE.
-
-**4. PATIENCE + URGENCY**
-Be patient with results but URGENT with execution. Plant seeds today, water them every day, harvest in 3 years.
-
-## The Mistakes That KILL Your Success
-
-I see these EVERY DAY:
-
-- **Caring about what people think** - STOP IT. Haters gonna hate.
-- **Trying to be perfect** - Perfect is the enemy of DONE.
-- **Not starting because you're not ready** - You'll NEVER be ready. START NOW.
-- **Focusing on vanity metrics** - Likes don't pay bills. RESULTS do.
-
-## My ${capitalizedTopic} Framework
-
-This is what I use. This is what WORKS:
-
-### The CRUSH IT Method
-
-**C - CREATE** value-first content
-**R - RESPOND** to your community 
-**U - UNDERSTAND** your audience deeply
-**S - SCALE** what works
-**H - HUSTLE** every single day
-
-**I - ITERATE** based on feedback
-**T - TRACK** what matters
-
-## The Daily Execution Plan
-
-Here's what you do EVERY DAY:
-
-**Morning (6-9 AM):**
-- Create content
-- Engage with your community
-- Plan your day
-
-**Midday (12-2 PM):**
-- Execute on your biggest priority
-- Respond to comments/messages
-- Network with your industry
-
-**Evening (6-8 PM):**
-- Review your progress
-- Plan tomorrow
-- Learn something new
-
-## The TRUTH About Success
-
-Success in ${topic} isn't about being the smartest. It's about:
-
-- **CONSISTENCY** - Showing up every day
-- **PATIENCE** - Playing the long game
-- **WORK ETHIC** - Outworking everyone
-- **AUTHENTICITY** - Being genuinely YOU
-- **VALUE** - Helping others win
-
-## Your Action Plan (DO THIS NOW)
-
-1. **AUDIT** your current ${topic} strategy
-2. **IDENTIFY** your biggest opportunity
-3. **CREATE** a 90-day execution plan
-4. **START** today (not tomorrow, TODAY)
-5. **DOCUMENT** your journey
-6. **SHARE** your learnings
-
-## The Bottom Line
-
-${capitalizedTopic} is your OPPORTUNITY. But only if you EXECUTE.
-
-Stop making excuses. Stop waiting for permission. Stop looking for the perfect moment.
-
-The perfect moment is NOW.
-
-Your competition is working while you're thinking about working. Your competition is executing while you're planning to execute.
-
-WAKE UP. GET TO WORK. CRUSH IT.
-
-The market is waiting for what you have to offer. But you have to OFFER IT.
-
-GO!
-
----
-
-*If this fired you up, GOOD. Now channel that energy into ACTION. The world needs what you've got. GIVE IT TO THEM.*`;
-        break;
-
-      case 'oprah_winfrey':
-        baseContent = `# ${title}
-
-Oh, beautiful soul, let's have a heart-to-heart about ${topic}. This isn't just another how-to guide - this is an invitation to transform not just your approach to ${topic}, but your entire relationship with growth and possibility.
-
-## The Beautiful Truth About ${capitalizedTopic}
-
-${capitalizedTopic} is so much more than a strategy or a skill. It's a pathway to becoming who you're meant to be. When we approach ${topic} with intention and love, magic happens.
-
-### Your Journey Starts With Intention
-
-Before we dive into the how, let's talk about the why. Why does ${topic} matter to you? What transformation are you seeking? What impact do you want to make?
-
-Take a moment. Breathe. Connect with your deeper purpose.
-
-### The Foundation of Authentic Growth
-
-True success in ${topic} comes from alignment - alignment between your values, your actions, and your dreams.
-
-**The Four Pillars of Meaningful ${capitalizedTopic}:**
-
-1. **Authenticity** - Being true to who you are
-2. **Service** - How you can lift others as you climb
-3. **Growth** - Embracing the journey of becoming
-4. **Gratitude** - Appreciating every step of the process
-
-### Embracing Your Unique Path
-
-Darling, there is no one-size-fits-all approach to ${topic}. Your path is uniquely yours. What works for others might not work for you, and that's perfectly beautiful.
-
-**Discovering Your Authentic Approach:**
-
-- **Listen to your inner voice** - It knows the way
-- **Honor your natural rhythms** - Work with your energy, not against it
-- **Celebrate small victories** - Every step forward matters
-- **Learn from setbacks** - They're not failures, they're teachings
-
-### The Power of Mindful Implementation
-
-When we approach ${topic} mindfully, everything changes. Instead of rushing toward results, we savor the journey. Instead of competing with others, we collaborate with our highest selves.
-
-**Mindful Practices for ${capitalizedTopic}:**
-
-**Morning Intention Setting**
-Begin each day by connecting with your purpose. Ask yourself: "How can I show up authentically in my ${topic} journey today?"
-
-**Gratitude Practice**
-Acknowledge what's working. Celebrate progress, no matter how small. Gratitude transforms everything.
-
-**Evening Reflection**
-Before bed, reflect on your day. What did you learn? How did you grow? What are you grateful for?
-
-## Overcoming the Challenges with Grace
-
-Every journey has its challenges, sweet soul. The key isn't to avoid them but to meet them with grace and wisdom.
-
-### Common Challenges and How to Transform Them
-
-**Fear of Not Being Good Enough**
-Oh honey, you are enough. You have always been enough. Your worthiness isn't determined by your performance in ${topic}. It's inherent in who you are.
-
-**Comparison with Others**
-When you find yourself comparing, remember: their success doesn't diminish your potential. There's room for everyone to shine.
-
-**Perfectionism**
-Perfectionism is fear wearing a fancy outfit. Embrace progress over perfection. Embrace the beautiful messiness of growth.
-
-**Overwhelm**
-When you feel overwhelmed, come back to your breath. Come back to your why. Take one small step. Then another.
-
-### The Transformation Mindset
-
-Instead of asking "How can I get better at ${topic}?" ask "How can ${topic} help me become who I'm meant to be?"
-
-This shift changes everything. Suddenly, every challenge becomes a growth opportunity. Every setback becomes a setup for a comeback.
-
-## Your Personal Action Plan
-
-This isn't about following someone else's blueprint. This is about creating your own masterpiece.
-
-### Week 1: Foundation Setting
-- Connect with your deeper why
-- Assess where you are with compassion
-- Set intentions (not just goals)
-- Create a sacred space for your ${topic} practice
-
-### Week 2: Authentic Exploration
-- Experiment with different approaches
-- Notice what feels aligned
-- Release what doesn't serve you
-- Trust your intuition
-
-### Week 3: Mindful Implementation
-- Begin your chosen practices
-- Stay present with the process
-- Celebrate small wins
-- Adjust with love, not judgment
-
-### Week 4: Integration and Reflection
-- Reflect on your journey
-- Acknowledge your growth
-- Set intentions for continued evolution
-- Share your learnings with others
-
-## The Ripple Effect of Your Growth
-
-When you approach ${topic} with love and intention, you don't just transform your own life. You become a beacon of possibility for others. Your growth gives others permission to grow. Your authenticity invites others to be authentic.
-
-This is the beautiful truth: your journey with ${topic} is not just about you. It's about the lives you'll touch, the hearts you'll inspire, and the positive change you'll create in the world.
-
-## A Love Letter to Your Future Self
-
-Dear beautiful soul,
-
-As you embark on this ${topic} journey, remember that you are not just learning a skill or implementing a strategy. You are stepping into your power. You are claiming your space. You are becoming who you were always meant to be.
-
-Trust the process. Trust yourself. Trust that everything you need is already within you.
-
-The world needs what you have to offer. Don't keep us waiting.
-
-With love and light,
-Your biggest cheerleader
-
----
-
-*Remember, darling: You are worthy of all the success, joy, and fulfillment that ${topic} can bring into your life. Now go out there and shine your beautiful light.*`;
-        break;
-
-      default:
-        baseContent = `# ${title}
+    let baseContent = `# ${title}
 
 ${capitalizedTopic} has become increasingly important in today's rapidly evolving landscape. Whether you're a beginner looking to understand the fundamentals or an expert seeking advanced strategies, this comprehensive guide will provide you with valuable insights and actionable advice.
 
@@ -1061,34 +635,66 @@ Remember that mastery takes time, so be patient with yourself as you develop you
 ---
 
 *Ready to take your ${topic} to the next level? Start implementing these strategies today and watch your results improve!*`;
-    }
 
-    // Modify content based on output format if not already persona-specific
-    if (persona === 'default') {
-      if (aiSettings.outputFormat === 'casual') {
-        baseContent = baseContent
-          .replace(/encompasses various aspects/g, 'covers lots of different things')
-          .replace(/crucial for success/g, 'super important for winning')
-          .replace(/fundamental principles/g, 'basic stuff you need to know')
-          .replace(/implementing/g, 'putting into action')
-          .replace(/leveraging/g, 'using')
-          .replace(/multifaceted topic/g, 'topic with many sides');
-      } else if (aiSettings.outputFormat === 'creative') {
-        baseContent = baseContent
-          .replace(/has become increasingly important/g, 'has emerged as a game-changing force')
-          .replace(/comprehensive guide/g, 'ultimate roadmap to success')
-          .replace(/valuable insights/g, 'golden nuggets of wisdom')
-          .replace(/actionable advice/g, 'power-packed strategies')
-          .replace(/competitive environment/g, 'battlefield of innovation');
+    // Modify content based on persona
+    if (aiSettings.persona) {
+      switch (aiSettings.persona) {
+        case 'seth_rogen':
+          baseContent = baseContent
+            .replace(/encompasses various aspects/g, 'covers lots of different things')
+            .replace(/crucial for success/g, 'super important for winning')
+            .replace(/fundamental principles/g, 'basic stuff you need to know')
+            .replace(/implementing/g, 'putting into action')
+            .replace(/leveraging/g, 'using')
+            .replace(/multifaceted topic/g, 'topic with many sides');
+          break;
+        case 'alex_hormozi':
+          baseContent = baseContent
+            .replace(/has become increasingly important/g, 'directly impacts your bottom line')
+            .replace(/comprehensive guide/g, 'profit-focused blueprint')
+            .replace(/valuable insights/g, 'money-making strategies')
+            .replace(/actionable advice/g, 'proven tactics that work')
+            .replace(/competitive environment/g, 'marketplace where winners take all');
+          break;
+        case 'gary_vaynerchuk':
+          baseContent = baseContent
+            .replace(/has become increasingly important/g, 'has emerged as a game-changing force')
+            .replace(/comprehensive guide/g, 'ultimate roadmap to SUCCESS')
+            .replace(/valuable insights/g, 'GOLDEN nuggets of wisdom')
+            .replace(/actionable advice/g, 'power-packed strategies')
+            .replace(/competitive environment/g, 'battlefield of HUSTLE and GRIND');
+          break;
+        case 'oprah_winfrey':
+          baseContent = baseContent
+            .replace(/has become increasingly important/g, 'has emerged as a beautiful opportunity for growth')
+            .replace(/comprehensive guide/g, 'loving guide to transformation')
+            .replace(/valuable insights/g, 'precious wisdom')
+            .replace(/actionable advice/g, 'empowering guidance')
+            .replace(/competitive environment/g, 'world where we can all shine together');
+          break;
       }
+    } else if (aiSettings.outputFormat === 'casual') {
+      baseContent = baseContent
+        .replace(/encompasses various aspects/g, 'covers lots of different things')
+        .replace(/crucial for success/g, 'super important for winning')
+        .replace(/fundamental principles/g, 'basic stuff you need to know')
+        .replace(/implementing/g, 'putting into action')
+        .replace(/leveraging/g, 'using')
+        .replace(/multifaceted topic/g, 'topic with many sides');
+    } else if (aiSettings.outputFormat === 'creative') {
+      baseContent = baseContent
+        .replace(/has become increasingly important/g, 'has emerged as a game-changing force')
+        .replace(/comprehensive guide/g, 'ultimate roadmap to success')
+        .replace(/valuable insights/g, 'golden nuggets of wisdom')
+        .replace(/actionable advice/g, 'power-packed strategies')
+        .replace(/competitive environment/g, 'battlefield of innovation');
     }
 
     return baseContent;
   };
 
-  // Generate contextual default response with persona
+  // Generate contextual default response
   const generateContextualDefaultResponse = (userMessage: string) => {
-    const persona = aiSettings.persona || 'default';
     const contextInfo = [];
     
     if (aiSettings.brandVoiceId) {
@@ -1105,8 +711,7 @@ Remember that mastery takes time, so be patient with yourself as you develop you
       ? ` I'll incorporate ${contextInfo.join(', ')} to ensure the content aligns perfectly with your brand and goals.`
       : '';
 
-    const responses = {
-      default: `I understand you'd like help with **"${userMessage}"**. I can assist you with creating various types of marketing content including:
+    let response = `I understand you'd like help with **"${userMessage}"**. I can assist you with creating various types of marketing content including:
 
 • **Blog posts and articles** - SEO-optimized, engaging content in ${aiSettings.outputFormat || 'professional'} tone
 • **Social media content** - Posts, captions, and hashtags  
@@ -1119,70 +724,27 @@ ${contextText}
 
 **💡 Pro tip:** You can also highlight text in any content node on the canvas and send it to me for rewriting or improvement!
 
-What specific type of content would you like me to create for your project?`,
+What specific type of content would you like me to create for your project?`;
 
-      seth_rogen: `Alright, so you want help with **"${userMessage}"** - I'm totally on it! Here's what I can whip up for you:
+    // Add persona-specific response
+    if (aiSettings.persona && aiSettings.persona !== 'default') {
+      switch (aiSettings.persona) {
+        case 'seth_rogen':
+          response = `Oh cool, you want help with **"${userMessage}"**! I'm totally down to help you create some awesome content. I can make blog posts, social stuff, emails - whatever you need, man! Just tell me what you're thinking and I'll make it happen!`;
+          break;
+        case 'alex_hormozi':
+          response = `You want **"${userMessage}"**? Here's what I can build for you: High-converting sales copy, email sequences that actually sell, content that positions you as the authority, and marketing materials that drive revenue. What's the goal?`;
+          break;
+        case 'gary_vaynerchuk':
+          response = `YES! **"${userMessage}"** - I LOVE IT! I can create CRUSHING content for you - blogs that BUILD your brand, social posts that get ENGAGEMENT, emails that CONVERT! What are we building today? Let's GO!`;
+          break;
+        case 'oprah_winfrey':
+          response = `Beautiful! You want to work on **"${userMessage}"** - I'm so excited to help you create content that will touch hearts and inspire action. Whether it's blog posts that empower, social content that uplifts, or emails that connect - let's create something meaningful together!`;
+          break;
+      }
+    }
 
-• **Blog posts** - The kind people actually want to read (not boring corporate stuff)
-• **Social media content** - Posts that don't make people want to unfollow you
-• **Email campaigns** - Emails that people actually open (revolutionary, I know)
-• **Marketing copy** - Sales stuff that doesn't feel gross and pushy
-• **Video scripts** - Content that's actually entertaining
-• **Creative concepts** - Ideas that don't suck
-
-${contextText}
-
-**💡 Cool trick:** You can highlight any text on the canvas and send it to me for a rewrite. It's like having a writing buddy who never gets tired!
-
-So what are we making today? Let's create something awesome!`,
-
-      alex_hormozi: `You want help with **"${userMessage}"** - let's get to work. Here's what I can deliver:
-
-• **Blog posts** - Content that converts readers into customers
-• **Social media content** - Posts that drive actual business results
-• **Email campaigns** - Sequences that generate revenue, not just opens
-• **Sales copy** - Copy that sells without being salesy
-• **Video scripts** - Content that provides value and builds trust
-• **Strategic content** - Everything focused on ROI and results
-
-${contextText}
-
-**💡 Pro move:** Highlight any text on the canvas and send it to me for optimization. I'll make it convert better.
-
-What's the objective? Let's build content that actually moves the needle.`,
-
-      gary_vaynerchuk: `YO! You want help with **"${userMessage}"** - I'm PUMPED to help you CRUSH this! Here's what we're gonna create:
-
-• **Blog posts** - Content that provides MASSIVE VALUE
-• **Social media content** - Posts that build REAL relationships
-• **Email campaigns** - Messages that your audience will LOVE
-• **Marketing copy** - Copy that's AUTHENTIC and CONVERTS
-• **Video scripts** - Content that INSPIRES and MOTIVATES
-• **Creative concepts** - Ideas that are BOLD and DIFFERENT
-
-${contextText}
-
-**💡 GAME CHANGER:** Highlight any text on the canvas and send it to me for a rewrite that POPS!
-
-What are we building today? Let's create content that MATTERS!`,
-
-      oprah_winfrey: `Oh honey, you want help with **"${userMessage}"** - I'm here to support your beautiful vision! Here's how we can create content that truly resonates:
-
-• **Blog posts** - Articles that inspire and transform
-• **Social media content** - Posts that uplift and connect
-• **Email campaigns** - Messages that touch hearts and minds
-• **Marketing copy** - Copy that serves and empowers
-• **Video scripts** - Content that tells meaningful stories
-• **Creative concepts** - Ideas that make a positive impact
-
-${contextText}
-
-**💡 A gift for you:** You can highlight any text on the canvas and send it to me for a loving rewrite that honors your message.
-
-What beautiful content shall we create together today?`
-    };
-
-    return responses[persona as keyof typeof responses] || responses.default;
+    return response;
   };
 
   // Handle sending message
@@ -1251,11 +813,10 @@ What beautiful content shall we create together today?`
             </div>
             <div>
               <h3 className="text-lg font-semibold text-gray-900">
-                {aiSettings.persona === 'seth_rogen' ? 'Seth (AI Assistant)' :
-                 aiSettings.persona === 'alex_hormozi' ? 'Alex (AI Assistant)' :
-                 aiSettings.persona === 'gary_vaynerchuk' ? 'Gary V (AI Assistant)' :
-                 aiSettings.persona === 'oprah_winfrey' ? 'Oprah (AI Assistant)' :
-                 'AI Assistant'}
+                {aiSettings.persona && aiSettings.persona !== 'default' 
+                  ? aiSettings.persona.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
+                  : 'AI Assistant'
+                }
               </h3>
               <p className="text-sm text-gray-600">
                 {aiSettings.brandVoiceId || aiSettings.audienceId || aiSettings.knowledgeIds.length > 0
@@ -1420,13 +981,7 @@ What beautiful content shall we create together today?`
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder={
-              aiSettings.persona === 'seth_rogen' ? "What are we creating today?" :
-              aiSettings.persona === 'alex_hormozi' ? "What's the objective?" :
-              aiSettings.persona === 'gary_vaynerchuk' ? "What are we CRUSHING today?" :
-              aiSettings.persona === 'oprah_winfrey' ? "What beautiful content shall we create?" :
-              "Ask me to create marketing content..."
-            }
+            placeholder="Ask me to create marketing content..."
             className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm bg-white"
             disabled={isTyping}
           />
@@ -1447,15 +1002,7 @@ What beautiful content shall we create together today?`
           {(aiSettings.brandVoiceId || aiSettings.audienceId || aiSettings.knowledgeIds.length > 0 || (aiSettings.persona && aiSettings.persona !== 'default')) && (
             <div className="flex items-center gap-1 text-xs text-indigo-600">
               <Sparkles size={12} />
-              <span>
-                {aiSettings.persona && aiSettings.persona !== 'default' ? 
-                  `${aiSettings.persona === 'seth_rogen' ? 'Seth' : 
-                    aiSettings.persona === 'alex_hormozi' ? 'Alex' :
-                    aiSettings.persona === 'gary_vaynerchuk' ? 'Gary V' :
-                    aiSettings.persona === 'oprah_winfrey' ? 'Oprah' : 'Persona'} Active` :
-                  'Context Active'
-                }
-              </span>
+              <span>Context Active</span>
             </div>
           )}
         </div>

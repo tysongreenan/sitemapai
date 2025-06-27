@@ -278,6 +278,31 @@
   cursor: text !important;
 }
 
+/* Animated journey flow */
+@keyframes flowPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+.react-flow__edge-path {
+  animation: flowPulse 2s ease-in-out infinite;
+}
+
+/* Stage group styling */
+.react-flow__node-group {
+  pointer-events: none;
+}
+
+/* Glowing effect for journey view */
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(99, 102, 241, 0.5); }
+  50% { box-shadow: 0 0 30px rgba(99, 102, 241, 0.8); }
+}
+
+.journey-stage-node {
+  animation: glowPulse 3s ease-in-out infinite;
+}
+
 /* Loading animations */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }

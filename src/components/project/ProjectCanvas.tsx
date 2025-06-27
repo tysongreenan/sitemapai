@@ -18,7 +18,7 @@ import ReactFlow, {
   EdgeChange
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Plus, Download, Share, Maximize2, Grid, Layers, ZoomIn, ZoomOut, Link2, FileDown, Wifi, WifiOff, RefreshCw, Settings, Sparkles } from 'lucide-react';
+import { Plus, Download, Share, Maximize2, Grid, Layers, ZoomIn, ZoomOut, Link2, FileDown, Wifi, WifiOff, RefreshCw, Settings, Sparkles, Target } from 'lucide-react';
 import { Button } from '../ui/Button';
 import ContentNode, { ContentNodeData } from './nodes/ContentNode';
 import { AddContentMenu } from './AddContentMenu';
@@ -79,6 +79,207 @@ const ProjectCanvasInner = ({
 
   // Get React Flow instance for focus functionality
   const reactFlow = useReactFlow();
+
+  // Auto-arrange campaign assets function
+  const autoArrangeCampaignAssets = useCallback(() => {
+    // Define journey stages with positions
+    const journeyStages = {
+      awareness: { x: 100, y: 200, color: '#3B82F6' },      // Blue
+      consideration: { x: 450, y: 200, color: '#8B5CF6' },  // Purple
+      conversion: { x: 800, y: 200, color: '#10B981' },     // Green
+      retention: { x: 1150, y: 200, color: '#F59E0B' }      // Orange
+    };
+
+    // Keywords to identify which stage content belongs to
+    const stageKeywords = {
+      awareness: ['social', 'ad', 'facebook', 'instagram', 'twitter', 'linkedin', 'awareness', 'reach'],
+      consideration: ['email', 'blog', 'guide', 'webinar', 'demo', 'compare', 'review'],
+      conversion: ['landing', 'checkout', 'purchase', 'trial', 'signup', 'cta', 'offer'],
+      retention: ['onboarding', 'follow-up', 'newsletter', 'loyalty', 'upsell', 'retention']
+    };
+
+    // Function to determine which stage a node belongs to
+    const getNodeStage = (node: Node) => {
+      const titleLower = node.data.title.toLowerCase();
+      const contentLower = (node.data.content || '').toLowerCase();
+      
+      for (const [stage, keywords] of Object.entries(stageKeywords)) {
+        if (keywords.some(keyword => 
+          titleLower.includes(keyword) || contentLower.includes(keyword)
+        )) {
+          return stage as keyof typeof journeyStages;
+        }
+      }
+      return 'awareness'; // Default stage
+    };
+
+    // Filter out stage label nodes
+    const contentNodes = nodes.filter(node => !node.id.startsWith('stage-'));
+
+    // Group nodes by stage
+    const nodesByStage: Record<string, Node[]> = {
+      awareness: [],
+      consideration: [],
+      conversion: [],
+      retention: []
+    };
+
+    contentNodes.forEach(node => {
+      const stage = getNodeStage(node);
+      nodesByStage[stage].push(node);
+    });
+
+    // Arrange nodes with beautiful spacing
+    const arrangedNodes: Node[] = [];
+    const newEdges: Edge[] = [];
+    let previousStageLastNode: Node | null = null;
+
+    Object.entries(nodesByStage).forEach(([stage, stageNodes], stageIndex) => {
+      const stageConfig = journeyStages[stage as keyof typeof journeyStages];
+      
+      stageNodes.forEach((node, nodeIndex) => {
+        // Calculate position with nice spacing
+        const updatedNode = {
+          ...node,
+          position: {
+            x: stageConfig.x + (nodeIndex % 2) * 250, // Alternate between two columns
+            y: stageConfig.y + Math.floor(nodeIndex / 2) * 180 // Stack vertically
+          },
+          data: {
+            ...node.data,
+            // Add stage color to metadata for visual distinction
+            stageColor: stageConfig.color
+          }
+        };
+        
+        arrangedNodes.push(updatedNode);
+
+        // Create edges between stages
+        if (previousStageLastNode && nodeIndex === 0) {
+          newEdges.push({
+            id: `stage-${stageIndex}-connection`,
+            source: previousStageLastNode.id,
+            target: node.id,
+            type: 'smoothstep',
+            animated: true,
+            style: { stroke: '#9CA3AF', strokeWidth: 2 }
+          });
+        }
+
+        // Connect nodes within the same stage
+        if (nodeIndex > 0) {
+          newEdges.push({
+            id: `${stage}-${nodeIndex}-connection`,
+            source: stageNodes[nodeIndex - 1].id,
+            target: node.id,
+            type: 'smoothstep',
+            style: { stroke: stageConfig.color, strokeWidth: 2 }
+          });
+        }
+      });
+
+      if (stageNodes.length > 0) {
+        previousStageLastNode = stageNodes[stageNodes.length - 1];
+      }
+    });
+
+    // Keep stage labels and add arranged content nodes
+    const stageLabels = nodes.filter(node => node.id.startsWith('stage-'));
+    setNodes([...stageLabels, ...arrangedNodes]);
+    setEdges(newEdges);
+
+    // Fit view to show the entire journey
+    setTimeout(() => {
+      reactFlowInstance?.fitView({ padding: 0.2, duration: 800 });
+    }, 100);
+
+    toast.success('✨ Campaign journey organized!');
+  }, [nodes, setNodes, setEdges, reactFlowInstance]);
+
+  // Add stage labels as background nodes
+  const addStageLabels = useCallback(() => {
+    const stageLabelNodes: Node[] = [
+      {
+        id: 'stage-awareness',
+        type: 'group',
+        position: { x: 50, y: 50 },
+        data: { label: '👁️ AWARENESS' },
+        style: {
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          width: 350,
+          height: 500,
+          fontSize: '18px',
+          fontWeight: 'bold',
+          color: '#3B82F6',
+          border: '2px dashed #3B82F6',
+          borderRadius: '12px',
+          padding: '20px'
+        },
+        draggable: false,
+        selectable: false
+      },
+      {
+        id: 'stage-consideration',
+        type: 'group',
+        position: { x: 400, y: 50 },
+        data: { label: '🤔 CONSIDERATION' },
+        style: {
+          backgroundColor: 'rgba(139, 92, 246, 0.1)',
+          width: 350,
+          height: 500,
+          fontSize: '18px',
+          fontWeight: 'bold',
+          color: '#8B5CF6',
+          border: '2px dashed #8B5CF6',
+          borderRadius: '12px',
+          padding: '20px'
+        },
+        draggable: false,
+        selectable: false
+      },
+      {
+        id: 'stage-conversion',
+        type: 'group',
+        position: { x: 750, y: 50 },
+        data: { label: '🎯 CONVERSION' },
+        style: {
+          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+          width: 350,
+          height: 500,
+          fontSize: '18px',
+          fontWeight: 'bold',
+          color: '#10B981',
+          border: '2px dashed #10B981',
+          borderRadius: '12px',
+          padding: '20px'
+        },
+        draggable: false,
+        selectable: false
+      },
+      {
+        id: 'stage-retention',
+        type: 'group',
+        position: { x: 1100, y: 50 },
+        data: { label: '🔄 RETENTION' },
+        style: {
+          backgroundColor: 'rgba(245, 158, 11, 0.1)',
+          width: 350,
+          height: 500,
+          fontSize: '18px',
+          fontWeight: 'bold',
+          color: '#F59E0B',
+          border: '2px dashed #F59E0B',
+          borderRadius: '12px',
+          padding: '20px'
+        },
+        draggable: false,
+        selectable: false
+      }
+    ];
+
+    // Add stage labels as background
+    setNodes(current => [...stageLabelNodes, ...current]);
+  }, [setNodes]);
 
   // Handle double-click to focus on node - FIXED: Zoom to top of content node
   const handleNodeDoubleClick = useCallback((nodeId: string) => {
@@ -625,6 +826,27 @@ const ProjectCanvasInner = ({
                 title="Toggle minimap"
               >
                 <Layers size={16} />
+              </Button>
+
+              <div className="w-px h-6 bg-gray-300" />
+
+              {/* Journey View Button */}
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => {
+                  const contentNodes = nodes.filter(node => !node.id.startsWith('stage-'));
+                  if (contentNodes.length > 0) {
+                    addStageLabels();
+                    setTimeout(() => autoArrangeCampaignAssets(), 100);
+                  } else {
+                    toast.error('Add some content first!');
+                  }
+                }}
+                leftIcon={<Target size={16} />}
+                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+              >
+                ✨ Journey View
               </Button>
             </div>
 

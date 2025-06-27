@@ -400,21 +400,42 @@ export const AIChatbot = forwardRef<AIChatbotRef, AIChatbotProps>(({ projectId, 
       // Get ACTUAL AI response from OpenAI
       const aiContent = await OpenAIService.generateMarketingContent(userMessage, aiSettings);
       
-      // Detect what type of content was requested
+      // Detect what type of content was requested and determine if it should be added to canvas
       const lowerMessage = userMessage.toLowerCase();
       let generatedContent = undefined;
       
-      // If it's marketing content, add it to canvas
-      if (lowerMessage.includes('landing page') || 
-          lowerMessage.includes('email') || 
-          lowerMessage.includes('social media') ||
-          lowerMessage.includes('blog') ||
-          lowerMessage.includes('write') ||
-          lowerMessage.includes('create')) {
+      // Check if this is content that should be added to canvas
+      const shouldAddToCanvas = lowerMessage.includes('write') || 
+                               lowerMessage.includes('create') || 
+                               lowerMessage.includes('generate') ||
+                               lowerMessage.includes('landing page') || 
+                               lowerMessage.includes('email') || 
+                               lowerMessage.includes('social media') ||
+                               lowerMessage.includes('blog') ||
+                               lowerMessage.includes('copy') ||
+                               lowerMessage.includes('content') ||
+                               lowerMessage.includes('post') ||
+                               lowerMessage.includes('campaign') ||
+                               lowerMessage.includes('ad');
+      
+      if (shouldAddToCanvas) {
+        // Create a more descriptive title based on the request
+        let title = `📝 ${userMessage.slice(0, 50)}`;
+        if (userMessage.length > 50) title += '...';
+        
+        // Determine content type based on request
+        let contentType: 'text' | 'image' | 'chart' | 'video' = 'text';
+        if (lowerMessage.includes('image') || lowerMessage.includes('visual')) {
+          contentType = 'image';
+        } else if (lowerMessage.includes('chart') || lowerMessage.includes('graph')) {
+          contentType = 'chart';
+        } else if (lowerMessage.includes('video')) {
+          contentType = 'video';
+        }
         
         generatedContent = {
-          type: 'text' as const,
-          title: `📝 ${userMessage.slice(0, 50)}...`,
+          type: contentType,
+          title: title,
           content: aiContent
         };
       }
@@ -841,13 +862,16 @@ What specific type of content would you like me to create for your project?`;
       const aiResponse = await generateAIResponse(inputValue);
       setMessages(prev => [...prev, aiResponse]);
       
-      // Add content to canvas if generated
+      // FIXED: Add content to canvas immediately after generating the response
       if (aiResponse.generatedContent && (window as any).addCanvasItem) {
-        (window as any).addCanvasItem(
-          aiResponse.generatedContent.type,
-          aiResponse.generatedContent.content,
-          aiResponse.generatedContent.title
-        );
+        // Add a small delay to ensure the message is rendered first
+        setTimeout(() => {
+          (window as any).addCanvasItem(
+            aiResponse.generatedContent!.type,
+            aiResponse.generatedContent!.content,
+            aiResponse.generatedContent!.title
+          );
+        }, 100);
       }
     } catch (error) {
       console.error('Error generating AI response:', error);
